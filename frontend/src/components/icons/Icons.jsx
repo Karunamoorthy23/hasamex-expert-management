@@ -227,3 +227,32 @@ export function CalendarIcon({ className = '', width = 16, height = 16 }) {
         </svg>
     );
 }
+
+export function UsersIcon({ className = '', width = 16, height = 16 }) {
+    return (
+        <svg className={className} width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+    );
+}
+
+export function SortIcon({ className = '', width = 12, height = 12, direction = null, active = false }) {
+    // direction: 'asc', 'desc', or null
+    return (
+        <svg className={className} width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: active ? 1 : 0.3, transition: 'opacity 0.2s' }}>
+            {direction === 'asc' ? (
+                <path d="M18 15l-6-6-6 6" />
+            ) : direction === 'desc' ? (
+                <path d="M6 9l6 6 6-6" />
+            ) : (
+                <>
+                    <path d="M7 15l5 5 5-5" />
+                    <path d="M7 9l5-5 5 5" />
+                </>
+            )}
+        </svg>
+    );
+}

@@ -3,7 +3,7 @@ import { useNavigate, Link, useParams } from 'react-router-dom';
 import { getFilterOptions, fetchExpertById, updateExpert } from '../../api/experts';
 import { UploadIcon, XIcon, FileIcon } from '../../components/icons/Icons';
 import Skeletons from '../../components/experts/Skeletons';
-
+import TimezoneSelect from '../../components/ui/TimezoneSelect';
 
 /**
  * Form field sections configuration.
@@ -26,8 +26,9 @@ const FORM_SECTIONS = [
     {
         title: 'Location & Region',
         fields: [
-            { name: 'location', label: 'Location', type: 'text', placeholder: 'City, State, Country', required: true, gridSpan: 1 },
-            { name: 'region', label: 'Region', type: 'select', lookupCategory: 'region', required: true, gridSpan: 1 },
+            { name: 'location', label: 'Location', type: 'text', placeholder: 'City, State, Country', gridSpan: 1 },
+            { name: 'region', label: 'Region', type: 'select', lookupCategory: 'region', gridSpan: 1 },
+            { name: 'timezone', label: 'Timezone', type: 'timezone', gridSpan: 2 },
         ],
     },
     {
@@ -88,6 +89,7 @@ function getInitialFormData() {
         linkedin_url: '',
         location: '',
         region: '',
+        timezone: '',
         current_employment_status: '',
         seniority: '',
         years_of_experience: '',
@@ -153,7 +155,14 @@ export default function ExpertEditPage() {
     // ── Handle field change ──
     const handleChange = useCallback((e) => {
         const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
+
+        let finalValue = value;
+        if (name === 'primary_phone' || name === 'secondary_phone') {
+            // Remove any characters that are not digits, spaces, or common phone symbols (+, -, (, ))
+            finalValue = value.replace(/[^\d\s+\-()]/g, '');
+        }
+
+        setFormData((prev) => ({ ...prev, [name]: finalValue }));
         // Clear field error on change
         setErrors((prev) => {
             if (prev[name]) {
@@ -192,8 +201,6 @@ export default function ExpertEditPage() {
         if (!formData.primary_email?.trim()) newErrors.primary_email = 'Primary email is required';
         if (!formData.primary_phone?.trim()) newErrors.primary_phone = 'Primary phone is required';
         if (!formData.linkedin_url?.trim()) newErrors.linkedin_url = 'LinkedIn URL is required';
-        if (!formData.location?.trim()) newErrors.location = 'Location is required';
-        if (!formData.region?.trim()) newErrors.region = 'Region is required';
         if (!formData.title_headline?.trim()) newErrors.title_headline = 'Title / Headline is required';
 
         if (formData.primary_email && !/\S+@\S+\.\S+/.test(formData.primary_email)) {
@@ -323,6 +330,17 @@ export default function ExpertEditPage() {
             }
             case 'number':
                 input = <input {...commonProps} type="number" step={field.step || '1'} min="0" />;
+                break;
+            case 'timezone':
+                input = (
+                    <TimezoneSelect
+                        id={field.name}
+                        name={field.name}
+                        value={formData[field.name]}
+                        onChange={handleChange}
+                        hasError={hasError}
+                    />
+                );
                 break;
             case 'file':
                 input = (

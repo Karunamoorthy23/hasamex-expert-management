@@ -41,7 +41,49 @@ export default function BulkImportModal({ open, onClose, onImportComplete }) {
         setError(null);
         try {
             const result = await previewImport(file);
-            setPreviewData(result.data);
+
+            const MANDATORY_FIELDS = [
+                { excel: 'First Name', label: 'First Name' },
+                { excel: 'Last Name', label: 'Last Name' },
+                { excel: 'Primary Email 1', label: 'Primary Email' },
+                { excel: 'Primary Phone 1', label: 'Primary Phone' },
+                { excel: 'LinkedIn URL', label: 'LinkedIn URL' },
+                { excel: 'Title / Headline', label: 'Title / Headline' }
+            ];
+
+            // Process and validate records
+            const processedData = result.data.map(item => {
+                const newData = { ...item.data };
+                const missing = [];
+
+                // 1. Check mandatory fields
+                MANDATORY_FIELDS.forEach(field => {
+                    const val = newData[field.excel];
+                    if (!val || (typeof val === 'string' && !val.trim())) {
+                        missing.push(field.label);
+                    }
+                });
+
+                // 2. Clean phone numbers if present
+                ['Primary Phone 1', 'Secondary Phone 1'].forEach(key => {
+                    if (newData[key] && typeof newData[key] === 'string') {
+                        newData[key] = newData[key].replace(/[^\d\s+\-()]/g, '');
+                    }
+                });
+
+                let status = item.status;
+                if (missing.length > 0) {
+                    status = 'Missed'; // Using 'Missed' internally for 'Missed Fields'
+                }
+
+                return {
+                    ...item,
+                    status,
+                    data: newData,
+                    missingFields: missing
+                };
+            });
+            setPreviewData(processedData);
             setStep(2);
         } catch (err) {
             setError(err.message);
@@ -54,8 +96,21 @@ export default function BulkImportModal({ open, onClose, onImportComplete }) {
         setIsProcessing(true);
         setError(null);
         try {
-            const resp = await confirmImport(previewData);
-            setResults(resp.results);
+            // Filter out internal status 'Missed' (Missed Fields) before sending
+            const validRecords = previewData.filter(r => r.status !== 'Missed');
+
+            if (validRecords.length === 0) {
+                setError('No valid records to import. All records have missing fields or are duplicates.');
+                setIsProcessing(false);
+                return;
+            }
+
+            const missedCount = previewData.filter(r => r.status === 'Missed').length;
+            const resp = await confirmImport(validRecords);
+            setResults({
+                ...resp.results,
+                missed: missedCount
+            });
             setStep(3); // Result step
             if (onImportComplete) onImportComplete();
         } catch (err) {
@@ -137,13 +192,15 @@ export default function BulkImportModal({ open, onClose, onImportComplete }) {
         const newCount = previewData.filter(r => r.status === 'New').length;
         const updateCount = previewData.filter(r => r.status === 'Update').length;
         const dupCount = previewData.filter(r => r.status === 'Duplicate').length;
+        const missedCount = previewData.filter(r => r.status === 'Missed').length;
 
         return (
             <div className="bulk-import-step preview-step">
                 <div className="import-summary-chips">
                     <span className="summary-chip new">{newCount} New</span>
                     <span className="summary-chip update">{updateCount} Updates</span>
-                    <span className="summary-chip duplicate">{dupCount} Ignored</span>
+                    <span className="summary-chip missed">{missedCount} Missed Fields (Ignored)</span>
+                    <span className="summary-chip duplicate">{dupCount} Duplicates (Ignored)</span>
                 </div>
 
                 <div className="import-preview-container">
@@ -159,15 +216,21 @@ export default function BulkImportModal({ open, onClose, onImportComplete }) {
                         <tbody>
                             {previewData.map((row) => (
                                 <Fragment key={row.id}>
-                                    <tr className={cn('row-status', row.status.toLowerCase())}>
+                                    <tr className={cn('row-status', row.status.toLowerCase() === 'missed' ? 'missed' : row.status.toLowerCase())}>
                                         <td>
-                                            <span className={cn('status-label', row.status.toLowerCase())}>
-                                                {row.status}
+                                            <span className={cn('status-label', row.status.toLowerCase() === 'missed' ? 'missed' : row.status.toLowerCase())}>
+                                                {row.status === 'Missed' ? 'Missed Fields' : row.status}
                                             </span>
                                         </td>
                                         <td>{row.data['First Name']} {row.data['Last Name']}</td>
                                         <td>{row.data['Primary Email 1']}</td>
                                         <td className="diff-cell">
+                                            {row.status === 'Missed' && (
+                                                <div className="missed-fields-alert">
+                                                    <AlertCircleIcon className="alert-icon" width={14} height={14} />
+                                                    <span>Missing: <strong>{row.missingFields.join(', ')}</strong></span>
+                                                </div>
+                                            )}
                                             {row.status === 'Update' && row.differences && (
                                                 <div className="diff-list">
                                                     {Object.keys(row.differences).slice(0, 1).map(key => (
@@ -254,6 +317,10 @@ export default function BulkImportModal({ open, onClose, onImportComplete }) {
                 <div className="stat-card">
                     <span className="stat-num">{results?.ignored}</span>
                     <span className="stat-label">Duplicates Ignored</span>
+                </div>
+                <div className="stat-card">
+                    <span className="stat-num">{results?.missed}</span>
+                    <span className="stat-label">Missing Fields record Ignored</span>
                 </div>
             </div>
 

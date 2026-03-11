@@ -17,11 +17,13 @@ export const SAMPLE_EXPERTS = [
  * @param {Object} params.filters
  * @returns {Promise<{data: Array, meta: Object}>}
  */
-export async function fetchExperts({ page = 1, limit = 20, search = '', filters = {} }) {
+export async function fetchExperts({ page = 1, limit = 20, search = '', filters = {}, sortBy = 'updated_at', sortOrder = 'desc' }) {
     const query = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
         search,
+        sort_by: sortBy,
+        sort_order: sortOrder,
     });
 
     // Add filters as comma-separated strings

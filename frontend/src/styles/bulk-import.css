@@ -99,6 +99,11 @@
     color: #4b5563;
 }
 
+.summary-chip.missed {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
 .import-preview-container {
     max-height: 400px;
     overflow-y: auto;
@@ -151,6 +156,15 @@
     color: #4b5563;
 }
 
+.status-label.missed {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.row-status.missed {
+    background: #fffafa;
+}
+
 .diff-list {
     display: flex;
     flex-direction: column;
@@ -164,6 +178,26 @@
 
 .diff-item strong {
     color: var(--color-grey-800);
+}
+
+.missed-fields-alert {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #b91c1c;
+    font-size: 11px;
+    /* background: #fef2f2; */
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #fee2e2;
+}
+
+.missed-fields-alert .alert-icon {
+    flex-shrink: 0;
+}
+
+.missed-fields-alert strong {
+    font-weight: 700;
 }
 
 /* Results Step */
@@ -186,7 +220,7 @@
 
 .result-stats {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: var(--space-4);
     margin-bottom: var(--space-8);
 }

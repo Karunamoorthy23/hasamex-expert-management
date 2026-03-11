@@ -33,7 +33,7 @@ export default function Button({
             {...rest}
         >
             {loading ? (
-                <span className="btn__loading">...</span>
+                <span className="btn__loading">Processing...</span>
             ) : (
                 <>
                     {icon && <span className="btn__icon">{icon}</span>}

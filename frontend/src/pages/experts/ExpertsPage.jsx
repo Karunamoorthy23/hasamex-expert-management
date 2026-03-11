@@ -45,6 +45,8 @@ export default function ExpertsPage() {
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
     const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [sortBy, setSortBy] = useState('updated_at');
+    const [sortOrder, setSortOrder] = useState('desc');
 
     // ── Server State (simulated) ──
     const [data, setData] = useState(null);
@@ -83,6 +85,8 @@ export default function ExpertsPage() {
             limit: LIMIT,
             search: debouncedSearch,
             filters,
+            sortBy,
+            sortOrder,
         }).then((result) => {
             if (!cancelled) {
                 setData(result);
@@ -93,7 +97,7 @@ export default function ExpertsPage() {
         return () => {
             cancelled = true;
         };
-    }, [page, debouncedSearch, filters]);
+    }, [page, debouncedSearch, filters, sortBy, sortOrder]);
 
     // ── Handlers ──
     const handleToggleFilters = useCallback(() => {
@@ -158,6 +162,17 @@ export default function ExpertsPage() {
     const handleDeleteClick = useCallback((expert) => {
         setExpertToDelete(expert);
     }, []);
+
+    const handleSort = useCallback((column) => {
+        setSortOrder((prevOrder) => {
+            if (sortBy === column) {
+                return prevOrder === 'asc' ? 'desc' : 'asc';
+            }
+            return 'asc';
+        });
+        setSortBy(column);
+        setPage(1);
+    }, [sortBy]);
 
     const handleConfirmDelete = useCallback(async () => {
         if (!expertToDelete) return;
@@ -351,6 +366,9 @@ export default function ExpertsPage() {
                             onEditExpert={handleEditExpert}
                             onDeleteExpert={handleDeleteClick}
                             onEmailExpert={handleSingleEmail}
+                            sortBy={sortBy}
+                            sortOrder={sortOrder}
+                            onSort={handleSort}
                         />
                     ) : (
                         <ExpertsCardGrid

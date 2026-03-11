@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { cn } from '../../utils/cn';
+import { UsersIcon } from '../icons/Icons';
 import logo from '/src/assets/hasamex_logo.png';
 
 /**
@@ -17,6 +18,7 @@ export default function Header() {
                 </Link>
                 <nav className="nav">
                     <Link to="/" className={cn('nav__link', 'nav__link--active')}>
+                        <UsersIcon width={18} height={18} />
                         Expert Management
                     </Link>
                 </nav>
