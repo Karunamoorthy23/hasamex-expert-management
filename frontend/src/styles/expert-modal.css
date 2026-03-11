@@ -1,0 +1,134 @@
+/* Expert Modal Premium Styles */
+.expert-modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+.expert-modal-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding-bottom: var(--space-6);
+    border-bottom: 1px solid var(--color-grey-200);
+}
+
+
+.expert-modal-header-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.expert-modal-name {
+    margin: 0;
+    font-size: var(--text-2xl);
+    font-weight: var(--font-bold);
+    color: var(--color-grey-900);
+}
+
+.expert-modal-headline {
+    font-size: var(--text-base);
+    color: var(--color-grey-600);
+}
+
+.expert-modal-tags {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.expert-modal-grid {
+    display: grid;
+    grid-template-columns: 35fr 65fr;
+    gap: var(--space-8);
+}
+
+@media (max-width: 640px) {
+    .expert-modal-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.expert-modal-column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+.expert-modal-section h3 {
+    margin: 0 0 var(--space-3);
+    font-size: var(--text-sm);
+    font-weight: var(--font-bold);
+    color: var(--color-grey-900);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.expert-modal-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.expert-modal-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--color-grey-700);
+    line-height: 1.5;
+}
+
+.expert-modal-list a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.expert-modal-list a:hover {
+    text-decoration: underline;
+}
+
+.expert-icon {
+    flex-shrink: 0;
+    color: var(--color-grey-500);
+    margin-top: 2px;
+}
+
+.expert-icon-text {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-grey-500);
+    font-weight: var(--font-bold);
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.expert-modal-text {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--color-grey-700);
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.expert-modal-notes {
+    padding: var(--space-3);
+    background: var(--color-grey-50);
+    border-radius: var(--radius-md);
+    border: 1px dashed var(--color-grey-300);
+}
+
+.expert-modal-topics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}

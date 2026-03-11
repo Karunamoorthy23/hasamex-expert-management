@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hasamex Expert Database | Expert Insight Delivered with Speed & Trust</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header__inner">
+      <a href="/" class="logo">
+        <span class="logo__icon">H</span>
+        <span class="logo__text">Hasamex</span>
+      </a>
+      <nav class="nav">
+        <a href="#" class="nav__link nav__link--active">Expert Database</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main">
+    <div class="container">
+      <!-- Page Title -->
+      <div class="page-header">
+        <h1 class="page-title">Expert Database</h1>
+        <p class="page-subtitle">Search, filter, and manage expert profiles</p>
+      </div>
+
+      <!-- Card: Action Bar + Table (Employee app style) -->
+      <div class="card">
+        <!-- Action Bar: Search | Filters | Add | Import | Export (within table header area) -->
+        <div class="action-bar">
+          <div class="search-wrapper">
+            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="search" id="searchInput" class="search-input" placeholder="Search experts by name, title, sector, location..." autocomplete="off">
+            <button type="button" id="searchClear" class="search-clear" aria-label="Clear search" hidden>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div class="action-bar__filters">
+            <button type="button" id="btnFilters" class="btn btn--secondary btn--sm btn-filters" aria-expanded="false">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 4a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.586a1 1 0 0 1-.293.707l-6.414 6.414a1 1 0 0 0-.293.707V17l-4 4v-6.586a1 1 0 0 0-.293-.707L3.293 7.293A1 1 0 0 1 3 6.586V4z"></path>
+              </svg>
+              Filters
+              <span id="filtersCount" class="filters-count" hidden>0</span>
+              <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </button>
+          </div>
+
+          <div class="action-bar__divider"></div>
+
+          <div class="action-bar__actions">
+            <button type="button" id="btnAddExpert" class="btn btn--primary btn--sm">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Add Expert
+            </button>
+            <button type="button" id="btnImport" class="btn btn--secondary btn--sm">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              Import
+            </button>
+            <button type="button" id="btnExport" class="btn btn--secondary btn--sm">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              Export
+            </button>
+          </div>
+        </div>
+
+        <!-- Filters Panel (searchable, scrollable, multi-select) -->
+        <div id="filtersPanel" class="filters-panel" hidden>
+          <div class="filters-panel__header">
+            <div>
+              <div class="filters-panel__title">Filter Options</div>
+              <div class="filters-panel__subtitle">Search, scroll, and multi-select filters</div>
+            </div>
+            <div class="filters-panel__header-actions">
+              <button type="button" id="filtersClearAll" class="btn btn--ghost btn--sm">Clear all</button>
+              <button type="button" id="filtersClose" class="filters-panel__close" aria-label="Close filters">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="filters-panel__grid">
+            <div class="fd" data-filter="region">
+              <button type="button" class="fd__trigger" data-filter-trigger="region" aria-expanded="false">
+                <span class="fd__label">Region</span>
+                <span class="fd__meta">
+                  <span class="fd__count" data-filter-count="region" hidden>0</span>
+                  <svg class="fd__chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </span>
+              </button>
+              <div class="fd__popover" data-filter-popover="region" hidden>
+                <input type="text" class="ms__search" placeholder="Filter regions..." data-filter-search="region">
+                <div class="ms__list" data-filter-list="region"></div>
+              </div>
+            </div>
+
+            <div class="fd" data-filter="sector">
+              <button type="button" class="fd__trigger" data-filter-trigger="sector" aria-expanded="false">
+                <span class="fd__label">Primary Sector</span>
+                <span class="fd__meta">
+                  <span class="fd__count" data-filter-count="sector" hidden>0</span>
+                  <svg class="fd__chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </span>
+              </button>
+              <div class="fd__popover" data-filter-popover="sector" hidden>
+                <input type="text" class="ms__search" placeholder="Filter sectors..." data-filter-search="sector">
+                <div class="ms__list" data-filter-list="sector"></div>
+              </div>
+            </div>
+
+            <div class="fd" data-filter="status">
+              <button type="button" class="fd__trigger" data-filter-trigger="status" aria-expanded="false">
+                <span class="fd__label">Expert Status</span>
+                <span class="fd__meta">
+                  <span class="fd__count" data-filter-count="status" hidden>0</span>
+                  <svg class="fd__chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </span>
+              </button>
+              <div class="fd__popover" data-filter-popover="status" hidden>
+                <input type="text" class="ms__search" placeholder="Filter statuses..." data-filter-search="status">
+                <div class="ms__list" data-filter-list="status"></div>
+              </div>
+            </div>
+
+            <div class="fd" data-filter="employment">
+              <button type="button" class="fd__trigger" data-filter-trigger="employment" aria-expanded="false">
+                <span class="fd__label">Employment Status</span>
+                <span class="fd__meta">
+                  <span class="fd__count" data-filter-count="employment" hidden>0</span>
+                  <svg class="fd__chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </span>
+              </button>
+              <div class="fd__popover" data-filter-popover="employment" hidden>
+                <input type="text" class="ms__search" placeholder="Filter employment..." data-filter-search="employment">
+                <div class="ms__list" data-filter-list="employment"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bulk Actions Bar (hidden by default) -->
+        <div id="bulkBar" class="bulk-bar" hidden>
+          <span id="bulkCount" class="bulk-bar__count">0 selected</span>
+          <button type="button" id="bulkEmail" class="btn btn--secondary btn--sm">Email View</button>
+          <button type="button" id="bulkExportSelected" class="btn btn--secondary btn--sm">Export Selected</button>
+          <button type="button" id="bulkClear" class="btn btn--ghost btn--sm">Clear</button>
+        </div>
+
+        <!-- View Toggle (table/cards) -->
+        <div class="view-toggle-row">
+          <div class="view-toggle">
+            <button type="button" id="viewTable" class="view-btn view-btn--active" title="Table view" aria-pressed="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+              </svg>
+              Table
+            </button>
+            <button type="button" id="viewCards" class="view-btn" title="Card view" aria-pressed="false">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+              Cards
+            </button>
+          </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content-area">
+        <!-- Table View -->
+        <div id="tableView" class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="col-check"><input type="checkbox" id="selectAll" aria-label="Select all"></th>
+                <th class="col-id">Expert ID</th>
+                <th class="col-name">Name</th>
+                <th class="col-title">Title / Headline</th>
+                <th class="col-sector">Sector</th>
+                <th class="col-region">Region</th>
+                <th class="col-status">Status</th>
+                <th class="col-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Card View -->
+        <div id="cardView" class="card-grid" hidden>
+          <div id="cardGridBody">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Skeleton Loader (hidden by default) -->
+        <div id="skeletonView" class="skeleton-container" hidden>
+          <div class="skeleton-table">
+            <div class="skeleton-row" repeat="8"></div>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state" hidden>
+          <svg class="empty-state__icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <h3 class="empty-state__title">No experts found</h3>
+          <p class="empty-state__text">Try adjusting your search or filters</p>
+        </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" id="pagination">
+          <button type="button" id="prevPage" class="pagination__btn" disabled>Previous</button>
+          <div class="pagination__info">
+            <span id="pageInfo">Page 1 of 1</span>
+          </div>
+          <button type="button" id="nextPage" class="pagination__btn">Next</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p class="footer__text">Hasamex — Expert Insight Delivered with Speed & Trust</p>
+    </div>
+  </footer>
+
+  <!-- Expert Detail Modal (placeholder) -->
+  <div id="expertModal" class="modal" hidden>
+    <div class="modal__backdrop"></div>
+    <div class="modal__content">
+      <div class="modal__header">
+        <h2 id="modalTitle" class="modal__title">Expert Profile</h2>
+        <button type="button" id="modalClose" class="modal__close" aria-label="Close">&times;</button>
+      </div>
+      <div id="modalBody" class="modal__body">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

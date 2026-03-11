@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architecture Overview | Hasamex Expert Database</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-black: #0a0a0a;
+            --color-white: #ffffff;
+            --color-grey-50: #fafafa;
+            --color-grey-100: #f5f5f5;
+            --color-grey-200: #e5e5e5;
+            --color-grey-300: #d4d4d4;
+            --color-grey-400: #a3a3a3;
+            --color-grey-500: #737373;
+            --color-accent: #2563eb;
+            --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-sans);
+            background-color: var(--color-grey-50);
+            color: var(--color-black);
+            line-height: 1.6;
+        }
+
+        header {
+            background: var(--color-white);
+            border-bottom: 1px solid var(--color-grey-200);
+            padding: 1.5rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-weight: 700;
+            font-size: 1.25rem;
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo-box {
+            background: var(--color-black);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 3rem auto;
+            padding: 0 2rem;
+        }
+
+        .section {
+            background: var(--color-white);
+            border-radius: 12px;
+            padding: 2.5rem;
+            margin-bottom: 3rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--color-grey-200);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+        }
+
+        h2 {
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid var(--color-accent);
+            padding-left: 1rem;
+            font-weight: 600;
+        }
+
+        .description {
+            color: var(--color-grey-500);
+            font-size: 1.125rem;
+            margin-bottom: 3rem;
+        }
+
+        .diagram-container {
+            background: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            border: 1px solid var(--color-grey-100);
+            margin-top: 1.5rem;
+            overflow-x: auto;
+        }
+
+        /* Mermaid Customization */
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+
+        .legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: var(--color-grey-50);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        footer {
+            text-align: center;
+            padding: 3rem;
+            color: var(--color-grey-400);
+            font-size: 0.875rem;
+            border-top: 1px solid var(--color-grey-200);
+        }
+    </style>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#ffffff',
+                primaryTextColor: '#0a0a0a',
+                primaryBorderColor: '#0a0a0a',
+                lineColor: '#2563eb',
+                secondaryColor: '#f5f5f5',
+                tertiaryColor: '#fafafa',
+                fontFamily: 'DM Sans'
+            }
+        });
+    </script>
+</head>
+
+<body>
+
+    <header>
+        <div class="logo">
+            <span class="logo-box">H</span> HASAMEX EXPERT DATABASE
+        </div>
+        <div style="color: var(--color-grey-500); font-weight: 500;">Architecture Docs v1.0</div>
+    </header>
+
+    <main>
+        <h1>System Architecture</h1>
+        <p class="description">A visual guide to the technical structure and data flow of the Hasamex Expert Database
+            application.</p>
+
+        <!-- High Level Section -->
+        <div class="section">
+            <h2>High-Level Flow</h2>
+            <p>This overview shows the conceptual relationship between the user, the React frontend, and the cloud-ready
+                Flask/PostgreSQL backend infrastructure.</p>
+
+            <div class="diagram-container">
+                <pre class="mermaid">
+graph TD
+    User((User)) -->|Interacts| FE[React Frontend]
+    FE -->|REST API Requests| BE[Flask API Service]
+    
+    subgraph "Server Cluster"
+        BE -->|SQL Queries| DB[(PostgreSQL DB)]
+        BE -->|I/O Operations| FS[Local Storage /expert_pdf]
+    end
+    
+    subgraph "Static Resources"
+        FE -->|UI Icons| IC[SVG Icon Set]
+        FE -->|Styles| CSS[Vanilla CSS Design System]
+    end
+            </pre>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="dot" style="background: var(--color-accent);"></div> Frontend Navigation
+                </div>
+                <div class="legend-item">
+                    <div class="dot" style="background: var(--color-black);"></div> Database Persistence
+                </div>
+                <div class="legend-item">
+                    <div class="dot" style="background: var(--color-grey-400);"></div> Static Asset Serving
+                </div>
+            </div>
+        </div>
+
+        <!-- Low Level Section -->
+        <div class="section">
+            <h2>Low-Level Component Lifecycle</h2>
+            <p>The sequence of operations when an expert profile is created or updated, highlighting document handling
+                and data validation.</p>
+
+            <div class="diagram-container">
+                <pre class="mermaid">
+sequenceDiagram
+    participant UI as React Form
+    participant API as Flask Controller
+    participant VAL as Logic & Validation
+    participant FS as Expert PDF Folders
+    participant DB as Postgres Table
+
+    UI->>API: POST /upload-pdf (Binary)
+    API->>FS: Save file with UUID name
+    FS-->>API: 201 Created (File Path)
+    API-->>UI: Return Full URL
+
+    UI->>API: POST /experts (JSON + Document URL)
+    API->>VAL: Clean Strings & Verify Email
+    VAL->>DB: Check LinkedIn / Email Duplicates
+    VAL->>DB: INSERT INTO experts
+    DB-->>UI: 201 Created (Expert ID: EX-XXXXX)
+            </pre>
+            </div>
+            <!-- Detailed Workflow Section -->
+            <div class="section">
+                <h2>Detailed Logic Workflow: Expert Onboarding</h2>
+                <p>A step-by-step breakdown of the expert creation logic, including document processing and database
+                    persistence.</p>
+
+                <div class="diagram-container">
+                    <pre class="mermaid">
+flowchart TD
+    Start([User Clicks Save]) --> Valid{Frontend Validation}
+    Valid -- Fail --> ShowErrors[Highlight Missing Fields]
+    Valid -- Pass --> FileCheck{Document Selected?}
+    
+    FileCheck -- Yes --> Upload[POST /upload-pdf]
+    Upload --> SaveFS[Store in /expert_pdf]
+    SaveFS --> GetURL[Return Document URL]
+    GetURL --> FinalPayload[Attach URL to Payload]
+    
+    FileCheck -- No --> FinalPayload
+    
+    FinalPayload --> PostExpert[POST /api/v1/experts]
+    PostExpert --> BackendClean[Clean Strings & Numbers]
+    BackendClean --> DupCheck{Check Duplicates}
+    
+    DupCheck -- Found --> Conflict[409 Conflict Response]
+    DupCheck -- Clear --> DBInsert[DB Insert Record]
+    
+    DBInsert --> Success[Redirect to Expert List]
+    Conflict --> ShowWarning[Show Duplicate Warning Modal]
+                </pre>
+                </div>
+            </div>
+
+            <!-- Tech Stack Summary -->
+            <div class="section">
+                <h2>Technology Core</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <div>
+                        <h4 style="margin-bottom: 0.5rem;">Frontend Stack</h4>
+                        <ul style="padding-left: 1.2rem; color: var(--color-grey-600);">
+                            <li><strong>React 18:</strong> Modern component-driven hooks</li>
+                            <li><strong>Vite:</strong> Native ESM-based development server</li>
+                            <li><strong>Vanilla CSS:</strong> Performance-first custom styling</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 style="margin-bottom: 0.5rem;">Backend Stack</h4>
+                        <ul style="padding-left: 1.2rem; color: var(--color-grey-600);">
+                            <li><strong>Flask 3.0:</strong> Lightweight, scalable Python API</li>
+                            <li><strong>SQLAlchemy:</strong> Robust SQL toolkit & ORM</li>
+                            <li><strong>Pandas:</strong> High-speed Excel/CSV processing</li>
+                            <li><strong>Werkzeug:</strong> Secure file upload handling</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+    </main>
+
+    <footer>
+        &copy; 2026 Hasamex. All rights reserved. | Proprietary & Confidential
+    </footer>
+
+</body>
+
+</html>

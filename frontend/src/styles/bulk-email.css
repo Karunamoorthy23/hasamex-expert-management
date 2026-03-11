@@ -1,0 +1,106 @@
+/* Bulk Email Modal Styles */
+.bulk-email-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    min-height: 300px;
+}
+
+.loading-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--color-grey-500);
+    font-size: var(--text-lg);
+}
+
+.bulk-email-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-6);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--color-grey-200);
+}
+
+@media (max-width: 768px) {
+    .bulk-email-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+.bulk-email-header .description {
+    margin: 0;
+    color: var(--color-grey-600);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+    max-width: 600px;
+}
+
+.bulk-email-header .actions {
+    display: flex;
+    gap: var(--space-3);
+    flex-shrink: 0;
+}
+
+.email-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--color-grey-200);
+    border-radius: var(--radius-lg);
+    background-color: var(--color-white);
+}
+
+.email-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+    text-align: left;
+}
+
+.email-table th {
+    background-color: var(--color-grey-50);
+    padding: var(--space-3) var(--space-4);
+    font-weight: var(--font-bold);
+    color: var(--color-grey-700);
+    border-bottom: 1px solid var(--color-grey-200);
+    white-space: nowrap;
+}
+
+.email-table td {
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--color-grey-100);
+    vertical-align: middle;
+}
+
+.email-table tr:last-child td {
+    border-bottom: none;
+}
+
+.expert-name {
+    font-weight: var(--font-semibold);
+    color: var(--color-grey-900);
+    white-space: nowrap;
+}
+
+.expert-email a {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-family: var(--font-mono);
+}
+
+.expert-email a:hover {
+    text-decoration: underline;
+}
+
+.expert-info .title {
+    font-weight: var(--font-medium);
+    color: var(--color-grey-800);
+    margin-bottom: 2px;
+}
+
+.expert-info .company {
+    color: var(--color-grey-500);
+    font-size: var(--text-xs);
+}

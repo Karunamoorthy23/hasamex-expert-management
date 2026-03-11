@@ -1,0 +1,40 @@
+Hasamex Mini Build Test – Expert Database MVP
+Candidate assignment – architecture + build capability assessment
+Objective
+Build a basic internal web app for Hasamex using up to 10 expert records to assess your thinking on architecture, data model, UI/UX, and execution
+quality.
+Core workflow
+• Add a new expert manually.
+• Search and filter experts.
+• Open a profile, edit fields, and save changes.
+• Click/open the expert’s LinkedIn URL.
+• Attach a profile PDF link or lightweight file upload.
+• Select one or more experts and generate a simple email-ready view/export.
+Required fields (simplified from our HEB database)
+Use these fields: Expert ID, First Name, Last Name, Primary Email, Primary Phone, LinkedIn URL, Location, Timezone, Region, Current Employment
+Status, Seniority, Years of Experience, Title/Headline, Bio, Employment History, Primary Sector, Company Role, Expert Function, Strength Topics,
+Currency, Hourly Rate, HCMS Classification, Expert Status, Notes, Link to Profile PDF.
+Optional: Last Modified, Total Calls Completed, Project ID Added To.
+Functional requirements
+• List page with all experts in table or card format.
+• Search by name, title, role, sector, function, location, or LinkedIn URL.
+• Basic filters for Primary Sector, Region, Expert Status, and Current Employment Status.
+• Add form with validation for email and URL fields.
+• Edit screen/modal with save/update.
+• Duplicate handling warning for repeated LinkedIn URL or email.
+Technical expectations
+• You may choose your own stack, but explain it clearly.
+• Seed the app with 10 sample expert entries based on our schema.
+• Design it so it can scale later to a much larger expert database.
+• Show clear separation of frontend, backend, database, and file/link storage.
+• Document assumptions, shortcuts, and future improvements.
+Submission
+• Working demo or local run instructions
+• Source code repository
+• Short architecture note (max 1 page)
+• Short walkthrough video or written demo steps
+Evaluation criteria
+Architecture clarity, UI cleanliness, search/edit usability, validation and edge-case thinking, maintainable code structure, and ability to explain trade-offs
+simply.
+Suggested effort
+1–3 days. This is a practical test, not a finished production system.
