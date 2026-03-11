@@ -31,7 +31,7 @@ export default function ExpertsActionBar({
             <div className="search-wrapper">
                 <SearchIcon className="search-icon" />
                 <input
-                    type="search"
+                    
                     id="searchInput"
                     className="search-input"
                     placeholder="Search experts by name, title, sector, location..."
