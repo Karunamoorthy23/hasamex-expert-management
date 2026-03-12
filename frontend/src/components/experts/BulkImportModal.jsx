@@ -97,21 +97,24 @@ export default function BulkImportModal({ open, onClose, onImportComplete }) {
         setIsProcessing(true);
         setError(null);
         try {
-            // Filter out internal status 'Missed' (Missed Fields) and 'Error' before sending
-            const validRecords = previewData.filter(r => r.status !== 'Missed' && r.status !== 'Error');
+            // Filter out internal status 'Missed' (Missed Fields), 'Error', and manually 'skipped' rows
+            const validRecords = previewData.filter(r => r.status !== 'Missed' && r.status !== 'Error' && !r.skipped);
 
             if (validRecords.length === 0) {
-                setError('No valid records to import. All records have missing fields, duplicate IDs, or are duplicates.');
+                setError('No valid records to import. All records have missing fields, duplicate IDs, duplicates, or were skipped.');
                 setIsProcessing(false);
                 return;
             }
 
             const missedCount = previewData.filter(r => r.status === 'Missed').length;
             const errorCount = previewData.filter(r => r.status === 'Error').length;
+            const skippedCount = previewData.filter(r => r.skipped && r.status !== 'Missed' && r.status !== 'Error').length;
+
             const resp = await confirmImport(validRecords);
             setResults({
                 ...resp.results,
-                missed: missedCount + errorCount
+                missed: missedCount + errorCount,
+                skipped: skippedCount
             });
             setStep(3); // Result step
             if (onImportComplete) onImportComplete();
@@ -135,6 +138,15 @@ export default function BulkImportModal({ open, onClose, onImportComplete }) {
         setExpandedRows(prev => ({
             ...prev,
             [id]: !prev[id]
+        }));
+    };
+
+    const toggleSkip = (id) => {
+        setPreviewData(prev => prev.map(row => {
+            if (row.id === id) {
+                return { ...row, skipped: !row.skipped };
+            }
+            return row;
         }));
     };
 
@@ -191,11 +203,12 @@ export default function BulkImportModal({ open, onClose, onImportComplete }) {
     );
 
     const renderStep2 = () => {
-        const newCount = previewData.filter(r => r.status === 'New').length;
-        const updateCount = previewData.filter(r => r.status === 'Update').length;
-        const dupCount = previewData.filter(r => r.status === 'Duplicate').length;
+        const newCount = previewData.filter(r => r.status === 'New' && !r.skipped).length;
+        const updateCount = previewData.filter(r => r.status === 'Update' && !r.skipped).length;
+        const dupCount = previewData.filter(r => r.status === 'Duplicate' && !r.skipped).length;
         const missedCount = previewData.filter(r => r.status === 'Missed').length;
         const errorCount = previewData.filter(r => r.status === 'Error').length;
+        const skippedCount = previewData.filter(r => r.skipped).length;
 
         return (
             <div className="bulk-import-step preview-step">
@@ -203,6 +216,7 @@ export default function BulkImportModal({ open, onClose, onImportComplete }) {
                     <span className="summary-chip new">{newCount} New</span>
                     <span className="summary-chip update">{updateCount} Updates</span>
                     <span className="summary-chip error">{errorCount} Conflicts (Ignored)</span>
+                    <span className="summary-chip skipped">{skippedCount} Skipped</span>
                     <span className="summary-chip missed">{missedCount} Missed Fields (Ignored)</span>
                     <span className="summary-chip duplicate">{dupCount} Duplicates (Ignored)</span>
                 </div>
@@ -220,10 +234,16 @@ export default function BulkImportModal({ open, onClose, onImportComplete }) {
                         <tbody>
                             {previewData.map((row) => (
                                 <Fragment key={row.id}>
-                                    <tr className={cn('row-status', row.status.toLowerCase() === 'missed' ? 'missed' : row.status.toLowerCase())}>
+                                    <tr className={cn(
+                                        'row-status',
+                                        row.skipped ? 'skipped' : (row.status.toLowerCase() === 'missed' ? 'missed' : row.status.toLowerCase())
+                                    )}>
                                         <td>
-                                            <span className={cn('status-label', row.status.toLowerCase() === 'missed' ? 'missed' : row.status.toLowerCase())}>
-                                                {row.status === 'Missed' ? 'Missed Fields' : row.status}
+                                            <span className={cn(
+                                                'status-label',
+                                                row.skipped ? 'skipped' : (row.status.toLowerCase() === 'missed' ? 'missed' : row.status.toLowerCase())
+                                            )}>
+                                                {row.skipped ? 'Skipped' : (row.status === 'Missed' ? 'Missed Fields' : row.status)}
                                             </span>
                                         </td>
                                         <td>{row.data['First Name']} {row.data['Last Name']}</td>
@@ -258,8 +278,19 @@ export default function BulkImportModal({ open, onClose, onImportComplete }) {
                                                     )}
                                                 </div>
                                             )}
-                                            {row.status === 'New' && <span className="text-muted">Fresh record</span>}
                                             {row.status === 'Duplicate' && <span className="text-muted">No changes detected</span>}
+
+                                            {/* Skip Toggle Button - Only for records that would otherwise be imported (New/Update) */}
+                                            {(row.status === 'New' || row.status === 'Update') && (
+                                                <div style={{ marginTop: '8px' }}>
+                                                    <button
+                                                        className={cn('skip-btn', row.skipped && 'is-skipped')}
+                                                        onClick={() => toggleSkip(row.id)}
+                                                    >
+                                                        {row.skipped ? 'Unskip Record' : 'Skip & Don\'t Import'}
+                                                    </button>
+                                                </div>
+                                            )}
                                         </td>
                                     </tr>
                                     {expandedRows[row.id] && row.status === 'Update' && (
@@ -327,6 +358,10 @@ export default function BulkImportModal({ open, onClose, onImportComplete }) {
                 <div className="stat-card">
                     <span className="stat-num">{results?.ignored}</span>
                     <span className="stat-label">Duplicates Ignored</span>
+                </div>
+                <div className="stat-card">
+                    <span className="stat-num">{results?.skipped || 0}</span>
+                    <span className="stat-label">Experts Skipped</span>
                 </div>
                 <div className="stat-card">
                     <span className="stat-num">{results?.missed}</span>
