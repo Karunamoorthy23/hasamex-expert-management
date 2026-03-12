@@ -43,6 +43,7 @@ export default function BulkImportModal({ open, onClose, onImportComplete }) {
             const result = await previewImport(file);
 
             const MANDATORY_FIELDS = [
+                { excel: 'Expert ID', label: 'Expert ID' },
                 { excel: 'First Name', label: 'First Name' },
                 { excel: 'Last Name', label: 'Last Name' },
                 { excel: 'Primary Email 1', label: 'Primary Email' },
@@ -96,20 +97,21 @@ export default function BulkImportModal({ open, onClose, onImportComplete }) {
         setIsProcessing(true);
         setError(null);
         try {
-            // Filter out internal status 'Missed' (Missed Fields) before sending
-            const validRecords = previewData.filter(r => r.status !== 'Missed');
+            // Filter out internal status 'Missed' (Missed Fields) and 'Error' before sending
+            const validRecords = previewData.filter(r => r.status !== 'Missed' && r.status !== 'Error');
 
             if (validRecords.length === 0) {
-                setError('No valid records to import. All records have missing fields or are duplicates.');
+                setError('No valid records to import. All records have missing fields, duplicate IDs, or are duplicates.');
                 setIsProcessing(false);
                 return;
             }
 
             const missedCount = previewData.filter(r => r.status === 'Missed').length;
+            const errorCount = previewData.filter(r => r.status === 'Error').length;
             const resp = await confirmImport(validRecords);
             setResults({
                 ...resp.results,
-                missed: missedCount
+                missed: missedCount + errorCount
             });
             setStep(3); // Result step
             if (onImportComplete) onImportComplete();
@@ -193,12 +195,14 @@ export default function BulkImportModal({ open, onClose, onImportComplete }) {
         const updateCount = previewData.filter(r => r.status === 'Update').length;
         const dupCount = previewData.filter(r => r.status === 'Duplicate').length;
         const missedCount = previewData.filter(r => r.status === 'Missed').length;
+        const errorCount = previewData.filter(r => r.status === 'Error').length;
 
         return (
             <div className="bulk-import-step preview-step">
                 <div className="import-summary-chips">
                     <span className="summary-chip new">{newCount} New</span>
                     <span className="summary-chip update">{updateCount} Updates</span>
+                    <span className="summary-chip error">{errorCount} Conflicts (Ignored)</span>
                     <span className="summary-chip missed">{missedCount} Missed Fields (Ignored)</span>
                     <span className="summary-chip duplicate">{dupCount} Duplicates (Ignored)</span>
                 </div>
@@ -225,6 +229,12 @@ export default function BulkImportModal({ open, onClose, onImportComplete }) {
                                         <td>{row.data['First Name']} {row.data['Last Name']}</td>
                                         <td>{row.data['Primary Email 1']}</td>
                                         <td className="diff-cell">
+                                            {row.status === 'Error' && (
+                                                <div className="error-message-alert">
+                                                    <AlertCircleIcon className="alert-icon" width={14} height={14} />
+                                                    <span>{row.message}</span>
+                                                </div>
+                                            )}
                                             {row.status === 'Missed' && (
                                                 <div className="missed-fields-alert">
                                                     <AlertCircleIcon className="alert-icon" width={14} height={14} />
@@ -320,7 +330,7 @@ export default function BulkImportModal({ open, onClose, onImportComplete }) {
                 </div>
                 <div className="stat-card">
                     <span className="stat-num">{results?.missed}</span>
-                    <span className="stat-label">Missing Fields record Ignored</span>
+                    <span className="stat-label">Ignored (Field/ID Issues)</span>
                 </div>
             </div>
 

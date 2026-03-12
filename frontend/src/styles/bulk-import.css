@@ -104,6 +104,11 @@
     color: #991b1b;
 }
 
+.summary-chip.error {
+    background: #fef2f2;
+    color: #ef4444;
+}
+
 .import-preview-container {
     max-height: 400px;
     overflow-y: auto;
@@ -165,6 +170,15 @@
     background: #fffafa;
 }
 
+.status-label.error {
+    background: #fef2f2;
+    color: #ef4444;
+}
+
+.row-status.error {
+    background: #fff5f5;
+}
+
 .diff-list {
     display: flex;
     flex-direction: column;
@@ -198,6 +212,17 @@
 
 .missed-fields-alert strong {
     font-weight: 700;
+}
+
+.error-message-alert {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #ef4444;
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #fee2e2;
 }
 
 /* Results Step */

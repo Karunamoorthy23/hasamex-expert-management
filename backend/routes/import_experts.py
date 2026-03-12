@@ -46,7 +46,7 @@ EXCEL_COLUMNS_MAPPING = {
     'Notes': 'notes'
 }
 
-REQUIRED_COLUMNS = ['First Name', 'Last Name', 'Primary Email 1']
+REQUIRED_COLUMNS = ['Expert ID', 'First Name', 'Last Name', 'Primary Email 1']
 
 @import_experts_bp.route('/template', methods=['GET'])
 def download_template():
@@ -148,10 +148,12 @@ def preview_import():
         # Batch fetch existing experts to avoid N+1 queries
         emails = df['Primary Email 1'].dropna().unique().tolist()
         linkedin_urls = df['LinkedIn URL'].dropna().unique().tolist() if 'LinkedIn URL' in df.columns else []
+        expert_ids = df['Expert ID'].dropna().unique().tolist() if 'Expert ID' in df.columns else []
         
         # Build lookups for existing records
         existing_by_email = {e.primary_email: e for e in Expert.query.filter(Expert.primary_email.in_(emails)).all()}
         existing_by_linkedin = {e.linkedin_url: e for e in Expert.query.filter(Expert.linkedin_url.in_(linkedin_urls)).all()} if linkedin_urls else {}
+        existing_by_eid = {e.expert_id: e for e in Expert.query.filter(Expert.expert_id.in_(expert_ids)).all()} if expert_ids else {}
 
         for index, row in df.iterrows():
             # Basic validation
@@ -161,8 +163,23 @@ def preview_import():
             row_data = {k: (None if pd.isna(v) else v) for k, v in row.to_dict().items()}
             email = row_data.get('Primary Email 1')
             linkedin = row_data.get('LinkedIn URL')
+            eid = row_data.get('Expert ID')
             
-            existing = existing_by_email.get(email) or existing_by_linkedin.get(linkedin)
+            # Find existing by any unique identifier
+            by_email_link = existing_by_email.get(email) or existing_by_linkedin.get(linkedin)
+            by_eid = existing_by_eid.get(eid)
+
+            # Check for Expert ID conflict
+            if by_eid and by_email_link and by_eid.id != by_email_link.id:
+                preview_data.append({
+                    'id': index,
+                    'status': 'Error',
+                    'message': f"Expert ID '{eid}' is already assigned to another expert ({by_eid.first_name} {by_eid.last_name})",
+                    'data': row_data
+                })
+                continue
+
+            existing = by_email_link or by_eid
             
             status = 'New'
             if existing:
@@ -257,23 +274,6 @@ def confirm_import():
     results = {'inserted': 0, 'updated': 0, 'ignored': 0, 'errors': []}
 
     try:
-        # Pre-calculate starting expert ID number
-        last = db.session.query(Expert.expert_id).order_by(Expert.expert_id.desc()).first()
-        start_num = 1
-        if last and last[0]:
-            try:
-                start_num = int(last[0].split('-')[1]) + 1
-            except (IndexError, ValueError):
-                pass
-        
-        id_counter = start_num
-
-        def _generate_expert_id():
-            nonlocal id_counter
-            new_id = f'EX-{id_counter:05d}'
-            id_counter += 1
-            return new_id
-
         for item in records:
             status = item.get('status')
             data_row = item.get('data')
@@ -284,8 +284,19 @@ def confirm_import():
                 continue
 
             try:
+                # Get expert_id from Excel data
+                row_expert_id = str(data_row.get('Expert ID', '')).strip()
+                if not row_expert_id:
+                    results['errors'].append(f"Missing Expert ID for row '{data_row.get('First Name', '')}'")
+                    continue
+
                 if status == 'New':
-                    expert = Expert(expert_id=_generate_expert_id())
+                    # Check if Expert ID already exists (just in case)
+                    if Expert.query.filter(Expert.expert_id == row_expert_id).first():
+                        results['errors'].append(f"Expert ID {row_expert_id} already exists in database")
+                        continue
+                        
+                    expert = Expert(expert_id=row_expert_id)
                     db.session.add(expert)
                     results['inserted'] += 1
                 else: # Update
@@ -296,10 +307,6 @@ def confirm_import():
                     results['updated'] += 1
 
                 for excel_col, model_attr in EXCEL_COLUMNS_MAPPING.items():
-                    # NEVER overwrite expert_id from Excel; it's system-managed
-                    if model_attr == 'expert_id':
-                        continue
-
                     if excel_col in data_row:
                         val = data_row[excel_col]
                         if pd.isna(val) or val == 'nan': val = None

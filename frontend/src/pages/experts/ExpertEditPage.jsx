@@ -13,6 +13,7 @@ const FORM_SECTIONS = [
     {
         title: 'Personal Information',
         fields: [
+            { name: 'expert_id', label: 'Expert ID', type: 'text', required: true, gridSpan: 1 },
             { name: 'salutation', label: 'Salutation', type: 'select', lookupCategory: 'salutation', gridSpan: 1 },
             { name: 'first_name', label: 'First Name', type: 'text', required: true, gridSpan: 1 },
             { name: 'last_name', label: 'Last Name', type: 'text', required: true, gridSpan: 1 },
@@ -196,6 +197,7 @@ export default function ExpertEditPage() {
     // ── Client-side validation ──
     const validate = useCallback(() => {
         const newErrors = {};
+        if (!formData.expert_id?.trim()) newErrors.expert_id = 'Expert ID is required';
         if (!formData.first_name?.trim()) newErrors.first_name = 'First name is required';
         if (!formData.last_name?.trim()) newErrors.last_name = 'Last name is required';
         if (!formData.primary_email?.trim()) newErrors.primary_email = 'Primary email is required';

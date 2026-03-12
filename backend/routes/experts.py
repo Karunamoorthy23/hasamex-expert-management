@@ -14,21 +14,6 @@ from datetime import datetime
 experts_bp = Blueprint('experts', __name__, url_prefix='/api/v1/experts')
 
 
-def _generate_expert_id():
-    """Generate the next sequential expert_id (EX-00001 format)."""
-    last = (
-        db.session.query(Expert.expert_id)
-        .order_by(Expert.expert_id.desc())
-        .first()
-    )
-    if last and last[0]:
-        try:
-            num = int(last[0].split('-')[1]) + 1
-        except (IndexError, ValueError):
-            num = 1
-    else:
-        num = 1
-    return f'EX-{num:05d}'
 
 
 def _apply_experts_filters(query, args):
@@ -93,6 +78,8 @@ def _apply_experts_filters(query, args):
 def _validate_required_fields(data):
     """Validate required fields for expert creation."""
     errors = []
+    if not data.get('expert_id', '').strip():
+        errors.append('expert_id is required')
     if not data.get('first_name', '').strip():
         errors.append('first_name is required')
     if not data.get('last_name', '').strip():
@@ -101,8 +88,21 @@ def _validate_required_fields(data):
 
 
 def _check_duplicates(data, exclude_id=None):
-    """Check for duplicate email or LinkedIn URL."""
+    """Check for duplicate expert_id, email or LinkedIn URL."""
     warnings = []
+
+    eid = data.get('expert_id', '').strip()
+    if eid:
+        query = Expert.query.filter(Expert.expert_id == eid)
+        if exclude_id:
+            query = query.filter(Expert.id != exclude_id)
+        existing = query.first()
+        if existing:
+            warnings.append({
+                'field': 'expert_id',
+                'message': f'Expert ID {eid} already exists',
+                'existing_id': existing.id,
+            })
 
     email = data.get('primary_email', '').strip()
     if email:
@@ -221,12 +221,9 @@ def create_expert():
             'details': duplicates,
         }), 409
 
-    # Generate expert_id
-    expert_id = _generate_expert_id()
-
     try:
         expert = Expert(
-            expert_id=expert_id,
+            expert_id=data.get('expert_id', '').strip(),
             salutation=data.get('salutation', '').strip() or None,
             first_name=data['first_name'].strip(),
             last_name=data['last_name'].strip(),

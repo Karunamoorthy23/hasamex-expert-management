@@ -1494,24 +1494,15 @@
     color: var(--color-primary);
 }
 
-.tz-select__item-offset {
-    font-weight: 600;
-    font-size: 11px;
-    color: var(--color-grey-500);
-    min-width: 62px;
-    flex-shrink: 0;
-}
-
-.tz-select__item--active .tz-select__item-offset {
-    color: var(--color-primary);
-}
-
-.tz-select__item-city {
+.tz-select__item-label {
     flex: 1;
     color: var(--color-grey-800);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.tz-select__item--active .tz-select__item-city {
+.tz-select__item--active .tz-select__item-label {
     color: var(--color-primary);
     font-weight: 500;
 }
