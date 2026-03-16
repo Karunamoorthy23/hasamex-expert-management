@@ -6,10 +6,17 @@ CRUD operations with pagination, search, and filtering.
 from flask import Blueprint, request, jsonify, send_file
 from sqlalchemy import or_, func
 from extensions import db
-from models import Expert
+from models import (
+    Expert, ExpertExperience, ExpertStrength,
+    LkRegion, LkPrimarySector, LkExpertStatus,
+    LkEmploymentStatus, LkSeniority, LkCurrency,
+    LkCompanyRole, LkExpertFunction, LkSalutation,
+    LkHcmsClassification
+)
 import pandas as pd
 from io import BytesIO
 from datetime import datetime
+import re
 
 experts_bp = Blueprint('experts', __name__, url_prefix='/api/v1/experts')
 
@@ -42,11 +49,11 @@ def _apply_experts_filters(query, args):
                 Expert.first_name.ilike(search_pattern),
                 Expert.last_name.ilike(search_pattern),
                 Expert.title_headline.ilike(search_pattern),
-                Expert.primary_sector.ilike(search_pattern),
+                Expert.rel_primary_sector.has(LkPrimarySector.name.ilike(search_pattern)),
                 Expert.location.ilike(search_pattern),
                 Expert.linkedin_url.ilike(search_pattern),
-                Expert.company_role.ilike(search_pattern),
-                Expert.expert_function.ilike(search_pattern),
+                Expert.rel_company_role.has(LkCompanyRole.name.ilike(search_pattern)),
+                Expert.rel_expert_function.has(LkExpertFunction.name.ilike(search_pattern)),
                 Expert.primary_email.ilike(search_pattern),
             )
         )
@@ -55,22 +62,22 @@ def _apply_experts_filters(query, args):
     if region:
         regions = [r.strip() for r in region.split(',') if r.strip()]
         if regions:
-            query = query.filter(Expert.region.in_(regions))
+            query = query.filter(Expert.rel_region.has(LkRegion.name.in_(regions)))
 
     if primary_sector:
         sectors = [s.strip() for s in primary_sector.split(',') if s.strip()]
         if sectors:
-            query = query.filter(Expert.primary_sector.in_(sectors))
+            query = query.filter(Expert.rel_primary_sector.has(LkPrimarySector.name.in_(sectors)))
 
     if expert_status:
         statuses = [s.strip() for s in expert_status.split(',') if s.strip()]
         if statuses:
-            query = query.filter(Expert.expert_status.in_(statuses))
+            query = query.filter(Expert.rel_expert_status.has(LkExpertStatus.name.in_(statuses)))
 
     if employment:
         emp_list = [e.strip() for e in employment.split(',') if e.strip()]
         if emp_list:
-            query = query.filter(Expert.current_employment_status.in_(emp_list))
+            query = query.filter(Expert.rel_current_employment_status.has(LkEmploymentStatus.name.in_(emp_list)))
 
     return query
 
@@ -158,11 +165,28 @@ def list_experts():
     query = _apply_experts_filters(query, request.args)
 
     # ── Sorting ──
-    sort_column = getattr(Expert, sort_by, Expert.updated_at)
-    if sort_order.lower() == 'asc':
-        query = query.order_by(sort_column.asc())
+    if sort_by == 'primary_sector':
+        query = query.outerjoin(LkPrimarySector, Expert.primary_sector_id == LkPrimarySector.id)
+        sort_column = LkPrimarySector.name
+    elif sort_by == 'region':
+        query = query.outerjoin(LkRegion, Expert.region_id == LkRegion.id)
+        sort_column = LkRegion.name
+    elif sort_by == 'expert_status':
+        query = query.outerjoin(LkExpertStatus, Expert.expert_status_id == LkExpertStatus.id)
+        sort_column = LkExpertStatus.name
+    elif sort_by == 'current_employment_status':
+        query = query.outerjoin(LkEmploymentStatus, Expert.current_employment_status_id == LkEmploymentStatus.id)
+        sort_column = LkEmploymentStatus.name
     else:
-        query = query.order_by(sort_column.desc())
+        sort_column = getattr(Expert, sort_by, Expert.updated_at)
+        
+    if isinstance(sort_column, property):
+        sort_column = Expert.updated_at
+
+    if sort_order.lower() == 'asc':
+        query = query.order_by(sort_column.asc().nulls_last())
+    else:
+        query = query.order_by(sort_column.desc().nulls_last())
 
     # ── Pagination ──
     total_records = query.count()
@@ -197,6 +221,87 @@ def get_expert(expert_uuid):
 
 # ── CREATE expert ──────────────────────────────────────────────────────
 
+def update_expert_fields(expert, data):
+    direct_fields = [
+        'expert_id', 'first_name', 'last_name', 'primary_email',
+        'secondary_email', 'primary_phone', 'secondary_phone',
+        'linkedin_url', 'location', 'timezone',
+        'years_of_experience', 'title_headline', 'bio',
+        'hourly_rate', 'notes', 'payment_details', 'events_invited_to',
+        'profile_pdf_url', 'total_calls_completed', 'project_id_added_to',
+    ]
+    for field in direct_fields:
+        if field in data:
+            val = data[field]
+            if isinstance(val, str): val = val.strip() or None
+            if field in ['years_of_experience', 'total_calls_completed']:
+                try: val = int(val) if val is not None else None
+                except: val = None
+            if field in ['hourly_rate']:
+                try: val = float(val) if val is not None else None
+                except: val = None
+            setattr(expert, field, val)
+
+    lookup_map = {
+        'salutation': LkSalutation, 'region': LkRegion, 'current_employment_status': LkEmploymentStatus,
+        'seniority': LkSeniority, 'primary_sector': LkPrimarySector, 'company_role': LkCompanyRole,
+        'expert_function': LkExpertFunction, 'currency': LkCurrency, 'hcms_classification': LkHcmsClassification,
+        'expert_status': LkExpertStatus
+    }
+    
+    for field, model_class in lookup_map.items():
+        if field in data:
+            val = data[field]
+            if not val or not isinstance(val, str) or not val.strip():
+                setattr(expert, f"{field}_id", None)
+            else:
+                val_clean = val.strip()
+                val_lower = val_clean.lower().replace('.', '')
+                item = model_class.query.filter(func.replace(func.lower(model_class.name), '.', '') == val_lower).first()
+                if item:
+                    setattr(expert, f"{field}_id", item.id)
+                else:
+                    new_item = model_class(name=val_clean)
+                    db.session.add(new_item)
+                    db.session.flush()
+                    setattr(expert, f"{field}_id", new_item.id)
+
+    def handle_nested():
+        db.session.flush()
+
+        if 'strength_topics' in data:
+            ExpertStrength.query.filter_by(expert_id=expert.id).delete()
+            raw_str = data['strength_topics']
+            if raw_str and isinstance(raw_str, str):
+                topics = raw_str.replace(';', '\n').split('\n')
+                for topic in set(topics):
+                    clean_topic = topic.replace('•', '').replace('-', '').strip()
+                    if clean_topic:
+                        db.session.add(ExpertStrength(expert_id=expert.id, topic_name=clean_topic))
+
+        if 'employment_history' in data:
+            ExpertExperience.query.filter_by(expert_id=expert.id).delete()
+        raw_hist = data.get('employment_history')
+        if raw_hist and isinstance(raw_hist, str):
+            lines = raw_hist.replace(';', '\n').split('\n')
+            for line in lines:
+                line = line.strip()
+                if not line: continue
+                year_match = re.search(r'\((.*?)\)', line)
+                start_year, end_year = None, None
+                if year_match:
+                    years_str = year_match.group(1).replace('–', '-').replace('—', '-')
+                    years = years_str.split('-')
+                    start_year = years[0][:4] if len(years) > 0 and years[0][:4].isdigit() else None
+                    end_year = years[1][:4] if len(years) > 1 and years[1][:4].isdigit() else None
+                job_info = re.sub(r'\s*\(.*?\)\s*', '', line).strip()
+                job_parts = job_info.split(',', 1)
+                role = job_parts[0].strip() if len(job_parts) > 0 else "Unknown Role"
+                company = job_parts[1].strip() if len(job_parts) > 1 else "Unknown Company"
+                db.session.add(ExpertExperience(expert_id=expert.id, company_name=company, role_title=role, start_year=start_year, end_year=end_year))
+                
+    return handle_nested
+
 @experts_bp.route('', methods=['POST'])
 def create_expert():
     """
@@ -207,12 +312,10 @@ def create_expert():
     if not data:
         return jsonify({'error': 'Request body must be JSON'}), 400
 
-    # Validate required fields
     errors = _validate_required_fields(data)
     if errors:
         return jsonify({'error': 'Validation failed', 'details': errors}), 400
 
-    # Check duplicates
     duplicates = _check_duplicates(data)
     if duplicates:
         return jsonify({
@@ -222,42 +325,11 @@ def create_expert():
         }), 409
 
     try:
-        expert = Expert(
-            expert_id=data.get('expert_id', '').strip(),
-            salutation=data.get('salutation', '').strip() or None,
-            first_name=data['first_name'].strip(),
-            last_name=data['last_name'].strip(),
-            primary_email=data.get('primary_email', '').strip() or None,
-            secondary_email=data.get('secondary_email', '').strip() or None,
-            primary_phone=data.get('primary_phone', '').strip() or None,
-            secondary_phone=data.get('secondary_phone', '').strip() or None,
-            linkedin_url=data.get('linkedin_url', '').strip() or None,
-            location=data.get('location', '').strip() or None,
-            timezone=data.get('timezone', '').strip() or None,
-            region=data.get('region', '').strip() or None,
-            current_employment_status=data.get('current_employment_status', '').strip() or None,
-            seniority=data.get('seniority', '').strip() or None,
-            years_of_experience=data.get('years_of_experience') or None,
-            title_headline=data.get('title_headline', '').strip() or None,
-            bio=data.get('bio', '').strip() or None,
-            employment_history=data.get('employment_history', '').strip() or None,
-            primary_sector=data.get('primary_sector', '').strip() or None,
-            company_role=data.get('company_role', '').strip() or None,
-            expert_function=data.get('expert_function', '').strip() or None,
-            strength_topics=data.get('strength_topics', '').strip() or None,
-            currency=data.get('currency', '').strip() or None,
-            hourly_rate=data.get('hourly_rate') or None,
-            hcms_classification=data.get('hcms_classification', '').strip() or None,
-            expert_status=data.get('expert_status', '').strip() or None,
-            notes=data.get('notes', '').strip() or None,
-            payment_details=data.get('payment_details', '').strip() or None,
-            events_invited_to=data.get('events_invited_to', '').strip() or None,
-            profile_pdf_url=data.get('profile_pdf_url', '').strip() or None,
-            total_calls_completed=data.get('total_calls_completed', 0) or 0,
-            project_id_added_to=data.get('project_id_added_to', '').strip() or None,
-        )
-
+        expert = Expert()
         db.session.add(expert)
+        handle_nested_func = update_expert_fields(expert, data)
+        db.session.flush()
+        handle_nested_func()
         db.session.commit()
 
         return jsonify({
@@ -270,8 +342,6 @@ def create_expert():
         return jsonify({'error': f'Failed to create expert: {str(e)}'}), 500
 
 
-# ── UPDATE expert ──────────────────────────────────────────────────────
-
 @experts_bp.route('/<string:expert_uuid>', methods=['PUT'])
 def update_expert(expert_uuid):
     """PUT /api/v1/experts/:id"""
@@ -283,7 +353,6 @@ def update_expert(expert_uuid):
     if not data:
         return jsonify({'error': 'Request body must be JSON'}), 400
 
-    # Check duplicates (excluding current record)
     duplicates = _check_duplicates(data, exclude_id=expert_uuid)
     if duplicates:
         return jsonify({
@@ -292,26 +361,10 @@ def update_expert(expert_uuid):
             'details': duplicates,
         }), 409
 
-    # Update fields
-    updatable_fields = [
-        'salutation', 'first_name', 'last_name', 'primary_email',
-        'secondary_email', 'primary_phone', 'secondary_phone',
-        'linkedin_url', 'location', 'timezone', 'region',
-        'current_employment_status', 'seniority', 'years_of_experience',
-        'title_headline', 'bio', 'employment_history', 'primary_sector',
-        'company_role', 'expert_function', 'strength_topics', 'currency',
-        'hourly_rate', 'hcms_classification', 'expert_status', 'notes', 'payment_details', 'events_invited_to',
-        'profile_pdf_url', 'total_calls_completed', 'project_id_added_to',
-    ]
-
     try:
-        for field in updatable_fields:
-            if field in data:
-                value = data[field]
-                if isinstance(value, str):
-                    value = value.strip() or None
-                setattr(expert, field, value)
-
+        handle_nested_func = update_expert_fields(expert, data)
+        db.session.flush()
+        handle_nested_func()
         db.session.commit()
         return jsonify({
             'message': 'Expert updated successfully',

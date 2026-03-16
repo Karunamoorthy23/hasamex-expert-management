@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Architecture Overview | Hasamex Expert Database</title>
+    <title>Architecture Overview | Hasamex Expert Management System</title>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -258,8 +258,7 @@ flowchart TD
     FileCheck -- No --> FinalPayload
     
     FinalPayload --> PostExpert[POST /api/v1/experts]
-    PostExpert --> BackendClean[Clean Strings & Numbers]
-    BackendClean --> DupCheck{Check Duplicates}
+    PostExpert --> DupCheck{Check Duplicates}
     
     DupCheck -- Found --> Conflict[409 Conflict Response]
     DupCheck -- Clear --> DBInsert[DB Insert Record]
@@ -288,7 +287,6 @@ flowchart TD
                             <li><strong>Flask 3.0:</strong> Lightweight, scalable Python API</li>
                             <li><strong>SQLAlchemy:</strong> Robust SQL toolkit & ORM</li>
                             <li><strong>Pandas:</strong> High-speed Excel/CSV processing</li>
-                            <li><strong>Werkzeug:</strong> Secure file upload handling</li>
                         </ul>
                     </div>
                 </div>

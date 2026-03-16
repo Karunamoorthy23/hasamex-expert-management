@@ -1,140 +1,22 @@
--- Migration 003: Create lookup_tables and seed dropdown values
+-- Migration 003: Seed specific lookup tables
 -- =============================================================
 
-CREATE TABLE IF NOT EXISTS lookup_tables (
-    id              SERIAL          PRIMARY KEY,
-    category        VARCHAR(50)     NOT NULL,
-    value           VARCHAR(100)    NOT NULL,
-    display_order   INTEGER         DEFAULT 0,
-    UNIQUE(category, value)
-);
+INSERT INTO lk_regions (name, display_order) VALUES ('APAC', 1), ('EMEA', 2), ('Americas', 3), ('Global', 4) ON CONFLICT (name) DO NOTHING;
 
--- =====================================================
--- Seed: Region
--- =====================================================
-INSERT INTO lookup_tables (category, value, display_order) VALUES
-    ('region', 'APAC', 1),
-    ('region', 'EMEA', 2),
-    ('region', 'Americas', 3),
-    ('region', 'Global', 4)
-ON CONFLICT (category, value) DO NOTHING;
+INSERT INTO lk_primary_sectors (name, display_order) VALUES ('Consumer', 1), ('Education', 2), ('Energy', 3), ('Financials', 4), ('Healthcare & Life Sciences', 5), ('Industrials', 6), ('Materials', 7), ('Real Estate', 8), ('TMT', 9), ('Utilities', 10) ON CONFLICT (name) DO NOTHING;
 
--- =====================================================
--- Seed: Primary Sector
--- =====================================================
-INSERT INTO lookup_tables (category, value, display_order) VALUES
-    ('primary_sector', 'Consumer', 1),
-    ('primary_sector', 'Education', 2),
-    ('primary_sector', 'Energy', 3),
-    ('primary_sector', 'Financials', 4),
-    ('primary_sector', 'Healthcare & Life Sciences', 5),
-    ('primary_sector', 'Industrials', 6),
-    ('primary_sector', 'Materials', 7),
-    ('primary_sector', 'Real Estate', 8),
-    ('primary_sector', 'TMT', 9),
-    ('primary_sector', 'Utilities', 10)
-ON CONFLICT (category, value) DO NOTHING;
+INSERT INTO lk_expert_statuses (name, display_order) VALUES ('Lead', 1), ('Active T&Cs (No Call Yet)', 2), ('Active T&Cs (Call Completed)', 3), ('Expired T&Cs', 4), ('Do Not Contact', 5) ON CONFLICT (name) DO NOTHING;
 
--- =====================================================
--- Seed: Expert Status
--- =====================================================
-INSERT INTO lookup_tables (category, value, display_order) VALUES
-    ('expert_status', 'Lead', 1),
-    ('expert_status', 'Active T&Cs (No Call Yet)', 2),
-    ('expert_status', 'Active T&Cs (Call Completed)', 3),
-    ('expert_status', 'Expired T&Cs', 4),
-    ('expert_status', 'Do Not Contact', 5)
-ON CONFLICT (category, value) DO NOTHING;
+INSERT INTO lk_employment_statuses (name, display_order) VALUES ('Currently Employed', 1), ('Independent', 2), ('Board Member', 3), ('Retired', 4), ('Freelancer', 5) ON CONFLICT (name) DO NOTHING;
 
--- =====================================================
--- Seed: Current Employment Status
--- =====================================================
-INSERT INTO lookup_tables (category, value, display_order) VALUES
-    ('current_employment_status', 'Currently Employed', 1),
-    ('current_employment_status', 'Independent', 2),
-    ('current_employment_status', 'Board Member', 3),
-    ('current_employment_status', 'Retired', 4),
-    ('current_employment_status', 'Freelancer', 5)
-ON CONFLICT (category, value) DO NOTHING;
+INSERT INTO lk_seniorities (name, display_order) VALUES ('Academic', 1), ('Analyst', 2), ('Associate', 3), ('Board', 4), ('C-Suite', 5), ('Director', 6), ('Founder', 7), ('Manager', 8), ('Senior Manager', 9), ('VP', 10) ON CONFLICT (name) DO NOTHING;
 
--- =====================================================
--- Seed: Seniority
--- =====================================================
-INSERT INTO lookup_tables (category, value, display_order) VALUES
-    ('seniority', 'Academic', 1),
-    ('seniority', 'Analyst', 2),
-    ('seniority', 'Associate', 3),
-    ('seniority', 'Board', 4),
-    ('seniority', 'C-Suite', 5),
-    ('seniority', 'Director', 6),
-    ('seniority', 'Founder', 7),
-    ('seniority', 'Manager', 8),
-    ('seniority', 'Senior Manager', 9),
-    ('seniority', 'VP', 10)
-ON CONFLICT (category, value) DO NOTHING;
+INSERT INTO lk_currencies (name, display_order) VALUES ('USD', 1), ('EUR', 2), ('GBP', 3), ('INR', 4), ('SGD', 5), ('AED', 6) ON CONFLICT (name) DO NOTHING;
 
--- =====================================================
--- Seed: Currency
--- =====================================================
-INSERT INTO lookup_tables (category, value, display_order) VALUES
-    ('currency', 'USD', 1),
-    ('currency', 'EUR', 2),
-    ('currency', 'GBP', 3),
-    ('currency', 'INR', 4),
-    ('currency', 'SGD', 5),
-    ('currency', 'AED', 6)
-ON CONFLICT (category, value) DO NOTHING;
+INSERT INTO lk_company_roles (name, display_order) VALUES ('Manufacturer', 1), ('Manufacturer / OEM', 2), ('Operator', 3), ('Service Provider', 4), ('Technology Provider', 5), ('Advisor / Consultant', 6), ('Board / Governance', 7), ('Distributor', 8), ('Regulator', 9) ON CONFLICT (name) DO NOTHING;
 
--- =====================================================
--- Seed: Company Role
--- =====================================================
-INSERT INTO lookup_tables (category, value, display_order) VALUES
-    ('company_role', 'Manufacturer', 1),
-    ('company_role', 'Manufacturer / OEM', 2),
-    ('company_role', 'Operator', 3),
-    ('company_role', 'Service Provider', 4),
-    ('company_role', 'Technology Provider', 5),
-    ('company_role', 'Advisor / Consultant', 6),
-    ('company_role', 'Board / Governance', 7),
-    ('company_role', 'Distributor', 8),
-    ('company_role', 'Regulator', 9)
-ON CONFLICT (category, value) DO NOTHING;
+INSERT INTO lk_expert_functions (name, display_order) VALUES ('Board Governance', 1), ('Engineering', 2), ('Finance', 3), ('HR', 4), ('Legal', 5), ('Marketing', 6), ('Operations', 7), ('Product', 8), ('Regulatory', 9), ('Sales', 10), ('Strategy', 11), ('Supply Chain', 12), ('Technology', 13) ON CONFLICT (name) DO NOTHING;
 
--- =====================================================
--- Seed: Expert Function
--- =====================================================
-INSERT INTO lookup_tables (category, value, display_order) VALUES
-    ('expert_function', 'Board Governance', 1),
-    ('expert_function', 'Engineering', 2),
-    ('expert_function', 'Finance', 3),
-    ('expert_function', 'HR', 4),
-    ('expert_function', 'Legal', 5),
-    ('expert_function', 'Marketing', 6),
-    ('expert_function', 'Operations', 7),
-    ('expert_function', 'Product', 8),
-    ('expert_function', 'Regulatory', 9),
-    ('expert_function', 'Sales', 10),
-    ('expert_function', 'Strategy', 11),
-    ('expert_function', 'Supply Chain', 12),
-    ('expert_function', 'Technology', 13)
-ON CONFLICT (category, value) DO NOTHING;
+INSERT INTO lk_salutations (name, display_order) VALUES ('Mr.', 1), ('Ms.', 2), ('Mrs.', 3), ('Dr.', 4), ('Prof.', 5) ON CONFLICT (name) DO NOTHING;
 
--- =====================================================
--- Seed: Salutation
--- =====================================================
-INSERT INTO lookup_tables (category, value, display_order) VALUES
-    ('salutation', 'Mr.', 1),
-    ('salutation', 'Ms.', 2),
-    ('salutation', 'Mrs.', 3),
-    ('salutation', 'Dr.', 4),
-    ('salutation', 'Prof.', 5)
-ON CONFLICT (category, value) DO NOTHING;
-
--- =====================================================
--- Seed: HCMS Classification
--- =====================================================
-INSERT INTO lookup_tables (category, value, display_order) VALUES
-    ('hcms_classification', 'Standard', 1),
-    ('hcms_classification', 'Premium', 2),
-    ('hcms_classification', 'Strategic', 3)
-ON CONFLICT (category, value) DO NOTHING;
+INSERT INTO lk_hcms_classifications (name, display_order) VALUES ('Standard', 1), ('Premium', 2), ('Strategic', 3) ON CONFLICT (name) DO NOTHING;

@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Development Plan: Expert and Client Management Systems</title>
+    <!-- Import 'Inter' font to match Hasamex theme -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Hasamex Theme Colors (based on EMS configuration) */
+            --primary-50: #f0fdf4;
+            --primary-100: #dcfce7;
+            --primary-200: #bbf7d0;
+            --primary-300: #86efac;
+            --primary-400: #4ade80;
+            --primary-500: #22c55e;
+            --primary-600: #16a34a;
+            --primary-700: #15803d;
+            /* Key branding color */
+            --primary-800: #166534;
+            --primary-900: #14532d;
+
+            --text-main: #1f2937;
+            --text-muted: #4b5563;
+            --bg-body: #f8fafc;
+            --bg-card: #ffffff;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.6;
+            margin: 0;
+            padding: 2rem;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            padding: 3rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 1px solid var(--border-color);
+        }
+
+        h1 {
+            color: var(--primary-800);
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            border-bottom: 3px solid var(--primary-500);
+            padding-bottom: 1rem;
+        }
+
+        h2 {
+            color: var(--primary-700);
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-top: 2.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        h3 {
+            color: var(--primary-700);
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 2rem;
+            margin-bottom: 0.75rem;
+        }
+
+        p {
+            margin-bottom: 1.25rem;
+            color: var(--text-muted);
+        }
+
+        ul {
+            margin-bottom: 1.5rem;
+            padding-left: 1.5rem;
+            color: var(--text-muted);
+        }
+
+        li {
+            margin-bottom: 0.75rem;
+        }
+
+        strong {
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        em {
+            color: var(--primary-600);
+            font-style: italic;
+        }
+
+        code {
+            background-color: var(--primary-50);
+            color: var(--primary-700);
+            padding: 0.2rem 0.4rem;
+            border-radius: 6px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.875em;
+            border: 1px solid var(--primary-200);
+        }
+
+        hr {
+            border: 0;
+            height: 1px;
+            background: var(--border-color);
+            margin: 2.5rem 0;
+        }
+
+        /* Timeline specific styling */
+        .timeline-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .timeline-week {
+            background-color: #ffffff;
+            border-left: 4px solid var(--primary-500);
+            padding: 1.5rem;
+            border-radius: 0 8px 8px 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            border-top: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .timeline-week:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border-left-color: var(--primary-600);
+        }
+
+        .timeline-week h3 {
+            margin-top: 0;
+            color: var(--primary-800);
+        }
+
+        .timeline-week p {
+            margin-bottom: 1rem;
+        }
+
+        .timeline-week ul {
+            margin-bottom: 0;
+        }
+
+        .mermaid-container {
+            background: var(--bg-body);
+            padding: 2rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+            margin: 2rem 0;
+            overflow-x: auto;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            mermaid.initialize({
+                startOnLoad: true,
+                theme: 'base',
+                themeVariables: {
+                    fontFamily: 'Inter, system-ui, sans-serif'
+                }
+            });
+        });
+    </script>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Development Plan: Expert and Client Management Systems</h1>
+
+        <h2>1. Overview</h2>
+        <p>This plan outlines the architecture, database design, and a 4-week timeline for developing two integrated but
+            distinct web applications:</p>
+        <ul>
+            <li><strong>Expert Management System</strong>: An application to manage an expert pool, their profiles,
+                domains, skills, and overall availability.</li>
+            <li><strong>Client Management System</strong>: An application to manage clients, their projects, and the
+                allocation of specific experts to those projects.</li>
+        </ul>
+
+        <p>Both applications will share the same backend API and database. This ensures data consistency and enables
+            real-time updates regarding expert availability and project assignments.</p>
+
+        <p>The allocation logic will heavily inherit structural patterns from the previous Employee Management System
+            (EMS), specifically adapting insights from <code>CustomerProjectsTab.jsx</code>,
+            <code>ProjectsTab.jsx</code>, and <code>project_routes.py</code>.
+        </p>
+
+        <hr>
+
+        <h2>2. Architecture Details</h2>
+        <ul>
+            <li><strong>Frontend Applications</strong>: Two separate Single-Page Applications (React + Vite) for
+                role-based separation of concerns, utilizing global vannila CSS for modern, dynamic UI designs.</li>
+            <li><strong>Shared Backend</strong>: A singleREST API (Python/Flask) that handles all interactions,
+                authentication, and cross-application data synchronization.</li>
+            <li><strong>Database</strong>: A shared relational database (PostgreSQL) storing all entities.</li>
+        </ul>
+
+        <h3>2.1 Mapping Workflow Diagram</h3>
+        <p>The following diagram illustrates the workflow for adding clients, projects, and experts, and then mapping
+            experts to client projects:</p>
+
+        <div class="mermaid-container">
+            <div class="mermaid">
+                flowchart TD
+                classDef default fill:#f0fdf4,stroke:#4ade80,stroke-width:2px,color:#166534;
+                classDef action fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d,font-weight:bold;
+                classDef db fill:#bbf7d0,stroke:#15803d,stroke-width:2px,color:#14532d,font-weight:bold;
+
+                subgraph CMS [Client Management System]
+                direction TB
+                AddClient[1. Add Client]:::action --> AddProj[2. Add Project to Client]:::action
+                AddExp[Opt: Add Expert from CMS]:::action
+                end
+
+                subgraph Mapping [Expert Mapping Workflow]
+                direction TB
+                Search[3. Search Available Experts]:::action
+                Select[4. Select Expert & Specify Role/Dates]:::action
+                Map[5. Map Expert to Client Project]:::action
+
+                AddProj --> Search
+                AddExp -.-> Search
+                Search --> Select --> Map
+                end
+
+                SharedDB[(Shared PostgreSQL Database)]:::db
+
+                AddClient -->|Saves| SharedDB
+                AddProj -->|Saves| SharedDB
+                AddExp -->|Saves| SharedDB
+                Map -->|Saves Allocation| SharedDB
+            </div>
+        </div>
+
+        <hr>
+
+        <h2>3. Database Schema Mapping</h2>
+        <p>To support a many-to-many relationship between Experts and Projects while associating Projects strictly to
+            Clients, we will adapt the EMS structures:</p>
+        <ul>
+            <li><strong>Clients</strong> <em>(Equivalent to EMS Customers)</em>: <code>id</code>,
+                <code>client name</code>, <code>location</code>, <code>domain</code>, <code>status</code>,
+                <code>created_at</code>.
+            </li>
+            <li><strong>Projects</strong>: <code>id</code>, <code>name</code>, <code>client_id</code> (Foreign Key),
+                <code>description</code>, <code>status</code> (Planning, Active, Completed, On Hold),
+                <code>start_date</code>, <code>end_date</code>.
+            </li>
+            <li><strong>Experts</strong> <em>(Equivalent to EMS Employees)</em>: <code>id</code>,
+                <code>first_name</code>, <code>last_name</code>, <code>expertise_domain</code>, <code>status</code>,
+                <code>availability</code>.
+            </li>
+            <li><strong>ProjectExpertAllocation</strong> <em>(Equivalent to EMS ProjectAllocation)</em>:
+                <code>id</code>, <code>project_id</code> (Foreign Key), <code>expert_id</code> (Foreign Key),
+                <code>role</code>, <code>allocation_percentage</code>, <code>start_date</code>, <code>end_date</code>,
+                <code>status</code> (Active, Inactive).
+            </li>
+        </ul>
+
+        <hr>
+
+        <h2>4. Work Breakdown & 1-Month Timeline</h2>
+
+        <div class="timeline-container">
+            <div class="timeline-week">
+                <h3>Week 1: Foundation and Shared Backend Architecture</h3>
+                <p><strong>Goal</strong>: Design the shared database schemas and build core API endpoints.</p>
+                <ul>
+                    <li><strong>Day 1-2</strong>: Database schema modelling for <code>Clients</code>,
+                        <code>Projects</code>, <code>Experts</code>, and <code>ProjectExpertAllocation</code>. Execute
+                        database migrations.
+                    </li>
+                    <li><strong>Day 3-4</strong>: Develop backend API routes for Client Management operations
+                        (<code>/api/clients</code>, <code>/api/clients/:id/projects</code>). Implement necessary
+                        eager-loading optimizations inherited from the previous project to avoid N+1 queries.</li>
+                    <li><strong>Day 5</strong>: Develop backend API routes for Project mapping
+                        (<code>/api/projects/:id/experts</code>). Ensure the team fetching API logic handles errors,
+                        caching, and empty states smoothly exactly like the reference <code>project_routes.py</code>.
+                    </li>
+                </ul>
+            </div>
+
+            <div class="timeline-week">
+                <h3>Week 2: Client Management System (Frontend Base)</h3>
+                <p><strong>Goal</strong>: Implement the CMS application focused on clients and their project.</p>
+                <ul>
+                    <li><strong>Day 6-7</strong>: Scaffold the Client Management frontend app. Set up the UI layout,
+                        routing framework. User can create a expert in client management system also.</li>
+                    <li><strong>Day 8-9</strong>: Develop Client/Customer views (adapting
+                        <code>CustomerProjectsTab.jsx</code>). Include the creation modal, SearchableDropdown component,
+                        and status constraint validation (e.g., verifying child projects before completion).
+                    </li>
+                    <li><strong>Day 10</strong>: Develop Project views (adapting <code>ProjectsTab.jsx</code>). Handle
+                        lists of projects tied to specific clients, project modals, and infinite scroll pagination
+                        structures.</li>
+                </ul>
+            </div>
+
+            <div class="timeline-week">
+                <h3>Week 3: Expert Mapping and Integration</h3>
+                <p><strong>Goal</strong>: Implement the allocation logic linking Experts to Client Projects.</p>
+                <ul>
+                    <li><strong>Day 11-12</strong>: Create the <strong>"Expert Allocation Modal"</strong> inside the
+                        Client Management System. Allow searching for available Experts based on active status/skills
+                        and mapping them to the active Project.</li>
+                    <li><strong>Day 13</strong>: Build out the aggregate team visualization for Projects. Adapt logic
+                        like <code>calculateProjectAvgUtilization()</code> and <code>getCurrentWeekTeamMembers()</code>
+                        to properly deduplicate logic and show real-time expert utilization.</li>
+                    <li><strong>Day 14-15</strong>: Refine the <strong>Expert Management System</strong>. Add a
+                        dedicated "Allocations Tab" to an expert's profile to display their mapped client projects
+                        (read-only from the EMS side).</li>
+                </ul>
+            </div>
+
+            <div class="timeline-week">
+                <h3>Week 4: Polish, QA, and Delivery</h3>
+                <p><strong>Goal</strong>: Ensure high-quality UI/UX, bug-free allocation logic, and robust performance.
+                </p>
+                <ul>
+                    <li><strong>Day 16-17</strong>: Refine shared UI components. Include smooth fade-in animations,
+                        customized scrollbars, unified typography, and loading skeletons.</li>
+                    <li><strong>Day 18-19</strong>: Testing & Quality Assurance. Ensure validation workflows behave
+                        properly (e.g., date conflicts in allocations, duplicate internal projects check). Verify
+                        caching mechanics in the project tabs.</li>
+                    <li><strong>Day 20</strong>: Final staging deployment of the shared backend and both frontends.
+                        Prepare handover documentation, covering the newly developed APIs and application workflows.
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

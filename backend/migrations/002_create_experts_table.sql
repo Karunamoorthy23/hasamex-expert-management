@@ -1,10 +1,21 @@
 -- Migration 002: Create experts table
 -- =====================================
 
+CREATE TABLE IF NOT EXISTS lk_regions ( id SERIAL PRIMARY KEY, name VARCHAR(50) UNIQUE NOT NULL, display_order INTEGER DEFAULT 0 );
+CREATE TABLE IF NOT EXISTS lk_primary_sectors ( id SERIAL PRIMARY KEY, name VARCHAR(100) UNIQUE NOT NULL, display_order INTEGER DEFAULT 0 );
+CREATE TABLE IF NOT EXISTS lk_expert_statuses ( id SERIAL PRIMARY KEY, name VARCHAR(50) UNIQUE NOT NULL, display_order INTEGER DEFAULT 0 );
+CREATE TABLE IF NOT EXISTS lk_employment_statuses ( id SERIAL PRIMARY KEY, name VARCHAR(50) UNIQUE NOT NULL, display_order INTEGER DEFAULT 0 );
+CREATE TABLE IF NOT EXISTS lk_seniorities ( id SERIAL PRIMARY KEY, name VARCHAR(50) UNIQUE NOT NULL, display_order INTEGER DEFAULT 0 );
+CREATE TABLE IF NOT EXISTS lk_currencies ( id SERIAL PRIMARY KEY, name VARCHAR(10) UNIQUE NOT NULL, display_order INTEGER DEFAULT 0 );
+CREATE TABLE IF NOT EXISTS lk_company_roles ( id SERIAL PRIMARY KEY, name VARCHAR(100) UNIQUE NOT NULL, display_order INTEGER DEFAULT 0 );
+CREATE TABLE IF NOT EXISTS lk_expert_functions ( id SERIAL PRIMARY KEY, name VARCHAR(100) UNIQUE NOT NULL, display_order INTEGER DEFAULT 0 );
+CREATE TABLE IF NOT EXISTS lk_salutations ( id SERIAL PRIMARY KEY, name VARCHAR(10) UNIQUE NOT NULL, display_order INTEGER DEFAULT 0 );
+CREATE TABLE IF NOT EXISTS lk_hcms_classifications ( id SERIAL PRIMARY KEY, name VARCHAR(50) UNIQUE NOT NULL, display_order INTEGER DEFAULT 0 );
+
 CREATE TABLE IF NOT EXISTS experts (
     id                        UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
     expert_id                 VARCHAR(20)     UNIQUE NOT NULL,
-    salutation                VARCHAR(10),
+    salutation_id             INT REFERENCES lk_salutations(id),
     first_name                VARCHAR(100)    NOT NULL,
     last_name                 VARCHAR(100)    NOT NULL,
     primary_email             VARCHAR(255)    UNIQUE,
@@ -14,55 +25,60 @@ CREATE TABLE IF NOT EXISTS experts (
     linkedin_url              VARCHAR(500)    UNIQUE,
     location                  VARCHAR(255),
     timezone                  VARCHAR(100),
-    region                    VARCHAR(50),
-    current_employment_status VARCHAR(50),
-    seniority                 VARCHAR(50),
+    region_id                 INT REFERENCES lk_regions(id),
+    current_employment_status_id INT REFERENCES lk_employment_statuses(id),
+    seniority_id              INT REFERENCES lk_seniorities(id),
     years_of_experience       INTEGER,
     title_headline            VARCHAR(500),
     bio                       TEXT,
-    employment_history        TEXT,
-    primary_sector            VARCHAR(100),
-    company_role              VARCHAR(100),
-    expert_function           VARCHAR(100),
-    strength_topics           TEXT,
-    currency                  VARCHAR(10),
+    primary_sector_id         INT REFERENCES lk_primary_sectors(id),
+    company_role_id           INT REFERENCES lk_company_roles(id),
+    expert_function_id        INT REFERENCES lk_expert_functions(id),
+    currency_id               INT REFERENCES lk_currencies(id),
     hourly_rate               DECIMAL(12, 2),
-    hcms_classification       VARCHAR(50),
-    expert_status             VARCHAR(50),
+    hcms_classification_id    INT REFERENCES lk_hcms_classifications(id),
+    expert_status_id          INT REFERENCES lk_expert_statuses(id),
     notes                     TEXT,
     profile_pdf_url           VARCHAR(500),
     last_modified             TIMESTAMP,
     total_calls_completed     INTEGER         DEFAULT 0,
-    project_id_added_to       VARCHAR(50),
     created_at                TIMESTAMP       DEFAULT NOW(),
-    updated_at                TIMESTAMP       DEFAULT NOW()
+    updated_at                TIMESTAMP       DEFAULT NOW(),
+    payment_details           TEXT,
+    events_invited_to         TEXT
 );
 
--- =====================================================
--- Indexes for Performance
--- =====================================================
-
--- Full-text trigram search index
-CREATE INDEX IF NOT EXISTS idx_experts_search ON experts USING GIN (
-    (first_name || ' ' || last_name || ' ' || COALESCE(title_headline, '') || ' ' || COALESCE(primary_sector, '') || ' ' || COALESCE(location, '') || ' ' || COALESCE(linkedin_url, '')) gin_trgm_ops
+-- 1-to-Many Tables
+CREATE TABLE IF NOT EXISTS expert_experiences (
+    id SERIAL PRIMARY KEY,
+    expert_id UUID NOT NULL REFERENCES experts(id) ON DELETE CASCADE,
+    company_name VARCHAR(255) NOT NULL,
+    role_title VARCHAR(255) NOT NULL,
+    start_year INTEGER,
+    end_year INTEGER,
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Filter column indexes
-CREATE INDEX IF NOT EXISTS idx_experts_region ON experts(region);
-CREATE INDEX IF NOT EXISTS idx_experts_primary_sector ON experts(primary_sector);
-CREATE INDEX IF NOT EXISTS idx_experts_expert_status ON experts(expert_status);
-CREATE INDEX IF NOT EXISTS idx_experts_employment_status ON experts(current_employment_status);
+CREATE TABLE IF NOT EXISTS expert_strengths (
+    id SERIAL PRIMARY KEY,
+    expert_id UUID NOT NULL REFERENCES experts(id) ON DELETE CASCADE,
+    topic_name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS expert_projects (
+    expert_id UUID REFERENCES experts(id) ON DELETE CASCADE,
+    project_id VARCHAR(50) NOT NULL,
+    added_at TIMESTAMP DEFAULT NOW(),
+    PRIMARY KEY (expert_id, project_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_exp_company ON expert_experiences(company_name);
+CREATE INDEX IF NOT EXISTS idx_exp_strength_topic ON expert_strengths(topic_name);
+
+-- Indexes
 CREATE INDEX IF NOT EXISTS idx_experts_updated_at ON experts(updated_at DESC);
-
--- Individual trigram indexes for specific column searches
-CREATE INDEX IF NOT EXISTS idx_experts_first_name ON experts USING GIN (first_name gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_experts_last_name ON experts USING GIN (last_name gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_experts_email ON experts USING GIN (primary_email gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_experts_location ON experts USING GIN (location gin_trgm_ops);
-
--- =====================================================
--- Auto-update trigger for updated_at
--- =====================================================
+CREATE INDEX IF NOT EXISTS idx_experts_email ON experts(primary_email);
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

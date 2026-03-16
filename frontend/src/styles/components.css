@@ -749,7 +749,7 @@
     width: 32px;
     height: 32px;
     padding: 0;
-    color: var(--color-primary);
+    color: var(--color-accent);
     /* Blue for Edit and Link icon per user request */
     background: transparent;
     border: none;
@@ -1354,7 +1354,7 @@
 }
 
 .tz-select__trigger[aria-expanded="true"] {
-    border-color: var(--color-primary);
+    border-color: var(--color-accent);
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
@@ -1446,7 +1446,7 @@
 }
 
 .tz-select__search:focus {
-    border-color: var(--color-primary);
+    border-color: var(--color-accent);
 }
 
 .tz-select__list {
@@ -1491,7 +1491,7 @@
 
 .tz-select__item--active {
     background: rgba(37, 99, 235, 0.06);
-    color: var(--color-primary);
+    color: var(--color-accent);
 }
 
 .tz-select__item-label {
@@ -1503,13 +1503,95 @@
 }
 
 .tz-select__item--active .tz-select__item-label {
-    color: var(--color-primary);
+    color: var(--color-accent);
     font-weight: 500;
 }
 
 .tz-select__check {
     font-size: 14px;
     font-weight: 700;
-    color: var(--color-primary);
+    color: var(--color-accent);
     flex-shrink: 0;
+}
+
+/* ── Employment History Builder ──────────────────────── */
+
+.employment-history-section {
+    width: 100%;
+}
+
+.eh-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-4);
+}
+
+.eh-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.eh-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-grey-200);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.eh-card:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    border-color: var(--color-grey-300);
+}
+
+.eh-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-3);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--color-grey-100);
+}
+
+.eh-card-title {
+    margin: 0;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-grey-700);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.eh-card-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+}
+
+.btn-add-eh {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    background: var(--color-grey-400);
+    color: var(--color-white);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-add-eh:hover {
+    background: var(--color-black);
+}
+
+@media (max-width: 600px) {
+    .eh-card-body {
+        grid-template-columns: 1fr;
+    }
 }

@@ -48,7 +48,7 @@ const FORM_SECTIONS = [
         title: 'Bio & Experience',
         fields: [
             { name: 'bio', label: 'Bio', type: 'textarea', placeholder: 'Brief professional biography...', gridSpan: 2 },
-            { name: 'employment_history', label: 'Employment History', type: 'textarea', placeholder: 'Previous roles and companies...', gridSpan: 2 },
+            { name: 'employment_history', label: 'Employment History', type: 'employment_history_builder', gridSpan: 2 },
             { name: 'strength_topics', label: 'Strength Topics', type: 'textarea', placeholder: 'Areas of expertise, separated by commas', gridSpan: 2 },
         ],
     },
@@ -97,6 +97,7 @@ function getInitialFormData() {
         title_headline: '',
         bio: '',
         employment_history: '',
+        employmentHistoryArray: [],
         primary_sector: '',
         company_role: '',
         expert_function: '',
@@ -145,6 +146,27 @@ export default function ExpertEditPage() {
                 for (const key in expertData) {
                     cleanData[key] = expertData[key] === null ? '' : expertData[key];
                 }
+
+                // Parse employment history string into array
+                const parsedHistory = [];
+                if (cleanData.employment_history) {
+                    cleanData.employment_history.split('\n').filter(Boolean).forEach(line => {
+                        const yearMatch = line.match(/\((.*?)\)/);
+                        let start_year = '', end_year = '';
+                        if (yearMatch) {
+                            const years = yearMatch[1].split('-');
+                            start_year = years[0] !== '??' ? years[0].trim() : '';
+                            end_year = (years[1] && years[1].trim() !== 'Present') ? years[1].trim() : '';
+                        }
+                        const jobInfo = line.replace(/\s*\(.*?\)\s*/g, '').trim();
+                        const parts = jobInfo.split(',');
+                        const role = parts[0]?.trim() || '';
+                        const company = parts.slice(1).join(',').trim() || '';
+                        parsedHistory.push({ id: Date.now() + Math.random(), role, company, start_year, end_year });
+                    });
+                }
+                cleanData.employmentHistoryArray = parsedHistory;
+
                 setFormData(prev => ({ ...prev, ...cleanData }));
             } else {
                 setSubmitError('Failed to load expert. They may have been deleted.');
@@ -152,6 +174,33 @@ export default function ExpertEditPage() {
             setIsLoading(false);
         });
     }, [id]);
+
+    // ── Dynamic Employment History Handlers ──
+    const addEmploymentHistory = useCallback(() => {
+        setFormData(prev => ({
+            ...prev,
+            employmentHistoryArray: [
+                ...(prev.employmentHistoryArray || []),
+                { id: Date.now() + Math.random(), company: '', role: '', start_year: '', end_year: '' }
+            ]
+        }));
+    }, []);
+
+    const removeEmploymentHistory = useCallback((id) => {
+        setFormData(prev => ({
+            ...prev,
+            employmentHistoryArray: prev.employmentHistoryArray.filter(item => item.id !== id)
+        }));
+    }, []);
+
+    const handleEmploymentHistoryChange = useCallback((id, field, value) => {
+        setFormData(prev => ({
+            ...prev,
+            employmentHistoryArray: prev.employmentHistoryArray.map(item =>
+                item.id === id ? { ...item, [field]: value } : item
+            )
+        }));
+    }, []);
 
     // ── Handle field change ──
     const handleChange = useCallback((e) => {
@@ -275,9 +324,24 @@ export default function ExpertEditPage() {
 
             // 2. Clean up data: convert empty strings to null, numbers to int/float
             const payload = { ...formData, profile_pdf_url: finalProfileUrl };
-            if (payload.years_of_experience) payload.years_of_experience = parseInt(payload.years_of_experience, 10);
+            if (payload.years_of_experience !== undefined && payload.years_of_experience !== '') {
+                payload.years_of_experience = parseInt(payload.years_of_experience, 10);
+            }
             if (payload.hourly_rate) payload.hourly_rate = parseFloat(payload.hourly_rate);
-            if (payload.total_calls_completed) payload.total_calls_completed = parseInt(payload.total_calls_completed, 10);
+            if (payload.total_calls_completed !== undefined && payload.total_calls_completed !== '') {
+                payload.total_calls_completed = parseInt(payload.total_calls_completed, 10);
+            }
+
+            // 3. Build employment_history string from array
+            if (payload.employmentHistoryArray && payload.employmentHistoryArray.length > 0) {
+                payload.employment_history = payload.employmentHistoryArray
+                    .filter(exp => exp.company.trim() || exp.role.trim())
+                    .map(exp => `${exp.role.trim() || 'Role'}, ${exp.company.trim() || 'Company'} (${exp.start_year || '??'}-${exp.end_year || 'Present'})`)
+                    .join('\n');
+            } else {
+                payload.employment_history = '';
+            }
+            delete payload.employmentHistoryArray;
 
             try {
                 const result = await updateExpert(id, payload);
@@ -311,6 +375,51 @@ export default function ExpertEditPage() {
             required: field.required || false,
             className: `form-input${hasError ? ' form-input--error' : ''}`,
         };
+
+        if (field.type === 'employment_history_builder') {
+            return (
+                <div key={field.name} className="employment-history-section" style={{ gridColumn: 'span 2' }}>
+                    <div className="eh-section-header">
+                        <label className="form-label">{field.label}</label>
+                        <button type="button" onClick={addEmploymentHistory} className="btn-add-eh">
+                            + Add Employment History
+                        </button>
+                    </div>
+                    <div className="eh-list">
+                        {(!formData.employmentHistoryArray || formData.employmentHistoryArray.length === 0) ? (
+                            <p className="empty-state__text" style={{ padding: '20px 0', border: '1px dashed var(--color-grey-300)', borderRadius: '8px', textAlign: 'center' }}>No employment history added. Click the button above to add one.</p>
+                        ) : (
+                            formData.employmentHistoryArray.map((entry, index) => (
+                                <div key={entry.id} className="eh-card">
+                                    <div className="eh-card-header">
+                                        <h4 className="eh-card-title">Experience {index + 1}</h4>
+                                        <button type="button" onClick={() => removeEmploymentHistory(entry.id)} className="btn btn--danger btn--sm" style={{ padding: '4px 10px', fontSize: '12px' }}>Remove</button>
+                                    </div>
+                                    <div className="eh-card-body">
+                                        <div className="form-field">
+                                            <label className="form-label">Company Name *</label>
+                                            <input type="text" className="form-input" placeholder="e.g. Google" value={entry.company} onChange={e => handleEmploymentHistoryChange(entry.id, 'company', e.target.value)} required />
+                                        </div>
+                                        <div className="form-field">
+                                            <label className="form-label">Role / Position *</label>
+                                            <input type="text" className="form-input" placeholder="e.g. Senior Engineer" value={entry.role} onChange={e => handleEmploymentHistoryChange(entry.id, 'role', e.target.value)} required />
+                                        </div>
+                                        <div className="form-field">
+                                            <label className="form-label">Start Year</label>
+                                            <input type="number" min="1950" max={new Date().getFullYear() + 10} className="form-input" placeholder="YYYY" value={entry.start_year} onChange={e => handleEmploymentHistoryChange(entry.id, 'start_year', e.target.value)} />
+                                        </div>
+                                        <div className="form-field">
+                                            <label className="form-label">End Year</label>
+                                            <input type="number" min="1950" max={new Date().getFullYear() + 10} className="form-input" placeholder="YYYY (or leave blank for Present)" value={entry.end_year} onChange={e => handleEmploymentHistoryChange(entry.id, 'end_year', e.target.value)} />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            );
+        }
 
         let input;
 
