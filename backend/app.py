@@ -24,10 +24,14 @@ def create_app():
     from routes.experts import experts_bp
     from routes.lookups import lookups_bp
     from routes.import_experts import import_experts_bp
+    from routes.clients import clients_bp
+    from routes.projects import projects_bp
 
     app.register_blueprint(experts_bp)
     app.register_blueprint(lookups_bp)
     app.register_blueprint(import_experts_bp)
+    app.register_blueprint(clients_bp)
+    app.register_blueprint(projects_bp)
 
     # Configure and create uploads folder for expert PDFs
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'expert_pdf')

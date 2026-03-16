@@ -232,3 +232,120 @@ class Expert(db.Model):
 
     def __repr__(self):
         return f'<Expert {self.expert_id}: {self.first_name} {self.last_name}>'
+
+class User(db.Model):
+    __tablename__ = 'users'
+    user_id = db.Column(db.Integer, primary_key=True)
+    user_name = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'user_id': self.user_id,
+            'user_name': self.user_name,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+class Client(db.Model):
+    __tablename__ = 'clients'
+    client_id = db.Column(db.Integer, primary_key=True)
+    client_name = db.Column(db.String(255), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id', ondelete='SET NULL'), nullable=True)
+    location = db.Column(db.String(255))
+    status = db.Column(db.String(50))
+    company = db.Column(db.String(255))
+    type = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    user = db.relationship('User', backref='clients')
+    projects = db.relationship('Project', backref='client', lazy=True, cascade='all, delete-orphan')
+
+    def to_dict(self):
+        return {
+            'client_id': self.client_id,
+            'client_name': self.client_name,
+            'user_id': self.user_id,
+            'location': self.location,
+            'status': self.status,
+            'company': self.company,
+            'type': self.type,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+class Project(db.Model):
+    __tablename__ = 'projects'
+    project_id = db.Column(db.Integer, primary_key=True)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.client_id', ondelete='CASCADE'), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    sector = db.Column(db.String(100))
+    description = db.Column(db.Text)
+    status = db.Column(db.String(50))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    allocations = db.relationship('ProjectExpert', backref='project', lazy=True, cascade='all, delete-orphan')
+    calls = db.relationship('Call', backref='project', lazy=True, cascade='all, delete-orphan')
+
+    def to_dict(self):
+        return {
+            'project_id': self.project_id,
+            'client_id': self.client_id,
+            'title': self.title,
+            'sector': self.sector,
+            'description': self.description,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+class ProjectExpert(db.Model):
+    __tablename__ = 'project_experts'
+    project_expert_id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.project_id', ondelete='CASCADE'), nullable=False)
+    expert_id = db.Column(UUID(as_uuid=False), db.ForeignKey('experts.id', ondelete='CASCADE'), nullable=False)
+    stage = db.Column(db.String(50))
+    call_completed = db.Column(db.Boolean, default=False)
+    call_date = db.Column(db.DateTime)
+    expert_rate = db.Column(db.Numeric(10, 2))
+    
+    expert = db.relationship('Expert', backref='project_allocations')
+
+    def to_dict(self):
+        return {
+            'project_expert_id': self.project_expert_id,
+            'project_id': self.project_id,
+            'expert_id': self.expert_id,
+            'stage': self.stage,
+            'call_completed': self.call_completed,
+            'call_date': self.call_date.isoformat() if self.call_date else None,
+            'expert_rate': float(self.expert_rate) if self.expert_rate else None,
+        }
+
+class Call(db.Model):
+    __tablename__ = 'calls'
+    call_id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.project_id', ondelete='CASCADE'), nullable=False)
+    expert_id = db.Column(UUID(as_uuid=False), db.ForeignKey('experts.id', ondelete='CASCADE'), nullable=False)
+    client_user = db.Column(db.String(255))
+    zoom_link = db.Column(db.String(500))
+    recording_url = db.Column(db.String(500))
+    transcript_url = db.Column(db.String(500))
+    call_status = db.Column(db.String(50))
+    
+    expert = db.relationship('Expert', backref='calls')
+
+    def to_dict(self):
+        return {
+            'call_id': self.call_id,
+            'project_id': self.project_id,
+            'expert_id': self.expert_id,
+            'client_user': self.client_user,
+            'zoom_link': self.zoom_link,
+            'recording_url': self.recording_url,
+            'transcript_url': self.transcript_url,
+            'call_status': self.call_status,
+        }
