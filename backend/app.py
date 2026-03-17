@@ -11,12 +11,14 @@ load_dotenv('flask.env')
 def create_app():
     app = Flask(__name__)
     
-    # Enable CORS for the frontend origin
-    cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173')
-    CORS(app, resources={r"/api/v1/*": {"origins": cors_origins.split(',')}})
-
     from config import Config
     app.config.from_object(Config)
+
+    # Enable CORS for configured frontend origins
+    cors_origins = app.config.get('CORS_ORIGINS') or ['http://localhost:5173']
+    if isinstance(cors_origins, str):
+        cors_origins = [o.strip() for o in cors_origins.split(',') if o.strip()]
+    CORS(app, resources={r"/api/v1/*": {"origins": cors_origins}})
 
     db.init_app(app)
 
@@ -26,12 +28,14 @@ def create_app():
     from routes.import_experts import import_experts_bp
     from routes.clients import clients_bp
     from routes.projects import projects_bp
+    from routes.users import users_bp
 
     app.register_blueprint(experts_bp)
     app.register_blueprint(lookups_bp)
     app.register_blueprint(import_experts_bp)
     app.register_blueprint(clients_bp)
     app.register_blueprint(projects_bp)
+    app.register_blueprint(users_bp)
 
     # Configure and create uploads folder for expert PDFs
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'expert_pdf')

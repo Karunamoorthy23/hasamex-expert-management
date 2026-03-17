@@ -2,13 +2,62 @@ from flask import Blueprint, request, jsonify
 from extensions import db
 from models import Client, User
 from datetime import datetime
+from sqlalchemy import or_
 
 clients_bp = Blueprint('clients', __name__, url_prefix='/api/v1/clients')
 
 @clients_bp.route('', methods=['GET'])
 def get_clients():
-    clients = Client.query.all()
-    return jsonify({'data': [c.to_dict() for c in clients]})
+    """
+    GET /api/v1/clients?page=1&limit=20&search=...
+    """
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 20, type=int)
+    limit = min(limit, 100)
+    search = request.args.get('search', '', type=str).strip()
+
+    query = Client.query
+
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            or_(
+                Client.client_name.ilike(like),
+                Client.client_code.ilike(like),
+                Client.client_type.ilike(like),
+                Client.office_locations.ilike(like),
+                Client.country.ilike(like),
+                Client.website.ilike(like),
+                Client.linkedin_url.ilike(like),
+                Client.client_manager_internal.ilike(like),
+                Client.billing_currency.ilike(like),
+                Client.client_status.ilike(like),
+                Client.location.ilike(like),
+                Client.status.ilike(like),
+                Client.company.ilike(like),
+                Client.type.ilike(like),
+            )
+        )
+
+    query = query.order_by(Client.updated_at.desc().nulls_last())
+
+    total_records = query.count()
+    total_pages = max(1, -(-total_records // limit))
+    page = min(page, total_pages)
+
+    clients = query.offset((page - 1) * limit).limit(limit).all()
+
+    return jsonify({
+        'data': [c.to_dict() for c in clients],
+        'meta': {
+            'total_records': total_records,
+            'current_page': page,
+            'total_pages': total_pages,
+            'limit': limit,
+            'has_next': page < total_pages,
+            'has_prev': page > 1,
+        }
+    })
 
 @clients_bp.route('/<int:client_id>', methods=['GET'])
 def get_client(client_id):
@@ -23,11 +72,35 @@ def create_client():
         
     new_client = Client(
         client_name=data.get('client_name'),
+        client_code=data.get('client_code'),
+        client_type=data.get('client_type'),
+        office_locations=data.get('office_locations'),
+        number_of_offices=data.get('number_of_offices'),
+        country=data.get('country'),
+        website=data.get('website'),
+        linkedin_url=data.get('linkedin_url'),
+        primary_contact_user_id=data.get('primary_contact_user_id'),
+        client_manager_internal=data.get('client_manager_internal'),
+        billing_currency=data.get('billing_currency'),
+        payment_terms=data.get('payment_terms'),
+        invoicing_email=data.get('invoicing_email'),
+        client_status=data.get('client_status'),
+        engagement_start_date=data.get('engagement_start_date'),
+        notes=data.get('notes'),
+        business_activity_summary=data.get('business_activity_summary'),
+        signed_msa=data.get('signed_msa'),
+        commercial_model=data.get('commercial_model'),
+        agreed_pricing=data.get('agreed_pricing'),
+        users=data.get('users'),
+        number_of_users=data.get('number_of_users'),
+        msa=data.get('msa'),
+
+        # legacy
         user_id=data.get('user_id'),
         location=data.get('location'),
         status=data.get('status'),
         company=data.get('company'),
-        type=data.get('type')
+        type=data.get('type'),
     )
     db.session.add(new_client)
     db.session.commit()

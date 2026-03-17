@@ -58,6 +58,16 @@ class LkHcmsClassification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
 
+class LkProjectType(db.Model):
+    __tablename__ = 'lk_project_type'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+
+class LkProjectTargetGeography(db.Model):
+    __tablename__ = 'lk_project_target_geographies'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), unique=True, nullable=False)
+
 
 class ExpertExperience(db.Model):
     __tablename__ = 'expert_experiences'
@@ -236,14 +246,64 @@ class Expert(db.Model):
 class User(db.Model):
     __tablename__ = 'users'
     user_id = db.Column(db.Integer, primary_key=True)
+    # Display ID (e.g. "US-0030")
+    user_code = db.Column(db.String(50), unique=True, nullable=True)
+
+    # Basic identity
+    first_name = db.Column(db.String(100))
+    last_name = db.Column(db.String(100))
+
+    # Optional single-field display name (legacy)
     user_name = db.Column(db.String(255), nullable=False)
+
+    designation_title = db.Column(db.String(255))
+    email = db.Column(db.String(255))
+    phone = db.Column(db.String(50))
+    seniority = db.Column(db.String(100))
+    linkedin_url = db.Column(db.String(500))
+
+    # FK to clients table (do NOT show in frontend table)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.client_id', ondelete='SET NULL'), nullable=True)
+
+    location = db.Column(db.String(255))
+    preferred_contact_method = db.Column(db.String(100))
+    time_zone = db.Column(db.String(100))
+    avg_calls_per_month = db.Column(db.Integer)
+    status = db.Column(db.String(50))
+    notes = db.Column(db.Text)
+    user_manager = db.Column(db.String(255))
+    ai_generated_bio = db.Column(db.Text)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    client = db.relationship('Client', foreign_keys=[client_id])
+
     def to_dict(self):
+        full_name = " ".join([p for p in [self.first_name, self.last_name] if p]).strip() or None
         return {
             'user_id': self.user_id,
             'user_name': self.user_name,
+            'user_code': self.user_code,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'full_name': full_name,
+            'designation_title': self.designation_title,
+            'email': self.email,
+            'phone': self.phone,
+            'seniority': self.seniority,
+            'linkedin_url': self.linkedin_url,
+            'client_id': self.client_id,
+            'client_name': self.client.client_name if self.client else None,
+            'client_type': self.client.client_type if self.client else None,
+            'location': self.location,
+            'preferred_contact_method': self.preferred_contact_method,
+            'time_zone': self.time_zone,
+            'avg_calls_per_month': self.avg_calls_per_month,
+            'status': self.status,
+            'notes': self.notes,
+            'user_manager': self.user_manager,
+            'ai_generated_bio': self.ai_generated_bio,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -252,6 +312,40 @@ class Client(db.Model):
     __tablename__ = 'clients'
     client_id = db.Column(db.Integer, primary_key=True)
     client_name = db.Column(db.String(255), nullable=False)
+
+    # Business identifier shown in UI (e.g. "CL-0025")
+    client_code = db.Column(db.String(50), unique=True, nullable=True)
+
+    client_type = db.Column(db.String(100))
+    office_locations = db.Column(db.Text)  # comma-separated locations
+    number_of_offices = db.Column(db.Integer)
+    country = db.Column(db.String(100))
+    website = db.Column(db.String(500))
+    linkedin_url = db.Column(db.String(500))
+
+    # Primary contact user (external / client-side), if modeled
+    primary_contact_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id', ondelete='SET NULL'), nullable=True)
+
+    # Internal client manager (free text for now)
+    client_manager_internal = db.Column(db.String(255))
+
+    billing_currency = db.Column(db.String(20))
+    payment_terms = db.Column(db.String(255))
+    invoicing_email = db.Column(db.String(255))
+    client_status = db.Column(db.String(50))
+    engagement_start_date = db.Column(db.Date)
+
+    notes = db.Column(db.Text)
+    business_activity_summary = db.Column(db.Text)
+    signed_msa = db.Column(db.Boolean)
+    commercial_model = db.Column(db.String(255))
+    agreed_pricing = db.Column(db.Text)
+
+    users = db.Column(db.Text)  # free-text list of client users
+    number_of_users = db.Column(db.Integer)
+    msa = db.Column(db.Text)
+
+    # Legacy fields (kept for backward compatibility)
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id', ondelete='SET NULL'), nullable=True)
     location = db.Column(db.String(255))
     status = db.Column(db.String(50))
@@ -260,13 +354,43 @@ class Client(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    user = db.relationship('User', backref='clients')
+    # Two separate relationships to users; specify foreign_keys to avoid ambiguity.
+    user = db.relationship('User', foreign_keys=[user_id], backref='clients')
+    primary_contact_user = db.relationship(
+        'User',
+        foreign_keys=[primary_contact_user_id],
+        backref='primary_contact_for_clients'
+    )
     projects = db.relationship('Project', backref='client', lazy=True, cascade='all, delete-orphan')
 
     def to_dict(self):
         return {
             'client_id': self.client_id,
             'client_name': self.client_name,
+            'client_code': self.client_code,
+            'client_type': self.client_type,
+            'office_locations': self.office_locations,
+            'number_of_offices': self.number_of_offices,
+            'country': self.country,
+            'website': self.website,
+            'linkedin_url': self.linkedin_url,
+            'primary_contact_user_id': self.primary_contact_user_id,
+            'client_manager_internal': self.client_manager_internal,
+            'billing_currency': self.billing_currency,
+            'payment_terms': self.payment_terms,
+            'invoicing_email': self.invoicing_email,
+            'client_status': self.client_status,
+            'engagement_start_date': self.engagement_start_date.isoformat() if self.engagement_start_date else None,
+            'notes': self.notes,
+            'business_activity_summary': self.business_activity_summary,
+            'signed_msa': self.signed_msa,
+            'commercial_model': self.commercial_model,
+            'agreed_pricing': self.agreed_pricing,
+            'users': self.users,
+            'number_of_users': self.number_of_users,
+            'msa': self.msa,
+
+            # legacy passthrough
             'user_id': self.user_id,
             'location': self.location,
             'status': self.status,
@@ -284,11 +408,36 @@ class Project(db.Model):
     sector = db.Column(db.String(100))
     description = db.Column(db.Text)
     status = db.Column(db.String(50))
+    received_date = db.Column(db.Date)
+    project_title = db.Column(db.String(255))
+    project_type_id = db.Column(db.Integer, db.ForeignKey('lk_project_type.id', ondelete='SET NULL'))
+    project_description = db.Column(db.Text)
+    target_companies = db.Column(db.Text)
+    target_region_id = db.Column(db.Integer, db.ForeignKey('lk_regions.id', ondelete='SET NULL'))
+    target_functions_titles = db.Column(db.Text)
+    current_former_both = db.Column(db.String(20))
+    number_of_calls = db.Column(db.Integer)
+    profile_question_1 = db.Column(db.Text)
+    profile_question_2 = db.Column(db.Text)
+    profile_question_3 = db.Column(db.Text)
+    compliance_question_1 = db.Column(db.Text)
+    project_deadline = db.Column(db.Date)
+    poc_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id', ondelete='SET NULL'))
+    project_created_by = db.Column(db.String(255))
+    last_modified_time = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     allocations = db.relationship('ProjectExpert', backref='project', lazy=True, cascade='all, delete-orphan')
     calls = db.relationship('Call', backref='project', lazy=True, cascade='all, delete-orphan')
+    rel_project_type = db.relationship('LkProjectType', lazy='joined')
+    rel_target_region = db.relationship('LkRegion', foreign_keys=[target_region_id], lazy='joined')
+    rel_poc_user = db.relationship('User', foreign_keys=[poc_user_id], lazy='joined')
+    target_geographies = db.relationship(
+        'LkProjectTargetGeography',
+        secondary='project_target_geographies',
+        lazy='joined'
+    )
 
     def to_dict(self):
         return {
@@ -298,9 +447,33 @@ class Project(db.Model):
             'sector': self.sector,
             'description': self.description,
             'status': self.status,
+            'received_date': self.received_date.isoformat() if self.received_date else None,
+            'project_title': self.project_title,
+            'project_type': self.rel_project_type.name if self.rel_project_type else None,
+            'project_description': self.project_description,
+            'target_companies': self.target_companies,
+            'target_region': self.rel_target_region.name if self.rel_target_region else None,
+            'target_geographies': [g.name for g in self.target_geographies] if self.target_geographies else [],
+            'target_functions_titles': self.target_functions_titles,
+            'current_former_both': self.current_former_both,
+            'number_of_calls': self.number_of_calls,
+            'profile_question_1': self.profile_question_1,
+            'profile_question_2': self.profile_question_2,
+            'profile_question_3': self.profile_question_3,
+            'compliance_question_1': self.compliance_question_1,
+            'project_deadline': self.project_deadline.isoformat() if self.project_deadline else None,
+            'poc_user_id': self.poc_user_id,
+            'poc_user_name': self.rel_poc_user.user_name if self.rel_poc_user else None,
+            'project_created_by': self.project_created_by,
+            'last_modified_time': self.last_modified_time.isoformat() if self.last_modified_time else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
+
+class ProjectTargetGeography(db.Model):
+    __tablename__ = 'project_target_geographies'
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.project_id', ondelete='CASCADE'), primary_key=True)
+    geography_id = db.Column(db.Integer, db.ForeignKey('lk_project_target_geographies.id', ondelete='CASCADE'), primary_key=True)
 
 class ProjectExpert(db.Model):
     __tablename__ = 'project_experts'
