@@ -184,6 +184,18 @@ def delete_project(project_id):
     return jsonify({'message': 'Project deleted successfully'})
 
 
+@projects_bp.route('/bulk-delete', methods=['POST'])
+def bulk_delete_projects():
+    data = request.get_json() or {}
+    ids = data.get('ids') or []
+    if not isinstance(ids, list) or len(ids) == 0:
+        return jsonify({'error': 'No project ids provided'}), 400
+
+    deleted = Project.query.filter(Project.project_id.in_(ids)).delete(synchronize_session=False)
+    db.session.commit()
+    return jsonify({'deleted': deleted})
+
+
 # ── Project Experts mapping endpoints ──
 
 @projects_bp.route('/<int:project_id>/experts', methods=['GET'])

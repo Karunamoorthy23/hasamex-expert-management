@@ -127,6 +127,18 @@ def delete_client(client_id):
     db.session.commit()
     return jsonify({'message': 'Client deleted successfully'})
 
+
+@clients_bp.route('/bulk-delete', methods=['POST'])
+def bulk_delete_clients():
+    data = request.get_json() or {}
+    ids = data.get('ids') or []
+    if not isinstance(ids, list) or len(ids) == 0:
+        return jsonify({'error': 'No client ids provided'}), 400
+
+    deleted = Client.query.filter(Client.client_id.in_(ids)).delete(synchronize_session=False)
+    db.session.commit()
+    return jsonify({'deleted': deleted})
+
 # Users endpoints for basic management
 @clients_bp.route('/users', methods=['GET'])
 def get_users():

@@ -119,3 +119,23 @@ def update_user(user_id):
     db.session.commit()
     return jsonify({'data': user.to_dict()})
 
+
+@users_bp.route('/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    user = User.query.get_or_404(user_id)
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({'message': 'User deleted successfully'})
+
+
+@users_bp.route('/bulk-delete', methods=['POST'])
+def bulk_delete_users():
+    data = request.get_json() or {}
+    ids = data.get('ids') or []
+    if not isinstance(ids, list) or len(ids) == 0:
+        return jsonify({'error': 'No user ids provided'}), 400
+
+    deleted = User.query.filter(User.user_id.in_(ids)).delete(synchronize_session=False)
+    db.session.commit()
+    return jsonify({'deleted': deleted})
+
