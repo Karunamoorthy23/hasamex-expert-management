@@ -1,3 +1,5 @@
+import { getToken, clearToken } from '../auth/token';
+
 const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 /**
@@ -8,9 +10,11 @@ const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
  */
 export async function http(endpoint, options = {}) {
     const url = `${BASE_URL}${endpoint}`;
+    const token = getToken();
     const config = {
         headers: {
             'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
             ...options.headers,
         },
         ...options,
@@ -19,6 +23,9 @@ export async function http(endpoint, options = {}) {
     const response = await fetch(url, config);
 
     if (!response.ok) {
+        if (response.status === 401) {
+            clearToken();
+        }
         const error = new Error(`HTTP Error ${response.status}`);
         error.status = response.status;
         try {

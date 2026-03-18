@@ -308,6 +308,38 @@ class User(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
 
+
+class HasamexUser(db.Model):
+    __tablename__ = 'hasamex_users'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(120), nullable=False)
+    email = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.Text, nullable=False)
+    role = db.Column(db.String(50))
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_auth_dict(self):
+        return {
+            'id': self.id,
+            'email': self.email,
+            'role': self.role,
+            'username': self.username,
+            'is_active': self.is_active,
+        }
+
+
+class HasamexPasswordResetToken(db.Model):
+    __tablename__ = 'hasamex_password_reset_tokens'
+    id = db.Column(db.Integer, primary_key=True)
+    hasamex_user_id = db.Column(db.Integer, db.ForeignKey('hasamex_users.id', ondelete='CASCADE'), nullable=False, index=True)
+    token = db.Column(db.Text, unique=True, nullable=False, index=True)
+    expires_at = db.Column(db.DateTime, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('HasamexUser', lazy='joined')
+
 class Client(db.Model):
     __tablename__ = 'clients'
     client_id = db.Column(db.Integer, primary_key=True)

@@ -1,0 +1,102 @@
+/* Users table UI aligned to ExpertsPage primitives. */
+
+.user-row {
+  cursor: pointer;
+}
+
+.user-row:hover {
+  background: var(--color-grey-50);
+}
+
+.user-name-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.user-expand-icon {
+  margin-top: 2px;
+  color: var(--color-grey-500);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.user-expand-icon--open {
+  transform: rotate(90deg);
+}
+
+.user-name {
+  font-weight: var(--font-medium);
+  color: var(--color-black);
+}
+
+.user-code {
+  margin-left: 6px;
+  color: var(--color-grey-500);
+  font-weight: var(--font-medium);
+  font-size: var(--text-xs);
+}
+
+.user-subtitle {
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--color-grey-500);
+  line-height: 1.35;
+}
+
+.user-nested-row td {
+  background: var(--color-grey-50);
+}
+
+.user-nested-wrapper {
+  padding: var(--space-6);
+}
+
+.user-nested-title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--color-grey-600);
+}
+
+.user-details-card {
+  background: var(--color-white);
+  border: 1px solid var(--color-grey-200);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  padding: var(--space-5);
+}
+
+.user-details-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-8);
+}
+
+.user-details-item {
+  margin: 0;
+}
+
+.user-details-item::marker {
+  color: var(--color-grey-400);
+}
+
+.user-details-item__label {
+  font-size: 11px;
+  font-weight: var(--font-semibold);
+  color: var(--color-grey-600);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.user-details-item__value {
+  margin-top: 4px;
+  font-size: var(--text-sm);
+  color: var(--color-grey-800);
+  word-break: break-word;
+  white-space: pre-wrap;
+  line-height: 1.35;
+}
+

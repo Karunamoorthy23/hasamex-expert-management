@@ -7,8 +7,9 @@
  * @param {number} props.totalPages - Total number of pages
  * @param {number} props.totalRecords - Total number of records
  * @param {Function} props.onPageChange - Callback with next page number
+ * @param {string} [props.itemLabel='experts'] - Label for records count
  */
-export default function Pagination({ page, totalPages, totalRecords, onPageChange }) {
+export default function Pagination({ page, totalPages, totalRecords, onPageChange, itemLabel = 'experts' }) {
     return (
         <div className="pagination">
             <button
@@ -21,7 +22,7 @@ export default function Pagination({ page, totalPages, totalRecords, onPageChang
             </button>
             <div className="pagination__info">
                 <span>
-                    Page {page} of {totalPages} ({totalRecords} experts)
+                    Page {page} of {totalPages} ({totalRecords} {itemLabel})
                 </span>
             </div>
             <button

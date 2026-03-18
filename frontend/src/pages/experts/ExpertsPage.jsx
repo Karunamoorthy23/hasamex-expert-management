@@ -387,6 +387,7 @@ export default function ExpertsPage() {
                         totalPages={meta.total_pages}
                         totalRecords={meta.total_records}
                         onPageChange={setPage}
+                        itemLabel="experts"
                     />
                 )}
             </div>

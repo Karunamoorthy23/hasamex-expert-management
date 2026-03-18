@@ -1,0 +1,114 @@
+/* Clients table UI aligned to ExpertsPage spacing. */
+
+.client-row {
+  cursor: pointer;
+}
+
+.client-row:hover {
+  background: var(--color-grey-50);
+}
+
+.client-name-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.client-expand-icon {
+  margin-top: 2px;
+  color: var(--color-grey-500);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.client-expand-icon--open {
+  transform: rotate(90deg);
+}
+
+.client-name {
+  font-weight: var(--font-medium);
+  color: var(--color-black);
+}
+
+.client-subtitle {
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--color-grey-500);
+}
+
+.client-nested-row td {
+  background: var(--color-grey-50);
+}
+
+.client-nested-wrapper {
+  padding: var(--space-6);
+}
+
+.client-nested-title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--color-grey-600);
+}
+
+.client-details-card {
+  background: var(--color-white);
+  border: 1px solid var(--color-grey-200);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  padding: var(--space-5);
+  margin-bottom: var(--space-4);
+}
+
+.client-details-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-8);
+}
+
+.client-details-item {
+  margin: 0;
+}
+
+.client-details-item::marker {
+  color: var(--color-grey-400);
+}
+
+.client-details-item__label {
+  font-size: 11px;
+  font-weight: var(--font-semibold);
+  color: var(--color-grey-600);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.client-details-item__value {
+  margin-top: 4px;
+  font-size: var(--text-sm);
+  color: var(--color-grey-800);
+  word-break: break-word;
+  white-space: pre-wrap;
+  line-height: 1.35;
+}
+
+.client-nested-table {
+  border: 1px solid var(--color-grey-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-white);
+}
+
+.client-project-title {
+  font-weight: var(--font-medium);
+  color: var(--color-black);
+}
+
+.client-project-subtitle {
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--color-grey-500);
+  line-height: 1.3;
+}
+

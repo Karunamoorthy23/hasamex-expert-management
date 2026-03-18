@@ -85,9 +85,10 @@
     gap: var(--space-2);
     padding: var(--space-2) var(--space-4);
     font-family: var(--font-sans);
-    font-size: var(--text-sm);
+    /* Keep buttons compact and consistent with menu/table text */
+    font-size: 14px;
     font-weight: var(--font-medium);
-    line-height: 1.5;
+    line-height: 1.35;
     border: none;
     border-radius: var(--radius-md);
     cursor: pointer;
@@ -142,7 +143,8 @@
 
 .btn--sm {
     padding: var(--space-1) var(--space-3);
-    font-size: var(--text-xs);
+    /* Keep compact padding, but match menu/table font size */
+    font-size: 14px;
 }
 
 .btn__icon {
@@ -202,13 +204,15 @@
     margin: 0;
     font-size: var(--text-2xl);
     font-weight: var(--font-bold);
-    color: var(--color-white);
+    color: var(--color-black);
+    text-align: center;
 }
 
 .page-subtitle {
     margin: var(--space-1) 0 0;
     font-size: var(--text-base);
-    color: var(--color-white);
+    color: var(--color-black);
+    text-align: center;
 }
 
 /* ============================================
@@ -255,7 +259,9 @@
     padding: var(--space-2) 2.5rem var(--space-2) 2.5rem;
     height: 40px;
     font-family: var(--font-sans);
-    font-size: var(--text-sm);
+    /* Match menu/table typography */
+    font-size: 14px;
+    line-height: 1.35;
     color: var(--color-grey-900);
     background: var(--color-grey-50);
     border: 1px solid var(--color-grey-200);
@@ -425,6 +431,8 @@
     background: var(--color-white);
     cursor: pointer;
     transition: border-color 0.2s, box-shadow 0.2s;
+    font-size: 14px;
+    line-height: 1.35;
 }
 
 .fd__trigger:hover {
@@ -646,7 +654,9 @@
 .data-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: var(--text-sm);
+    /* Match sidebar/menu typography (compact 14px) */
+    font-size: 12px;
+    line-height: 1.35;
 }
 
 .data-table th,
@@ -657,9 +667,12 @@
 }
 
 .data-table th {
-    font-weight: var(--font-semibold);
+    font-size: 14px;
+    font-weight: var(--font-bold);
     color: var(--color-grey-600);
     background: var(--color-grey-50);
+    text-transform: none;
+    letter-spacing: 0;
 }
 
 .data-table tbody tr {

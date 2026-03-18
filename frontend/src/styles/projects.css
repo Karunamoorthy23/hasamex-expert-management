@@ -1,0 +1,75 @@
+/* Projects table expandable rows (matches Clients/Users dropdown pattern). */
+
+.project-row {
+  cursor: pointer;
+}
+
+.project-row:hover {
+  background: var(--color-grey-50);
+}
+
+.project-expand-icon {
+  color: var(--color-grey-500);
+  transition: transform 0.2s ease;
+}
+
+.project-expand-icon--open {
+  transform: rotate(90deg);
+}
+
+.project-nested-row td {
+  background: var(--color-grey-50);
+}
+
+.project-nested-wrapper {
+  padding: var(--space-6);
+}
+
+.project-nested-title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--color-grey-600);
+}
+
+.project-details-card {
+  background: var(--color-white);
+  border: 1px solid var(--color-grey-200);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  padding: var(--space-5);
+}
+
+.project-details-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-8);
+}
+
+.project-details-item {
+  margin: 0;
+}
+
+.project-details-item::marker {
+  color: var(--color-grey-400);
+}
+
+.project-details-item__label {
+  font-size: 11px;
+  font-weight: var(--font-semibold);
+  color: var(--color-grey-600);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.project-details-item__value {
+  margin-top: 4px;
+  font-size: var(--text-sm);
+  color: var(--color-grey-800);
+  word-break: break-word;
+  white-space: pre-wrap;
+  line-height: 1.35;
+}
+

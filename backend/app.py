@@ -1,9 +1,10 @@
 import os
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
 
 from extensions import db
+from auth import decode_token
 
 # Load environment variables
 load_dotenv('flask.env')
@@ -22,6 +23,47 @@ def create_app():
 
     db.init_app(app)
 
+    @app.before_request
+    def _enforce_jwt_for_private_api():
+        # Allow preflight requests
+        if request.method == 'OPTIONS':
+            return None
+
+        path = request.path or ''
+        if not path.startswith('/api/v1/'):
+            return None
+
+        # Public endpoints
+        if path.startswith('/api/v1/auth/') or path == '/api/v1/health':
+            return None
+
+        auth_header = request.headers.get('Authorization') or ''
+        if not auth_header.startswith('Bearer '):
+            return jsonify({'error': 'Unauthorized'}), 401
+        token = auth_header.split(' ', 1)[1].strip()
+        if not token:
+            return jsonify({'error': 'Unauthorized'}), 401
+
+        try:
+            claims = decode_token(token)
+            request.jwt_claims = claims  # type: ignore[attr-defined]
+        except Exception:
+            return jsonify({'error': 'Unauthorized'}), 401
+
+        # Validate the token maps to an active Hasamex (internal) user
+        try:
+            from models import HasamexUser
+            user_id = claims.get('user_id')
+            if not user_id:
+                return jsonify({'error': 'Unauthorized'}), 401
+            user = HasamexUser.query.get(user_id)
+            if not user or user.is_active is False:
+                return jsonify({'error': 'Unauthorized'}), 401
+        except Exception:
+            return jsonify({'error': 'Unauthorized'}), 401
+
+        return None
+
     # Register blueprints
     from routes.experts import experts_bp
     from routes.lookups import lookups_bp
@@ -29,6 +71,7 @@ def create_app():
     from routes.clients import clients_bp
     from routes.projects import projects_bp
     from routes.users import users_bp
+    from routes.auth import auth_bp
 
     app.register_blueprint(experts_bp)
     app.register_blueprint(lookups_bp)
@@ -36,6 +79,7 @@ def create_app():
     app.register_blueprint(clients_bp)
     app.register_blueprint(projects_bp)
     app.register_blueprint(users_bp)
+    app.register_blueprint(auth_bp)
 
     # Configure and create uploads folder for expert PDFs
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'expert_pdf')
