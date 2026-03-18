@@ -24,7 +24,7 @@ class Config:
     _encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
 
     SQLALCHEMY_DATABASE_URI = (
-        f"{DB_DRIVER}://{DB_USER}:{_encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        f"{DB_DRIVER}://{DB_USER}:{_encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode=require"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {

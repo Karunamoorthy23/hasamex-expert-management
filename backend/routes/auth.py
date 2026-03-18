@@ -23,47 +23,51 @@ def _now_utc():
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    data = request.get_json(silent=True) or {}
-    email = (data.get('email') or '').strip().lower()
-    password = data.get('password') or ''
-
-    if not email or not password:
-        return jsonify({'error': 'Email and password are required'}), 400
-
-    user = HasamexUser.query.filter(HasamexUser.email.ilike(email)).first()
-    if not user or not user.email:
-        return jsonify({'error': 'Access Denied'}), 403
-
-    if user.is_active is False:
-        return jsonify({'error': 'Access Denied'}), 403
-
     try:
-        _ph.verify(user.password_hash, password)
-    except VerifyMismatchError:
-        return jsonify({'error': 'Access Denied'}), 403
+        data = request.get_json(silent=True) or {}
+        email = (data.get('email') or '').strip().lower()
+        password = data.get('password') or ''
 
-    expires_hours = int(os.getenv('JWT_EXPIRES_HOURS', '24'))
-    token = create_access_token(
-        {
-            'user_id': user.id,
-            'email': user.email,
-            'role': user.role,
-        },
-        expires_hours=expires_hours,
-    )
+        if not email or not password:
+            return jsonify({'error': 'Email and password are required'}), 400
 
-    return jsonify(
-        {
-            'access_token': token,
-            'token_type': 'Bearer',
-            'expires_in': expires_hours * 60 * 60,
-            'user': {
+        user = HasamexUser.query.filter(HasamexUser.email.ilike(email)).first()
+        if not user or not user.email:
+            return jsonify({'error': 'Access Denied'}), 403
+
+        if user.is_active is False:
+            return jsonify({'error': 'Access Denied'}), 403
+
+        try:
+            _ph.verify(user.password_hash, password)
+        except VerifyMismatchError:
+            return jsonify({'error': 'Access Denied'}), 403
+
+        expires_hours = int(os.getenv('JWT_EXPIRES_HOURS', '24'))
+        token = create_access_token(
+            {
                 'user_id': user.id,
                 'email': user.email,
                 'role': user.role,
             },
-        }
-    )
+            expires_hours=expires_hours,
+        )
+
+        return jsonify(
+            {
+                'access_token': token,
+                'token_type': 'Bearer',
+                'expires_in': expires_hours * 60 * 60,
+                'user': {
+                    'user_id': user.id,
+                    'email': user.email,
+                    'role': user.role,
+                },
+            }
+        )
+    except Exception as e:
+        print(f"CRITICAL LOGIN ERROR: {e}")
+        return jsonify({'error': 'Internal Server Error', 'details': str(e)}), 500
 
 
 @auth_bp.route('/me', methods=['GET'])
