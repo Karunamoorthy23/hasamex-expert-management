@@ -12,13 +12,12 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY')
 
     # PostgreSQL Database
-    DB_DRIVER = os.getenv('DB_DRIVER')
-    DB_USER = os.getenv('DB_USER')
-    # Strip quotes if they were included literally in .env
+    DB_DRIVER = os.getenv('DB_DRIVER', 'postgresql')
+    DB_USER = os.getenv('DB_USER', 'postgres')
     DB_PASSWORD = os.getenv('DB_PASSWORD', '').strip("'").strip('"')
-    DB_HOST = os.getenv('DB_HOST')
-    DB_PORT = os.getenv('DB_PORT')
-    DB_NAME = os.getenv('DB_NAME')
+    DB_HOST = os.getenv('DB_HOST', 'localhost')
+    DB_PORT = os.getenv('DB_PORT', '5432')
+    DB_NAME = os.getenv('DB_NAME', 'postgres')
 
     # URL-encode the password to safely handle special characters like '@'
     _encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
@@ -38,7 +37,14 @@ class Config:
 
     # Flask-Mail
     MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
-    MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
+    
+    # Safely handle MAIL_PORT
+    _mail_port_raw = os.getenv('MAIL_PORT', '587')
+    try:
+        MAIL_PORT = int(_mail_port_raw) if _mail_port_raw else 587
+    except ValueError:
+        MAIL_PORT = 587
+        
     MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'True').lower() == 'true'
     MAIL_USERNAME = os.getenv('MAIL_USERNAME')
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')

@@ -12,8 +12,9 @@ This guide explains how to deploy your Flask backend on Render.
 - **Region**: Same region as your Supabase DB.
 - **Language**: `Python`
 - **Branch**: `main` (or your preferred branch)
-- **Build Command**: `pip install -r backend/requirements.txt`
-- **Start Command**: `gunicorn --chdir backend "app:create_app()"` (⚠️ **Note the quotes around the factory function**)
+- **Root Directory**: `backend` (⚠️ **CRITICAL: Set this to the `backend` folder**)
+- **Build Command**: `pip install -r requirements.txt`
+- **Start Command**: `gunicorn "app:create_app()"` (⚠️ **Note the quotes around the factory function**)
 
 ## 3. Set Environment Variables
 In the **Environment** tab, click **Add Environment Variable** and add these from your `flask.env`:
