@@ -3,7 +3,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-from extensions import db
+from extensions import db, mail
 from auth import decode_token
 
 # Load environment variables
@@ -22,6 +22,7 @@ def create_app():
     CORS(app, resources={r"/api/v1/*": {"origins": cors_origins}})
 
     db.init_app(app)
+    mail.init_app(app)
 
     @app.before_request
     def _enforce_jwt_for_private_api():

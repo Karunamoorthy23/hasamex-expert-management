@@ -4,11 +4,12 @@ from datetime import datetime, timedelta
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, render_template
+from flask_mail import Message
 
 from auth import create_access_token, require_auth
-from extensions import db
-from models import HasamexPasswordResetToken, HasamexUser
+from extensions import db, mail
+from models import HasamexPasswordResetToken, HasamexUser, HasamexOTP
 
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/v1/auth')
@@ -90,8 +91,8 @@ def me():
     )
 
 
-@auth_bp.route('/forgot-password', methods=['POST'])
-def forgot_password():
+@auth_bp.route('/request-otp', methods=['POST'])
+def request_otp():
     data = request.get_json(silent=True) or {}
     email = (data.get('email') or '').strip().lower()
     if not email:
@@ -100,7 +101,61 @@ def forgot_password():
     user = HasamexUser.query.filter(HasamexUser.email.ilike(email)).first()
     if not user or user.is_active is False:
         # Do not leak account existence
-        return jsonify({'message': 'If this email exists, a reset link will be sent.'})
+        return jsonify({'message': 'If this email exists, an OTP will be sent.'})
+
+    # Generate 6-digit OTP
+    import random
+    otp = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+    expires_at = _now_utc() + timedelta(minutes=2)
+
+    # Invalidate existing OTPs for this email
+    HasamexOTP.query.filter_by(email=email).delete(synchronize_session=False)
+
+    new_otp = HasamexOTP(email=email, otp=otp, expires_at=expires_at)
+    db.session.add(new_otp)
+    db.session.commit()
+
+    # Send OTP via Email
+    try:
+        msg = Message(
+            subject="Hasamex - Your Password Reset OTP",
+            recipients=[email],
+            html=render_template('otp_email.html', otp=otp)
+        )
+        mail.send(msg)
+        return jsonify({'message': 'OTP sent to your email'})
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        # In dev, still return OTP as a fallback
+        return jsonify({
+            'message': 'OTP generated but failed to send email. See console in development.',
+            'otp': otp if os.getenv('FLASK_ENV') == 'development' else None,
+            'error': str(e) if os.getenv('FLASK_ENV') == 'development' else 'Email delivery failed'
+        }), 500
+
+
+@auth_bp.route('/verify-otp', methods=['POST'])
+def verify_otp():
+    data = request.get_json(silent=True) or {}
+    email = (data.get('email') or '').strip().lower()
+    otp = (data.get('otp') or '').strip()
+
+    if not email or not otp:
+        return jsonify({'error': 'Email and OTP are required'}), 400
+
+    record = HasamexOTP.query.filter_by(email=email, otp=otp).first()
+    if not record:
+        return jsonify({'error': 'Invalid OTP'}), 400
+
+    if record.expires_at < _now_utc():
+        db.session.delete(record)
+        db.session.commit()
+        return jsonify({'error': 'OTP expired'}), 400
+
+    # OTP is valid, now generate a password reset token
+    user = HasamexUser.query.filter(HasamexUser.email.ilike(email)).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
 
     token = secrets.token_urlsafe(48)
     expires_at = _now_utc() + timedelta(minutes=15)
@@ -110,13 +165,15 @@ def forgot_password():
 
     prt = HasamexPasswordResetToken(hasamex_user_id=user.id, token=token, expires_at=expires_at)
     db.session.add(prt)
+    
+    # Delete the used OTP
+    db.session.delete(record)
     db.session.commit()
 
     frontend_base = os.getenv('FRONTEND_BASE_URL', 'http://localhost:5173')
     reset_link = f"{frontend_base}/reset-password?token={token}"
 
-    # NOTE: Email sending is not wired; returning link helps dev/test.
-    return jsonify({'message': 'Reset link generated', 'reset_link': reset_link})
+    return jsonify({'message': 'OTP verified', 'reset_token': token, 'reset_link': reset_link})
 
 
 @auth_bp.route('/reset-password', methods=['POST'])

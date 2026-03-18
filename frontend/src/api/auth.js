@@ -7,10 +7,17 @@ export async function login({ email, password }) {
     });
 }
 
-export async function forgotPassword({ email }) {
-    return http('/auth/forgot-password', {
+export async function requestOTP({ email }) {
+    return http('/auth/request-otp', {
         method: 'POST',
         body: JSON.stringify({ email }),
+    });
+}
+
+export async function verifyOTP({ email, otp }) {
+    return http('/auth/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email, otp }),
     });
 }
 
