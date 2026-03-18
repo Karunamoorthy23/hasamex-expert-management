@@ -170,7 +170,7 @@ def verify_otp():
     db.session.delete(record)
     db.session.commit()
 
-    frontend_base = os.getenv('FRONTEND_BASE_URL', 'http://localhost:5173')
+    frontend_base = os.getenv('FRONTEND_BASE_URL')
     reset_link = f"{frontend_base}/reset-password?token={token}"
 
     return jsonify({'message': 'OTP verified', 'reset_token': token, 'reset_link': reset_link})
