@@ -9,10 +9,10 @@ This guide explains how to deploy your React frontend on Vercel.
 
 ## 2. Configure Build and Run Commands
 - **Framework Preset**: `Vite` (or `Other` if not detected)
+- **Root Directory**: `frontend` (⚠️ **CRITICAL: Click "Edit" and set this to `frontend` folder**)
 - **Build Command**: `npm run build`
 - **Output Directory**: `dist`
 - **Install Command**: `npm install`
-- **Root Directory**: `frontend`
 
 ## 3. Set Environment Variables
 In the **Environment Variables** section, add:
