@@ -6,3 +6,4 @@ python-dotenv
 argon2-cffi
 PyJWT
 Flask-Mail
+gunicorn
