@@ -92,6 +92,10 @@ def create_app():
     def serve_expert_pdf(filename):
         return send_from_directory(UPLOAD_FOLDER, filename)
 
+    @app.route('/', methods=['GET'])
+    def index():
+        return jsonify({"message": "Hasamex API is running", "version": "1.0.0"}), 200
+
     @app.route('/api/v1/health', methods=['GET'])
     def health_check():
         return jsonify({"status": "healthy"}), 200
