@@ -7,7 +7,7 @@ from extensions import db, mail
 from auth import decode_token
 
 # Load environment variables
-load_dotenv('flask.env')
+load_dotenv(os.path.join(os.path.dirname(__file__), 'flask.env'))
 
 def create_app():
     app = Flask(__name__)
@@ -100,6 +100,6 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
+    # Explicitly set the port to 8080
     port = int(os.environ.get("PORT", 8080))
-    # Run development server
     app.run(host="0.0.0.0", port=port, debug=True)

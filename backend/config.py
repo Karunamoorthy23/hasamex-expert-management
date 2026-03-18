@@ -24,7 +24,7 @@ class Config:
     _encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
 
     SQLALCHEMY_DATABASE_URI = (
-        f"{DB_DRIVER}://{DB_USER}:{_encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        f"{DB_DRIVER}://{DB_USER}:{_encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode=require"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
@@ -34,13 +34,11 @@ class Config:
     }
 
     # CORS
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS')
-    if isinstance(CORS_ORIGINS, str):
-        CORS_ORIGINS = [o.strip() for o in CORS_ORIGINS.split(',') if o.strip()]
+    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:5173,http://localhost:3000').split(',')
 
     # Flask-Mail
-    MAIL_SERVER = os.getenv('MAIL_SERVER')
-    MAIL_PORT = int(os.getenv('MAIL_PORT'))
+    MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+    MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
     MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'True').lower() == 'true'
     MAIL_USERNAME = os.getenv('MAIL_USERNAME')
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
