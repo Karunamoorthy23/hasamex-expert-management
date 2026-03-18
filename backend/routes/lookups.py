@@ -8,7 +8,8 @@ from extensions import db
 from models import (
     LkRegion, LkPrimarySector, LkExpertStatus, LkEmploymentStatus,
     LkSeniority, LkCurrency, LkCompanyRole, LkExpertFunction,
-    LkSalutation, LkHcmsClassification
+    LkSalutation, LkHcmsClassification,
+    LkProjectType, LkProjectTargetGeography
 )
 
 lookups_bp = Blueprint('lookups', __name__, url_prefix='/api/v1/lookups')
@@ -29,7 +30,11 @@ def get_all_lookups():
         'company_role': [item.name for item in LkCompanyRole.query.order_by(LkCompanyRole.id).all()],
         'expert_function': [item.name for item in LkExpertFunction.query.order_by(LkExpertFunction.id).all()],
         'salutation': [item.name for item in LkSalutation.query.order_by(LkSalutation.id).all()],
-        'hcms_classification': [item.name for item in LkHcmsClassification.query.order_by(LkHcmsClassification.id).all()]
+        'hcms_classification': [item.name for item in LkHcmsClassification.query.order_by(LkHcmsClassification.id).all()],
+
+        # Project module
+        'project_type': [item.name for item in LkProjectType.query.order_by(LkProjectType.id).all()],
+        'project_target_geographies': [item.name for item in LkProjectTargetGeography.query.order_by(LkProjectTargetGeography.name).all()],
     }
 
     return jsonify({'data': grouped})

@@ -9,16 +9,16 @@ import urllib.parse
 
 class Config:
     """Base configuration."""
-    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
+    SECRET_KEY = os.getenv('SECRET_KEY')
 
     # PostgreSQL Database
-    DB_DRIVER = os.getenv('DB_DRIVER', 'postgresql')
-    DB_USER = os.getenv('DB_USER', 'postgres')
+    DB_DRIVER = os.getenv('DB_DRIVER')
+    DB_USER = os.getenv('DB_USER')
     # Strip quotes if they were included literally in .env
     DB_PASSWORD = os.getenv('DB_PASSWORD', '').strip("'").strip('"')
-    DB_HOST = os.getenv('DB_HOST', 'localhost')
-    DB_PORT = os.getenv('DB_PORT', '5432')
-    DB_NAME = os.getenv('DB_NAME', 'postgres')
+    DB_HOST = os.getenv('DB_HOST')
+    DB_PORT = os.getenv('DB_PORT')
+    DB_NAME = os.getenv('DB_NAME')
 
     # URL-encode the password to safely handle special characters like '@'
     _encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
@@ -35,3 +35,11 @@ class Config:
 
     # CORS
     CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:5173,http://localhost:3000').split(',')
+
+    # Flask-Mail
+    MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+    MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
+    MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'True').lower() == 'true'
+    MAIL_USERNAME = os.getenv('MAIL_USERNAME')
+    MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'Hasamex <noreply@hasamex.com>')

@@ -3,3 +3,6 @@ flask-cors
 flask-sqlalchemy
 psycopg2-binary
 python-dotenv
+argon2-cffi
+PyJWT
+Flask-Mail
