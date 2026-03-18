@@ -14,13 +14,14 @@ This guide explains how to deploy your Flask backend on Render.
 - **Branch**: `main` (or your preferred branch)
 - **Root Directory**: `backend` (⚠️ **CRITICAL: Set this to the `backend` folder**)
 - **Build Command**: `pip install -r requirements.txt`
-- **Start Command**: `gunicorn -b 0.0.0.0:$PORT "app:create_app()"` (⚠️ **CRITICAL: Bind to the PORT variable**)
+- **Start Command**: `gunicorn -b 0.0.0.0:$PORT "app:create_app()"`
+  - (⚠️ **Copy exactly as above, including all quotes!**)
 
 ## 3. Set Environment Variables
 In the **Environment** tab, click **Add Environment Variable** and add these from your `flask.env`:
 
 - `DB_HOST`: Your Supabase DB Host.
-- `DB_PORT`: `5432` (Supabase Connection Pooler)
+- `DB_PORT`: `6543` (⚠️ **Mandatory for Supabase Connection Pooling**)
 - `DB_NAME`: `postgres`
 - `DB_USER`: `postgres`
 - `DB_PASSWORD`: Your Supabase DB Password.

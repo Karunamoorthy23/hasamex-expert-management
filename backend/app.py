@@ -19,7 +19,7 @@ def create_app():
     cors_origins = app.config.get('CORS_ORIGINS')
     if isinstance(cors_origins, str):
         cors_origins = [o.strip() for o in cors_origins.split(',') if o.strip()]
-    CORS(app, resources={r"/api/v1/*": {"origins": cors_origins}})
+    CORS(app, resources={r"/*": {"origins": cors_origins}})
 
     db.init_app(app)
     mail.init_app(app)
