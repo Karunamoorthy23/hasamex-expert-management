@@ -15,14 +15,22 @@ def create_app():
     from config import Config
     app.config.from_object(Config)
 
-    # Enable CORS for configured frontend origins
+    # Enable CORS for configured frontend origins with full permissions
     cors_origins = app.config.get('CORS_ORIGINS')
     if isinstance(cors_origins, str):
         cors_origins = [o.strip() for o in cors_origins.split(',') if o.strip()]
-    CORS(app, resources={r"/*": {"origins": cors_origins}})
+    CORS(app, resources={r"/*": {
+        "origins": cors_origins,
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        "allow_headers": ["Content-Type", "Authorization", "Access-Control-Allow-Origin"]
+    }})
 
     db.init_app(app)
     mail.init_app(app)
+
+    @app.before_request
+    def debug_request_info():
+        print(f"Incoming Request: {request.method} {request.path}")
 
     @app.before_request
     def _enforce_jwt_for_private_api():
