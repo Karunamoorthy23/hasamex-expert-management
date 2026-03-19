@@ -16,7 +16,11 @@ class Config:
     DB_USER = os.getenv('DB_USER', 'postgres')
     DB_PASSWORD = os.getenv('DB_PASSWORD', '').strip("'").strip('"')
     DB_HOST = os.getenv('DB_HOST', 'localhost')
-    DB_PORT = os.getenv('DB_PORT', '5432')
+    # Use a specific IPv4-friendly hostname for Supabase to avoid routing issues
+    if 'supabase.co' in DB_HOST:
+        DB_HOST = f"db.{DB_HOST.split('.')[1]}.ipv4.supabase.co"
+        
+    DB_PORT = os.getenv('DB_PORT', '6543')
     DB_NAME = os.getenv('DB_NAME', 'postgres')
 
     # URL-encode the password to safely handle special characters like '@'

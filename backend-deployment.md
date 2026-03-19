@@ -21,7 +21,7 @@ This guide explains how to deploy your Flask backend on Render.
 In the **Environment** tab, click **Add Environment Variable** and add these from your `flask.env`:
 
 - `DB_HOST`: Your Supabase DB Host.
-- `DB_PORT`: `6543` (⚠️ **Mandatory for Supabase Connection Pooling**)
+- `DB_PORT`: `6543` (⚠️ **CRITICAL: You must use 6543 for Supabase on Render**)
 - `DB_NAME`: `postgres`
 - `DB_USER`: `postgres`
 - `DB_PASSWORD`: Your Supabase DB Password.
