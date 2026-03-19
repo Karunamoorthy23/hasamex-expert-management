@@ -6,6 +6,8 @@ load_dotenv(os.path.join(os.path.dirname(__file__), 'flask.env'))
 
 
 import urllib.parse
+import re
+import socket
 
 class Config:
     """Base configuration."""
@@ -24,12 +26,23 @@ class Config:
     DB_PORT = os.getenv('DB_PORT', _default_port)
     
     DB_NAME = os.getenv('DB_NAME', 'postgres')
+    DB_HOSTADDR = os.getenv('DB_HOSTADDR', '').strip()
+    if not DB_HOSTADDR:
+        try:
+            _ipv4 = socket.getaddrinfo(DB_HOST, int(DB_PORT), socket.AF_INET, socket.SOCK_STREAM)
+            if _ipv4:
+                DB_HOSTADDR = _ipv4[0][4][0]
+        except Exception:
+            DB_HOSTADDR = ''
 
     # URL-encode the password to safely handle special characters like '@'
     _encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
-    
+    _db_query_params = {'sslmode': 'require'}
+    if DB_HOSTADDR:
+        _db_query_params['hostaddr'] = DB_HOSTADDR
+    _db_query = urllib.parse.urlencode(_db_query_params)
     SQLALCHEMY_DATABASE_URI = (
-        f"{DB_DRIVER}://{DB_USER}:{_encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode=require"
+        f"{DB_DRIVER}://{DB_USER}:{_encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?{_db_query}"
     )
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -56,10 +69,16 @@ class Config:
         'http://localhost:8080'
     ]
     _env_origins = os.getenv('CORS_ORIGINS', '')
+    _normalized_env_origins = []
     if _env_origins:
-        CORS_ORIGINS = list(set(_default_origins + [o.strip() for o in _env_origins.split(',') if o.strip()]))
-    else:
-        CORS_ORIGINS = _default_origins
+        for item in _env_origins.split(','):
+            origin = item.strip().strip('`').strip('"').strip("'")
+            if not origin:
+                continue
+            if re.match(r'^https?://', origin, re.IGNORECASE) is None:
+                origin = f"https://{origin}"
+            _normalized_env_origins.append(origin)
+    CORS_ORIGINS = list(dict.fromkeys(_default_origins + _normalized_env_origins))
 
     # Flask-Mail
     MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')

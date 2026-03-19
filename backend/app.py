@@ -1,4 +1,5 @@
 import os
+import re
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -20,8 +21,11 @@ def create_app():
     cors_origins = app.config.get('CORS_ORIGINS')
     print(f"STARTUP: Allowing CORS for origins: {cors_origins}")
     
+    preview_pattern = r"^https://hasamex-expert-management(?:-[a-z0-9]+)?\.vercel\.app$"
+    cors_rules = list(cors_origins or [])
+    cors_rules.append(preview_pattern)
     CORS(app, resources={r"/*": {
-        "origins": cors_origins,
+        "origins": cors_rules,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"]
     }})
@@ -48,7 +52,8 @@ def create_app():
     def ensure_cors_headers(response):
         origin = request.headers.get('Origin')
         allowed = set(cors_origins or [])
-        if origin and origin in allowed:
+        preview_match = bool(origin and re.match(preview_pattern, origin))
+        if origin and (origin in allowed or preview_match):
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Vary'] = 'Origin'
             response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept'
