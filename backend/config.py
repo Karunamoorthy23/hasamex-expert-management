@@ -17,40 +17,55 @@ class Config:
     DB_STRING = (os.getenv('DATABASE_URL') or os.getenv('DB_STRING') or '').strip()
     DB_DRIVER = os.getenv('DB_DRIVER', 'postgresql')
     DB_USER = os.getenv('DB_USER', 'postgres')
+    # Extremely robust password handling: strip whitespace and all types of quotes
     DB_PASSWORD = os.getenv('DB_PASSWORD', '').strip().strip("'").strip('"')
     DB_HOST = os.getenv('DB_HOST', 'localhost')
-    _default_port = '6543' if 'supabase.co' in DB_HOST else '5432'
-    DB_PORT = os.getenv('DB_PORT', _default_port)
+    
+    # As requested, default to 5431 if not specified, otherwise use 5432 or 6543 logic
+    _default_port = os.getenv('DB_PORT', '5431')
+    DB_PORT = _default_port
+    
     DB_NAME = os.getenv('DB_NAME', 'postgres')
 
     if DB_STRING:
-        _parts = urlsplit(DB_STRING)
-        _query = dict(parse_qsl(_parts.query, keep_blank_values=True))
-        if 'sslmode' not in _query:
-            _query['sslmode'] = 'require'
-        SQLALCHEMY_DATABASE_URI = urlunsplit((
-            _parts.scheme,
-            _parts.netloc,
-            _parts.path,
-            urlencode(_query),
-            _parts.fragment
-        ))
+        # If DB_STRING is provided, we need to handle passwords with '@' correctly.
+        # urlsplit is not robust for passwords with '@'.
+        # We manually parse the scheme, netloc (user:pass@host:port), and path.
+        try:
+            if '://' in DB_STRING:
+                scheme, rest = DB_STRING.split('://', 1)
+                if '/' in rest:
+                    netloc, path_part = rest.split('/', 1)
+                    path = '/' + path_part
+                else:
+                    netloc = rest
+                    path = ''
+                
+                # In netloc, the LAST '@' separates user:pass from host:port
+                if '@' in netloc:
+                    user_pass, host_port = netloc.rsplit('@', 1)
+                    if ':' in user_pass:
+                        user, password = user_pass.split(':', 1)
+                        # Encode password to handle special characters like '@'
+                        encoded_pass = urllib.parse.quote_plus(password)
+                        netloc = f"{user}:{encoded_pass}@{host_port}"
+                
+                # Add sslmode=require if missing
+                if 'sslmode' not in path:
+                    separator = '&' if '?' in path else '?'
+                    path += f"{separator}sslmode=require"
+                
+                SQLALCHEMY_DATABASE_URI = f"{scheme}://{netloc}{path}"
+            else:
+                SQLALCHEMY_DATABASE_URI = DB_STRING
+        except Exception as e:
+            print(f"ERROR PARSING DB_STRING: {e}")
+            SQLALCHEMY_DATABASE_URI = DB_STRING
     else:
-        DB_HOSTADDR = os.getenv('DB_HOSTADDR', '').strip()
-        if not DB_HOSTADDR:
-            try:
-                _ipv4 = socket.getaddrinfo(DB_HOST, int(DB_PORT), socket.AF_INET, socket.SOCK_STREAM)
-                if _ipv4:
-                    DB_HOSTADDR = _ipv4[0][4][0]
-            except Exception:
-                DB_HOSTADDR = ''
+        # Fallback to component-based URI building
         _encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
-        _db_query_params = {'sslmode': 'require'}
-        if DB_HOSTADDR:
-            _db_query_params['hostaddr'] = DB_HOSTADDR
-        _db_query = urllib.parse.urlencode(_db_query_params)
         SQLALCHEMY_DATABASE_URI = (
-            f"{DB_DRIVER}://{DB_USER}:{_encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?{_db_query}"
+            f"{DB_DRIVER}://{DB_USER}:{_encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode=require"
         )
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False

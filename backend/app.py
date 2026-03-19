@@ -62,9 +62,18 @@ def create_app():
 
     @app.errorhandler(Exception)
     def handle_exception(e):
+        # Pass through HTTP errors
         if isinstance(e, HTTPException):
-            response = jsonify({"error": e.name, "details": e.description, "type": "HTTPException"})
+            response = jsonify({
+                "error": e.name,
+                "details": e.description,
+                "type": "HTTPException"
+            })
+            # Explicitly set CORS headers for error responses
+            response.headers.add("Access-Control-Allow-Origin", "*")
             return response, e.code
+
+        # now you're handling non-HTTP exceptions only
         print(f"GLOBAL ERROR: {str(e)}")
         import traceback
         print(traceback.format_exc())
