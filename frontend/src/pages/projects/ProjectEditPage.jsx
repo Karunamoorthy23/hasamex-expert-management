@@ -49,6 +49,8 @@ export default function ProjectEditPage() {
                 compliance_question_1: p?.compliance_question_1 || '',
                 project_deadline: p?.project_deadline || '',
                 project_created_by: p?.project_created_by || '',
+                client_solution_owner_ids: Array.isArray(p?.client_solution_owner_ids) ? p.client_solution_owner_ids : [],
+                sales_team_ids: Array.isArray(p?.sales_team_ids) ? p.sales_team_ids : [],
             });
             setIsLoading(false);
         });
@@ -59,6 +61,16 @@ export default function ProjectEditPage() {
 
     const clientOptions = useMemo(() => (clients || []).map((c) => c.client_name), [clients]);
     const userOptions = useMemo(() => (users || []).map((u) => u.user_name), [users]);
+    const hasamexIdByName = useMemo(() => {
+        const map = {};
+        (lookups.hasamex_users || []).forEach((u) => (map[u.name] = u.id));
+        return map;
+    }, [lookups.hasamex_users]);
+    const hasamexNameById = useMemo(() => {
+        const map = {};
+        (lookups.hasamex_users || []).forEach((u) => (map[u.id] = u.name));
+        return map;
+    }, [lookups.hasamex_users]);
     const selectedClientName = useMemo(() => clients.find((c) => String(c.client_id) === String(form?.client_id))?.client_name, [clients, form?.client_id]);
     const selectedUserName = useMemo(() => users.find((u) => String(u.user_id) === String(form?.poc_user_id))?.user_name, [users, form?.poc_user_id]);
 
@@ -67,6 +79,38 @@ export default function ProjectEditPage() {
         if (!form) return;
         setIsSaving(true);
         try {
+            const requiredStrings = [
+                'client_id',
+                'poc_user_id',
+                'received_date',
+                'project_title',
+                'project_type',
+                'project_description',
+                'target_companies',
+                'target_region',
+                'target_functions_titles',
+                'current_former_both',
+                'number_of_calls',
+                'profile_question_1',
+                'profile_question_2',
+                'profile_question_3',
+                'compliance_question_1',
+                'project_deadline',
+                'project_created_by',
+            ];
+            const requiredArrays = ['target_geographies', 'client_solution_owner_ids', 'sales_team_ids'];
+            const missing = [];
+            for (const key of requiredStrings) {
+                if (!String(form[key] ?? '').trim()) missing.push(key);
+            }
+            for (const key of requiredArrays) {
+                const val = form[key];
+                if (!Array.isArray(val) || val.length === 0) missing.push(key);
+            }
+            if (missing.length) {
+                alert('Please fill all required fields: ' + missing.join(', '));
+                return;
+            }
             const payload = {
                 ...form,
                 client_id: form.client_id ? Number(form.client_id) : null,
@@ -129,6 +173,7 @@ export default function ProjectEditPage() {
                                 <input
                                     className="form-input"
                                     type="date"
+                                    required
                                     value={form.received_date}
                                     onChange={(e) => setForm((p) => ({ ...p, received_date: e.target.value }))}
                                 />
@@ -139,6 +184,7 @@ export default function ProjectEditPage() {
                                 <input
                                     className="form-input"
                                     type="date"
+                                    required
                                     value={form.project_deadline}
                                     onChange={(e) => setForm((p) => ({ ...p, project_deadline: e.target.value }))}
                                 />
@@ -148,6 +194,7 @@ export default function ProjectEditPage() {
                                 <label className="form-label">Project Title</label>
                                 <input
                                     className="form-input"
+                                    required
                                     value={form.project_title}
                                     onChange={(e) => setForm((p) => ({ ...p, project_title: e.target.value }))}
                                 />
@@ -176,6 +223,36 @@ export default function ProjectEditPage() {
                     </div>
 
                     <div className="form-section">
+                        <h2 className="form-section__title">Solution & Team</h2>
+                        <div className="form-grid">
+                            <div className="form-field">
+                                <label className="form-label">Client Solution</label>
+                                <FilterDropdown
+                                    label="Select owners"
+                                    options={(lookups.hasamex_users || []).map((u) => u.name)}
+                                    selected={(form.client_solution_owner_ids || []).map((id) => hasamexNameById[id]).filter(Boolean)}
+                                    onChange={(names) => {
+                                        const ids = names.map((n) => hasamexIdByName[n]).filter(Boolean);
+                                        setForm((p) => ({ ...p, client_solution_owner_ids: ids }));
+                                    }}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Sales Team</label>
+                                <FilterDropdown
+                                    label="Select sales team"
+                                    options={(lookups.hasamex_users || []).map((u) => u.name)}
+                                    selected={(form.sales_team_ids || []).map((id) => hasamexNameById[id]).filter(Boolean)}
+                                    onChange={(names) => {
+                                        const ids = names.map((n) => hasamexIdByName[n]).filter(Boolean);
+                                        setForm((p) => ({ ...p, sales_team_ids: ids }));
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="form-section">
                         <h2 className="form-section__title">Targets</h2>
                         <div className="form-grid">
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
@@ -183,6 +260,7 @@ export default function ProjectEditPage() {
                                 <textarea
                                     className="form-textarea"
                                     rows={3}
+                                    required
                                     value={form.project_description}
                                     onChange={(e) => setForm((p) => ({ ...p, project_description: e.target.value }))}
                                 />
@@ -193,6 +271,7 @@ export default function ProjectEditPage() {
                                 <textarea
                                     className="form-textarea"
                                     rows={2}
+                                    required
                                     value={form.target_companies}
                                     onChange={(e) => setForm((p) => ({ ...p, target_companies: e.target.value }))}
                                 />
@@ -213,6 +292,7 @@ export default function ProjectEditPage() {
                                 <textarea
                                     className="form-textarea"
                                     rows={2}
+                                    required
                                     value={form.target_functions_titles}
                                     onChange={(e) => setForm((p) => ({ ...p, target_functions_titles: e.target.value }))}
                                 />
@@ -227,6 +307,7 @@ export default function ProjectEditPage() {
                                 <label className="form-label">Current / Former / Both</label>
                                 <select
                                     className="form-select"
+                                    required
                                     value={form.current_former_both}
                                     onChange={(e) => setForm((p) => ({ ...p, current_former_both: e.target.value }))}
                                 >
@@ -241,6 +322,7 @@ export default function ProjectEditPage() {
                                 <input
                                     className="form-input"
                                     type="number"
+                                    required
                                     value={form.number_of_calls}
                                     onChange={(e) => setForm((p) => ({ ...p, number_of_calls: e.target.value }))}
                                 />
@@ -251,6 +333,7 @@ export default function ProjectEditPage() {
                                 <textarea
                                     className="form-textarea"
                                     rows={2}
+                                    required
                                     value={form.profile_question_1}
                                     onChange={(e) => setForm((p) => ({ ...p, profile_question_1: e.target.value }))}
                                 />
@@ -260,6 +343,7 @@ export default function ProjectEditPage() {
                                 <textarea
                                     className="form-textarea"
                                     rows={2}
+                                    required
                                     value={form.profile_question_2}
                                     onChange={(e) => setForm((p) => ({ ...p, profile_question_2: e.target.value }))}
                                 />
@@ -269,6 +353,7 @@ export default function ProjectEditPage() {
                                 <textarea
                                     className="form-textarea"
                                     rows={2}
+                                    required
                                     value={form.profile_question_3}
                                     onChange={(e) => setForm((p) => ({ ...p, profile_question_3: e.target.value }))}
                                 />
@@ -279,6 +364,7 @@ export default function ProjectEditPage() {
                                 <textarea
                                     className="form-textarea"
                                     rows={2}
+                                    required
                                     value={form.compliance_question_1}
                                     onChange={(e) => setForm((p) => ({ ...p, compliance_question_1: e.target.value }))}
                                 />

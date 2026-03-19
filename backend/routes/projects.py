@@ -9,6 +9,21 @@ from sqlalchemy import or_
 
 projects_bp = Blueprint('projects', __name__, url_prefix='/api/v1/projects')
 
+def _csv_from_list(val):
+    if val is None:
+        return None
+    if isinstance(val, list):
+        return ','.join(str(x) for x in val if str(x).strip() != '')
+    return str(val)
+
+def _safe_int(val):
+    if val is None or str(val).strip() == '':
+        return None
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return None
+
 @projects_bp.route('', methods=['GET'])
 def get_projects():
     """
@@ -95,8 +110,8 @@ def create_project():
             return None
 
     new_project = Project(
-        client_id=data.get('client_id'),
-        poc_user_id=data.get('poc_user_id'),
+        client_id=_safe_int(data.get('client_id')),
+        poc_user_id=_safe_int(data.get('poc_user_id')),
         received_date=parse_date(data.get('received_date')),
         project_title=data.get('project_title'),
         title=data.get('title') or data.get('project_title') or 'Untitled Project',
@@ -106,7 +121,7 @@ def create_project():
         target_region_id=target_region_id,
         target_functions_titles=data.get('target_functions_titles'),
         current_former_both=data.get('current_former_both'),
-        number_of_calls=data.get('number_of_calls'),
+        number_of_calls=_safe_int(data.get('number_of_calls')),
         profile_question_1=data.get('profile_question_1'),
         profile_question_2=data.get('profile_question_2'),
         profile_question_3=data.get('profile_question_3'),
@@ -114,6 +129,8 @@ def create_project():
         project_deadline=parse_date(data.get('project_deadline')),
         project_created_by=data.get('project_created_by'),
         status=data.get('status', 'Planning'),
+        client_solution_owner_ids=_csv_from_list(data.get('client_solution_owner_ids') or []),
+        sales_team_ids=_csv_from_list(data.get('sales_team_ids') or []),
     )
 
     # Target geographies (names)
@@ -161,6 +178,7 @@ def update_project(project_id):
 
     # Direct fields
     date_fields = {'received_date', 'project_deadline'}
+    csv_list_fields = {'client_solution_owner_ids', 'sales_team_ids'}
     for key, value in data.items():
         if key in ['project_id', 'created_at', 'updated_at']:
             continue
@@ -170,6 +188,8 @@ def update_project(project_id):
             setattr(project, key, parse_date(value))
         elif key in ['project_type', 'target_region', 'target_geographies']:
             continue
+        elif key in csv_list_fields:
+            setattr(project, key, _csv_from_list(value))
         else:
             setattr(project, key, value)
             

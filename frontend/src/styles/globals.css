@@ -111,10 +111,10 @@ body {
 }
 
 .sidebar {
-  width: 260px;
+  width: 208px;
   background-color: var(--bg-sidebar);
   border-right: 1px solid var(--border-color);
-  padding: 24px 16px;
+  padding: 20px 12px;
   display: flex;
   flex-direction: column;
   transition: width 0.3s ease;
@@ -125,8 +125,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 32px;
-  padding-left: 12px;
+  margin-bottom: 20px;
+  padding-left: 8px;
 }
 
 .brand-logo {
@@ -157,18 +157,18 @@ body {
 .nav-menu {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  padding: 12px;
+  padding: 8px 10px;
   text-decoration: none;
   color: var(--text-dark);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: 6px;
   transition: background 0.2s ease, padding 0.3s ease;
   white-space: nowrap;
   background: transparent;
@@ -179,7 +179,7 @@ body {
 .nav-item i {
   width: 24px;
   color: var(--text-muted);
-  margin-right: 8px;
+  margin-right: 6px;
   text-align: center;
 }
 
@@ -197,8 +197,8 @@ body {
 }
 
 .sidebar.collapsed {
-  width: 80px;
-  padding: 24px 12px;
+  width: 72px;
+  padding: 20px 8px;
 }
 
 .sidebar.collapsed .brand-logo {

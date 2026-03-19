@@ -24,7 +24,7 @@ export default function App() {
             iconClass: 'fa-solid fa-cube',
             to: '/',
         },
-        { id: 'engagements', label: 'Engagements', iconClass: 'fa-solid fa-phone-volume' },
+        { id: 'engagements', label: 'Engagements', iconClass: 'fa-solid fa-phone-volume', to: '/engagements' },
         { id: 'employees', label: 'Employees', iconClass: 'fa-regular fa-circle-user' },
         // { id: 'leads', label: 'Leads', iconClass: 'fa-solid fa-crosshairs' },
         // { id: 'candidates', label: 'Candidates', iconClass: 'fa-solid fa-user-plus' },
@@ -101,8 +101,8 @@ export default function App() {
 
             <main className="main-content">
                 <div className="container">
-                    <Outlet />
-                </div>
+                        <Outlet />
+                    </div>
 
                 <footer className="footer">
                     <div className="container">

@@ -229,6 +229,7 @@ def update_expert_fields(expert, data):
         'years_of_experience', 'title_headline', 'bio',
         'hourly_rate', 'notes', 'payment_details', 'events_invited_to',
         'profile_pdf_url', 'total_calls_completed', 'project_id_added_to',
+        'client_solution_owner_id',
     ]
     for field in direct_fields:
         if field in data:
@@ -239,6 +240,9 @@ def update_expert_fields(expert, data):
                 except: val = None
             if field in ['hourly_rate']:
                 try: val = float(val) if val is not None else None
+                except: val = None
+            if field in ['client_solution_owner_id']:
+                try: val = int(val) if val is not None else None
                 except: val = None
             setattr(expert, field, val)
 

@@ -5,6 +5,21 @@ from sqlalchemy import or_
 
 users_bp = Blueprint('users', __name__, url_prefix='/api/v1/users')
 
+def _csv_from_list(val):
+    if val is None:
+        return None
+    if isinstance(val, list):
+        return ','.join(str(x) for x in val if str(x).strip() != '')
+    return str(val)
+
+def _safe_int(val):
+    if val is None or str(val).strip() == '':
+        return None
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return None
+
 
 @users_bp.route('', methods=['GET'])
 def list_users():
@@ -84,15 +99,17 @@ def create_user():
         phone=data.get('phone'),
         seniority=data.get('seniority'),
         linkedin_url=data.get('linkedin_url'),
-        client_id=data.get('client_id'),
+        client_id=_safe_int(data.get('client_id')),
         location=data.get('location'),
         preferred_contact_method=data.get('preferred_contact_method'),
         time_zone=data.get('time_zone'),
-        avg_calls_per_month=data.get('avg_calls_per_month'),
+        avg_calls_per_month=_safe_int(data.get('avg_calls_per_month')),
         status=data.get('status'),
         notes=data.get('notes'),
         user_manager=data.get('user_manager'),
         ai_generated_bio=data.get('ai_generated_bio'),
+        client_solution_owner_ids=_csv_from_list(data.get('client_solution_owner_ids') or []),
+        sales_team_ids=_csv_from_list(data.get('sales_team_ids') or []),
     )
     db.session.add(new_user)
     db.session.commit()
@@ -106,9 +123,16 @@ def update_user(user_id):
     if not data:
         return jsonify({'error': 'No data provided'}), 400
 
+    csv_list_fields = {'client_solution_owner_ids', 'sales_team_ids'}
+    int_fields = {'client_id', 'avg_calls_per_month'}
     for key, value in data.items():
         if hasattr(user, key) and key not in ['user_id', 'created_at', 'updated_at']:
-            setattr(user, key, value)
+            if key in csv_list_fields:
+                setattr(user, key, _csv_from_list(value))
+            elif key in int_fields:
+                setattr(user, key, _safe_int(value))
+            else:
+                setattr(user, key, value)
 
     # keep legacy user_name in sync if first/last updated and user_name not explicitly provided
     if 'user_name' not in data and ('first_name' in data or 'last_name' in data):

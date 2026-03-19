@@ -56,7 +56,7 @@ export default function ExpertsPage() {
     const debouncedSearch = useDebouncedValue(search, 400);
 
     // ── Filter options (lookups) ──
-    const [lookups, setLookups] = useState({ region: [], sector: [], status: [], employment: [] });
+    const [lookups, setLookups] = useState({ region: [], sector: [], status: [], employment: [], hasamex_users: [] });
 
     useEffect(() => {
         getFilterOptions().then((data) => {
@@ -220,6 +220,8 @@ export default function ExpertsPage() {
             setIsDeleting(false);
         }
     }, [selectedIds, debouncedSearch, filters]);
+
+    // inline editing removed; handled in Edit page
 
     const handleAdd = useCallback(() => {
         navigate('/experts/new');

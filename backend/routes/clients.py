@@ -1,10 +1,35 @@
 from flask import Blueprint, request, jsonify
 from extensions import db
-from models import Client, User
+from models import Client, User, Expert, HasamexUser
 from datetime import datetime
 from sqlalchemy import or_
 
 clients_bp = Blueprint('clients', __name__, url_prefix='/api/v1/clients')
+
+def _csv_from_list(val):
+    if val is None:
+        return None
+    if isinstance(val, list):
+        return ','.join(str(x) for x in val if str(x).strip() != '')
+    return str(val)
+
+def _safe_int(val):
+    if val is None or str(val).strip() == '':
+        return None
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return None
+
+def _safe_date(val):
+    if not val or str(val).strip() == '':
+        return None
+    if isinstance(val, datetime):
+        return val.date()
+    try:
+        return datetime.strptime(str(val).split('T')[0], '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return None
 
 @clients_bp.route('', methods=['GET'])
 def get_clients():
@@ -69,34 +94,56 @@ def create_client():
     data = request.get_json()
     if not data:
         return jsonify({'error': 'No data provided'}), 400
-        
+
+    expert_ids_list = data.get('expert_ids') or []
+    owner_ids_manual = data.get('client_solution_owner_ids') or []
+    # derive owners from selected experts
+    owners_from_experts = []
+    if isinstance(expert_ids_list, list) and len(expert_ids_list) > 0:
+        rows = Expert.query.filter(Expert.id.in_(expert_ids_list)).all()
+        owners_from_experts = [r.client_solution_owner_id for r in rows if r.client_solution_owner_id]
+    
+    # safely convert manual owner ids
+    safe_manual_ids = []
+    for x in owner_ids_manual:
+        v = _safe_int(x)
+        if v is not None:
+            safe_manual_ids.append(v)
+            
+    owner_ids_union = sorted(set(safe_manual_ids) | {int(x) for x in owners_from_experts})
+    sales_team_ids_list = data.get('sales_team_ids') or []
+
     new_client = Client(
         client_name=data.get('client_name'),
         client_code=data.get('client_code'),
         client_type=data.get('client_type'),
         office_locations=data.get('office_locations'),
-        number_of_offices=data.get('number_of_offices'),
+        number_of_offices=_safe_int(data.get('number_of_offices')),
         country=data.get('country'),
         website=data.get('website'),
         linkedin_url=data.get('linkedin_url'),
-        primary_contact_user_id=data.get('primary_contact_user_id'),
+        primary_contact_user_id=_safe_int(data.get('primary_contact_user_id')),
         client_manager_internal=data.get('client_manager_internal'),
         billing_currency=data.get('billing_currency'),
         payment_terms=data.get('payment_terms'),
         invoicing_email=data.get('invoicing_email'),
         client_status=data.get('client_status'),
-        engagement_start_date=data.get('engagement_start_date'),
+        engagement_start_date=_safe_date(data.get('engagement_start_date')),
         notes=data.get('notes'),
         business_activity_summary=data.get('business_activity_summary'),
         signed_msa=data.get('signed_msa'),
         commercial_model=data.get('commercial_model'),
         agreed_pricing=data.get('agreed_pricing'),
         users=data.get('users'),
-        number_of_users=data.get('number_of_users'),
+        number_of_users=_safe_int(data.get('number_of_users')),
         msa=data.get('msa'),
+        # new fields
+        expert_ids=_csv_from_list(expert_ids_list),
+        client_solution_owner_ids=_csv_from_list(owner_ids_union),
+        sales_team_ids=_csv_from_list(sales_team_ids_list),
 
         # legacy
-        user_id=data.get('user_id'),
+        user_id=_safe_int(data.get('user_id')),
         location=data.get('location'),
         status=data.get('status'),
         company=data.get('company'),
@@ -112,10 +159,57 @@ def update_client(client_id):
     data = request.get_json()
     if not data:
         return jsonify({'error': 'No data provided'}), 400
+
+    # handle special lists before generic setattr
+    expert_ids_list = data.pop('expert_ids', None)
+    owner_ids_manual = data.pop('client_solution_owner_ids', None)
+    sales_team_ids_list = data.pop('sales_team_ids', None)
+
+    if expert_ids_list is not None:
+        client.expert_ids = _csv_from_list(expert_ids_list)
+        rows = Expert.query.filter(Expert.id.in_(expert_ids_list)).all()
+        owners_from_experts = [r.client_solution_owner_id for r in rows if r.client_solution_owner_id]
         
+        # safely convert existing ids
+        existing = []
+        if client.client_solution_owner_ids:
+            for x in client.client_solution_owner_ids.split(','):
+                v = _safe_int(x)
+                if v is not None:
+                    existing.append(v)
+        
+        # safely convert manual ids
+        manual = []
+        if isinstance(owner_ids_manual, list):
+            for x in owner_ids_manual:
+                v = _safe_int(x)
+                if v is not None:
+                    manual.append(v)
+        else:
+            manual = existing
+            
+        union_ids = sorted(set(existing) | set(owners_from_experts) | set(manual))
+        client.client_solution_owner_ids = _csv_from_list(union_ids)
+        
+    elif owner_ids_manual is not None:
+        client.client_solution_owner_ids = _csv_from_list(owner_ids_manual)
+        
+    if sales_team_ids_list is not None:
+        client.sales_team_ids = _csv_from_list(sales_team_ids_list)
+
+    # list of fields that should be handled as integers
+    int_fields = ['number_of_offices', 'primary_contact_user_id', 'number_of_users', 'user_id']
+    # list of fields that should be handled as dates
+    date_fields = ['engagement_start_date']
+
     for key, value in data.items():
         if hasattr(client, key) and key not in ['client_id', 'created_at', 'updated_at']:
-            setattr(client, key, value)
+            if key in int_fields:
+                setattr(client, key, _safe_int(value))
+            elif key in date_fields:
+                setattr(client, key, _safe_date(value))
+            else:
+                setattr(client, key, value)
             
     db.session.commit()
     return jsonify({'data': client.to_dict()})

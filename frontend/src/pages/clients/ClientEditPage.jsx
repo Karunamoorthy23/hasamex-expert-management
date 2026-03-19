@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchClientById, fetchClientUsers, updateClient } from '../../api/clients';
+import { http } from '../../api/http';
 import FilterDropdown from '../../components/experts/FilterDropdown';
 import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
@@ -17,7 +18,9 @@ export default function ClientEditPage() {
 
     useEffect(() => {
         fetchClientUsers().then(setUsers);
+        http('/lookups').then((res) => setLookups(res.data || {})).catch(() => setLookups({}));
     }, []);
+    const [lookups, setLookups] = useState({});
 
     useEffect(() => {
         let cancelled = false;
@@ -46,6 +49,9 @@ export default function ClientEditPage() {
                 agreed_pricing: c?.agreed_pricing || '',
                 users: c?.users || '',
                 msa: c?.msa || '',
+                expert_ids: Array.isArray(c?.expert_ids) ? c.expert_ids : [],
+                client_solution_owner_ids: Array.isArray(c?.client_solution_owner_ids) ? c.client_solution_owner_ids : [],
+                sales_team_ids: Array.isArray(c?.sales_team_ids) ? c.sales_team_ids : [],
             });
             setIsLoading(false);
         });
@@ -59,6 +65,42 @@ export default function ClientEditPage() {
         () => users.find((u) => String(u.user_id) === String(form?.primary_contact_user_id))?.user_name,
         [users, form?.primary_contact_user_id]
     );
+    const expertLabelById = useMemo(() => {
+        const map = {};
+        (lookups.experts_codes || []).forEach((e) => {
+            map[e.id] = `${e.code} — ${e.name}`;
+        });
+        return map;
+    }, [lookups.experts_codes]);
+    const expertIdByLabel = useMemo(() => {
+        const map = {};
+        (lookups.experts_codes || []).forEach((e) => {
+            const label = `${e.code} — ${e.name}`;
+            map[label] = e.id;
+        });
+        return map;
+    }, [lookups.experts_codes]);
+    const hasamexIdByName = useMemo(() => {
+        const map = {};
+        (lookups.hasamex_users || []).forEach((u) => (map[u.name] = u.id));
+        return map;
+    }, [lookups.hasamex_users]);
+    const hasamexNameById = useMemo(() => {
+        const map = {};
+        (lookups.hasamex_users || []).forEach((u) => (map[u.id] = u.name));
+        return map;
+    }, [lookups.hasamex_users]);
+
+    useEffect(() => {
+        if (!lookups.experts_owner_map || !form) return;
+        const ownerIds = new Set(form.client_solution_owner_ids || []);
+        for (const x of lookups.experts_owner_map) {
+            if (form.expert_ids?.includes(x.id) && x.owner_id) {
+                ownerIds.add(x.owner_id);
+            }
+        }
+        setForm((prev) => ({ ...prev, client_solution_owner_ids: Array.from(ownerIds) }));
+    }, [form?.expert_ids, lookups.experts_owner_map]);
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -129,6 +171,48 @@ export default function ClientEditPage() {
                             </div>
                         </div>
                     </div>
+
+                <div className="form-section">
+                    <h2 className="form-section__title">Solution & Team</h2>
+                    <div className="form-grid">
+                        <div className="form-field">
+                            <label className="form-label">Experts (IDs)</label>
+                            <FilterDropdown
+                                label="Select experts"
+                                options={(lookups.experts_codes || []).map((e) => `${e.code} — ${e.name}`)}
+                                selected={(form.expert_ids || []).map((id) => expertLabelById[id]).filter(Boolean)}
+                                onChange={(labels) => {
+                                    const ids = labels.map((lbl) => expertIdByLabel[lbl]).filter(Boolean);
+                                    setForm((p) => ({ ...p, expert_ids: ids }));
+                                }}
+                            />
+                        </div>
+                        <div className="form-field">
+                            <label className="form-label">Client Solution</label>
+                            <FilterDropdown
+                                label="Select owners"
+                                options={(lookups.hasamex_users || []).map((u) => u.name)}
+                                selected={(form.client_solution_owner_ids || []).map((id) => hasamexNameById[id]).filter(Boolean)}
+                                onChange={(names) => {
+                                    const ids = names.map((n) => hasamexIdByName[n]).filter(Boolean);
+                                    setForm((p) => ({ ...p, client_solution_owner_ids: ids }));
+                                }}
+                            />
+                        </div>
+                        <div className="form-field">
+                            <label className="form-label">Sales Team</label>
+                            <FilterDropdown
+                                label="Select sales team"
+                                options={(lookups.hasamex_users || []).map((u) => u.name)}
+                                selected={(form.sales_team_ids || []).map((id) => hasamexNameById[id]).filter(Boolean)}
+                                onChange={(names) => {
+                                    const ids = names.map((n) => hasamexIdByName[n]).filter(Boolean);
+                                    setForm((p) => ({ ...p, sales_team_ids: ids }));
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>
 
                     <div className="form-section">
                         <h2 className="form-section__title">Commercial</h2>
