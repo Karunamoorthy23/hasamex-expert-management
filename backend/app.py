@@ -15,14 +15,14 @@ def create_app():
     from config import Config
     app.config.from_object(Config)
 
-    # Enable CORS for configured frontend origins with full permissions
+    # Enable CORS with maximum permissiveness to resolve production issues
     cors_origins = app.config.get('CORS_ORIGINS')
-    if isinstance(cors_origins, str):
-        cors_origins = [o.strip() for o in cors_origins.split(',') if o.strip()]
+    print(f"STARTUP: Allowing CORS for origins: {cors_origins}")
+    
     CORS(app, resources={r"/*": {
-        "origins": cors_origins,
+        "origins": "*",
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-        "allow_headers": ["Content-Type", "Authorization", "Access-Control-Allow-Origin"]
+        "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"]
     }})
 
     db.init_app(app)
