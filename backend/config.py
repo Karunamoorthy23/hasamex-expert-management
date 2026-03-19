@@ -14,12 +14,18 @@ class Config:
     # PostgreSQL Database
     DB_DRIVER = os.getenv('DB_DRIVER', 'postgresql')
     DB_USER = os.getenv('DB_USER', 'postgres')
-    DB_PASSWORD = os.getenv('DB_PASSWORD', '').strip("'").strip('"')
+    # Extremely robust password handling: strip whitespace and all types of quotes
+    DB_PASSWORD = os.getenv('DB_PASSWORD', '').strip().strip("'").strip('"')
     DB_HOST = os.getenv('DB_HOST', 'localhost')
-    DB_PORT = os.getenv('DB_PORT', '5432')
+    
+    # Smart Port Selection: 
+    # Use 6543 (Pooler) for Supabase on Render to avoid IPv6/Timeout issues.
+    _default_port = '6543' if 'supabase.co' in DB_HOST else '5432'
+    DB_PORT = os.getenv('DB_PORT', _default_port)
+    
     DB_NAME = os.getenv('DB_NAME', 'postgres')
 
-    # URL-encode the password to safely handle special characters
+    # URL-encode the password to safely handle special characters like '@'
     _encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
     
     SQLALCHEMY_DATABASE_URI = (
@@ -27,12 +33,14 @@ class Config:
     )
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    
+    # Connection Pooling Fix:
+    # Use NullPool when connecting to Supabase/Render to prevent "hanging" connections.
+    from sqlalchemy.pool import NullPool
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_size': 10,
-        'pool_recycle': 300,
-        'pool_pre_ping': True,
+        'poolclass': NullPool,
         'connect_args': {
-            'connect_timeout': 30,
+            'connect_timeout': 10,
             'keepalives': 1,
             'keepalives_idle': 30,
             'keepalives_interval': 10,
