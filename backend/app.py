@@ -27,10 +27,37 @@ def create_app():
 
     db.init_app(app)
     mail.init_app(app)
+    
+    # Log the database URI (redacted password)
+    with app.app_context():
+        uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+        # Simple redaction for password
+        if '@' in uri:
+            parts = uri.split('@')
+            user_pass = parts[0].split(':')
+            if len(user_pass) > 2:
+                redacted_uri = f"{user_pass[0]}:****@{parts[1]}"
+                print(f"DATABASE: Connecting to {redacted_uri}")
 
     @app.before_request
     def debug_request_info():
         print(f"Incoming Request: {request.method} {request.path}")
+
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        # Pass through HTTP errors
+        if isinstance(e, HTTPException):
+            return e
+
+        # now you're handling non-HTTP exceptions only
+        print(f"GLOBAL ERROR: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({
+            "error": "Internal Server Error",
+            "details": str(e),
+            "type": e.__class__.__name__
+        }), 500
 
     @app.before_request
     def _enforce_jwt_for_private_api():
@@ -102,7 +129,12 @@ def create_app():
 
     @app.route('/', methods=['GET'])
     def index():
-        return jsonify({"message": "Hasamex API is running", "version": "1.0.0"}), 200
+        return jsonify({
+            "status": "online",
+            "message": "Hasamex API is running", 
+            "version": "1.0.0",
+            "db_connected": db.engine.url.host if hasattr(db, 'engine') and db.engine else "not_yet_initialized"
+        }), 200
 
     @app.route('/api/v1/health', methods=['GET'])
     def health_check():

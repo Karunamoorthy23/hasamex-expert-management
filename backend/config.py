@@ -23,8 +23,16 @@ class Config:
     DB_STRING = os.getenv('DB_STRING')
     if DB_STRING:
         # Force the use of port 6543 for Supabase if 5432 is in the string
-        if 'supabase.co' in DB_STRING and ':5432' in DB_STRING:
-            SQLALCHEMY_DATABASE_URI = DB_STRING.replace(':5432', ':6543')
+        if 'supabase.co' in DB_STRING:
+            if ':5432' in DB_STRING:
+                SQLALCHEMY_DATABASE_URI = DB_STRING.replace(':5432', ':6543')
+            else:
+                SQLALCHEMY_DATABASE_URI = DB_STRING
+            
+            # Ensure sslmode=require is present for Supabase
+            if 'sslmode=' not in SQLALCHEMY_DATABASE_URI:
+                separator = '&' if '?' in SQLALCHEMY_DATABASE_URI else '?'
+                SQLALCHEMY_DATABASE_URI += f"{separator}sslmode=require"
         else:
             SQLALCHEMY_DATABASE_URI = DB_STRING
     else:
@@ -36,10 +44,16 @@ class Config:
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_size': 5,
+        'pool_size': 10,
         'pool_recycle': 300,
         'pool_pre_ping': True,
-        'connect_args': {'connect_timeout': 10}
+        'connect_args': {
+            'connect_timeout': 15,
+            'keepalives': 1,
+            'keepalives_idle': 30,
+            'keepalives_interval': 10,
+            'keepalives_count': 5
+        }
     }
 
     # CORS
