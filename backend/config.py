@@ -64,8 +64,9 @@ class Config:
     else:
         # Fallback to component-based URI building
         _encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
+        ssl_mode = "?sslmode=require" if DB_HOST != "localhost" else ""
         SQLALCHEMY_DATABASE_URI = (
-            f"{DB_DRIVER}://{DB_USER}:{_encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode=require"
+            f"{DB_DRIVER}://{DB_USER}:{_encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}{ssl_mode}"
         )
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -85,12 +86,6 @@ class Config:
     }
 
     # CORS Configuration
-    _default_origins = [
-        'https://hasamex-expert-management.vercel.app',
-        'http://localhost:5173',
-        'http://localhost:3000',
-        'http://localhost:8080'
-    ]
     _env_origins = os.getenv('CORS_ORIGINS', '')
     _normalized_env_origins = []
     if _env_origins:
@@ -101,7 +96,7 @@ class Config:
             if re.match(r'^https?://', origin, re.IGNORECASE) is None:
                 origin = f"https://{origin}"
             _normalized_env_origins.append(origin)
-    CORS_ORIGINS = list(dict.fromkeys(_default_origins + _normalized_env_origins))
+    CORS_ORIGINS = list(dict.fromkeys(_normalized_env_origins))
 
     # Flask-Mail
     MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
