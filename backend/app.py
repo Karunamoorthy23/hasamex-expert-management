@@ -2,6 +2,7 @@ import os
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
+from werkzeug.exceptions import HTTPException
 
 from extensions import db, mail
 from auth import decode_token
@@ -43,13 +44,22 @@ def create_app():
     def debug_request_info():
         print(f"Incoming Request: {request.method} {request.path}")
 
+    @app.after_request
+    def ensure_cors_headers(response):
+        origin = request.headers.get('Origin')
+        allowed = set(cors_origins or [])
+        if origin and origin in allowed:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Vary'] = 'Origin'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+        return response
+
     @app.errorhandler(Exception)
     def handle_exception(e):
-        # Pass through HTTP errors
         if isinstance(e, HTTPException):
-            return e
-
-        # now you're handling non-HTTP exceptions only
+            response = jsonify({"error": e.name, "details": e.description, "type": "HTTPException"})
+            return response, e.code
         print(f"GLOBAL ERROR: {str(e)}")
         import traceback
         print(traceback.format_exc())

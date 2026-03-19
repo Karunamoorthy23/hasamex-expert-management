@@ -1,10 +1,11 @@
 import os
 import secrets
 from datetime import datetime, timedelta
+from threading import Thread
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from flask import Blueprint, jsonify, request, render_template
+from flask import Blueprint, jsonify, request, render_template, current_app
 from flask_mail import Message
 
 from auth import create_access_token, require_auth
@@ -19,6 +20,14 @@ _ph = PasswordHasher()
 
 def _now_utc():
     return datetime.utcnow()
+
+
+def _send_otp_email_async(app, message):
+    with app.app_context():
+        try:
+            mail.send(message)
+        except Exception as e:
+            print(f"Async mail send failed: {e}")
 
 
 @auth_bp.route('/login', methods=['POST'])
@@ -97,45 +106,37 @@ def me():
 
 @auth_bp.route('/request-otp', methods=['POST'])
 def request_otp():
-    data = request.get_json(silent=True) or {}
-    email = (data.get('email') or '').strip().lower()
-    if not email:
-        return jsonify({'error': 'Email is required'}), 400
-
-    user = HasamexUser.query.filter(HasamexUser.email.ilike(email)).first()
-    if not user or user.is_active is False:
-        # Do not leak account existence
-        return jsonify({'message': 'If this email exists, an OTP will be sent.'})
-
-    # Generate 6-digit OTP
-    import random
-    otp = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-    expires_at = _now_utc() + timedelta(minutes=2)
-
-    # Invalidate existing OTPs for this email
-    HasamexOTP.query.filter_by(email=email).delete(synchronize_session=False)
-
-    new_otp = HasamexOTP(email=email, otp=otp, expires_at=expires_at)
-    db.session.add(new_otp)
-    db.session.commit()
-
-    # Send OTP via Email
     try:
+        data = request.get_json(silent=True) or {}
+        email = (data.get('email') or '').strip().lower()
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
+
+        user = HasamexUser.query.filter(HasamexUser.email.ilike(email)).first()
+        if not user or user.is_active is False:
+            return jsonify({'message': 'If this email exists, an OTP will be sent.'})
+
+        import random
+        otp = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+        expires_at = _now_utc() + timedelta(minutes=2)
+
+        HasamexOTP.query.filter_by(email=email).delete(synchronize_session=False)
+        new_otp = HasamexOTP(email=email, otp=otp, expires_at=expires_at)
+        db.session.add(new_otp)
+        db.session.commit()
+
         msg = Message(
             subject="Hasamex - Your Password Reset OTP",
             recipients=[email],
             html=render_template('otp_email.html', otp=otp)
         )
-        mail.send(msg)
-        return jsonify({'message': 'OTP sent to your email'})
+
+        app = current_app._get_current_object()
+        Thread(target=_send_otp_email_async, args=(app, msg), daemon=True).start()
+        return jsonify({'message': 'If this email exists, an OTP will be sent.'})
     except Exception as e:
-        print(f"Error sending email: {e}")
-        # In dev, still return OTP as a fallback
-        return jsonify({
-            'message': 'OTP generated but failed to send email. See console in development.',
-            'otp': otp if os.getenv('FLASK_ENV') == 'development' else None,
-            'error': str(e) if os.getenv('FLASK_ENV') == 'development' else 'Email delivery failed'
-        }), 500
+        print(f"Error handling OTP request: {e}")
+        return jsonify({'error': 'Internal Server Error', 'details': str(e)}), 500
 
 
 @auth_bp.route('/verify-otp', methods=['POST'])

@@ -70,6 +70,12 @@ class Config:
         MAIL_PORT = int(_mail_port_raw) if _mail_port_raw else 587
     except ValueError:
         MAIL_PORT = 587
+
+    _mail_timeout_raw = os.getenv('MAIL_TIMEOUT', '8')
+    try:
+        MAIL_TIMEOUT = int(_mail_timeout_raw) if _mail_timeout_raw else 8
+    except ValueError:
+        MAIL_TIMEOUT = 8
         
     MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'True').lower() == 'true'
     MAIL_USERNAME = os.getenv('MAIL_USERNAME')
