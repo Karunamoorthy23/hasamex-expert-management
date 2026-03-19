@@ -53,11 +53,14 @@ def create_app():
         print(f"GLOBAL ERROR: {str(e)}")
         import traceback
         print(traceback.format_exc())
-        return jsonify({
+        response = jsonify({
             "error": "Internal Server Error",
             "details": str(e),
             "type": e.__class__.__name__
-        }), 500
+        })
+        # Explicitly set CORS headers for error responses
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        return response, 500
 
     @app.before_request
     def _enforce_jwt_for_private_api():

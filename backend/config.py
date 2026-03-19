@@ -16,6 +16,16 @@ class Config:
     DB_USER = os.getenv('DB_USER', 'postgres')
     DB_PASSWORD = os.getenv('DB_PASSWORD', '').strip("'").strip('"')
     DB_HOST = os.getenv('DB_HOST', 'localhost')
+    
+    # Force IPv4 resolution to bypass Render/Supabase IPv6 routing issues
+    if 'supabase.co' in DB_HOST:
+        import socket
+        try:
+            # Resolve to an IPv4 address specifically
+            DB_HOST = socket.gethostbyname(DB_HOST)
+        except Exception as e:
+            print(f"DNS RESOLUTION WARNING: {e}")
+            
     DB_PORT = os.getenv('DB_PORT', '6543')
     DB_NAME = os.getenv('DB_NAME', 'postgres')
 
@@ -33,6 +43,17 @@ class Config:
             if 'sslmode=' not in SQLALCHEMY_DATABASE_URI:
                 separator = '&' if '?' in SQLALCHEMY_DATABASE_URI else '?'
                 SQLALCHEMY_DATABASE_URI += f"{separator}sslmode=require"
+                
+            # Force IPv4 resolution by replacing the hostname with its IP address
+            try:
+                import re
+                host_match = re.search(r'@(.*?):', SQLALCHEMY_DATABASE_URI)
+                if host_match:
+                    hostname = host_match.group(1)
+                    ip_address = socket.gethostbyname(hostname)
+                    SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace(hostname, ip_address)
+            except Exception as e:
+                print(f"DB_STRING RESOLUTION WARNING: {e}")
         else:
             SQLALCHEMY_DATABASE_URI = DB_STRING
     else:
