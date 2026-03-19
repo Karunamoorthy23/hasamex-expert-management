@@ -15,12 +15,12 @@ def create_app():
     from config import Config
     app.config.from_object(Config)
 
-    # Enable CORS with maximum permissiveness to resolve production issues
+    # Enable CORS for both hardcoded and environment-based origins
     cors_origins = app.config.get('CORS_ORIGINS')
     print(f"STARTUP: Allowing CORS for origins: {cors_origins}")
     
     CORS(app, resources={r"/*": {
-        "origins": "*",
+        "origins": cors_origins,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"]
     }})

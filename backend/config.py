@@ -16,52 +16,15 @@ class Config:
     DB_USER = os.getenv('DB_USER', 'postgres')
     DB_PASSWORD = os.getenv('DB_PASSWORD', '').strip("'").strip('"')
     DB_HOST = os.getenv('DB_HOST', 'localhost')
-    
-    # Force IPv4 resolution to bypass Render/Supabase IPv6 routing issues
-    if 'supabase.co' in DB_HOST:
-        import socket
-        try:
-            # Resolve to an IPv4 address specifically
-            DB_HOST = socket.gethostbyname(DB_HOST)
-        except Exception as e:
-            print(f"DNS RESOLUTION WARNING: {e}")
-            
-    DB_PORT = os.getenv('DB_PORT', '6543')
+    DB_PORT = os.getenv('DB_PORT', '5432')
     DB_NAME = os.getenv('DB_NAME', 'postgres')
 
-    # Check for full connection string
-    DB_STRING = os.getenv('DB_STRING')
-    if DB_STRING:
-        # Force the use of port 6543 for Supabase if 5432 is in the string
-        if 'supabase.co' in DB_STRING:
-            if ':5432' in DB_STRING:
-                SQLALCHEMY_DATABASE_URI = DB_STRING.replace(':5432', ':6543')
-            else:
-                SQLALCHEMY_DATABASE_URI = DB_STRING
-            
-            # Ensure sslmode=require is present for Supabase
-            if 'sslmode=' not in SQLALCHEMY_DATABASE_URI:
-                separator = '&' if '?' in SQLALCHEMY_DATABASE_URI else '?'
-                SQLALCHEMY_DATABASE_URI += f"{separator}sslmode=require"
-                
-            # Force IPv4 resolution by replacing the hostname with its IP address
-            try:
-                import re
-                host_match = re.search(r'@(.*?):', SQLALCHEMY_DATABASE_URI)
-                if host_match:
-                    hostname = host_match.group(1)
-                    ip_address = socket.gethostbyname(hostname)
-                    SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace(hostname, ip_address)
-            except Exception as e:
-                print(f"DB_STRING RESOLUTION WARNING: {e}")
-        else:
-            SQLALCHEMY_DATABASE_URI = DB_STRING
-    else:
-        # URL-encode the password to safely handle special characters
-        _encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
-        SQLALCHEMY_DATABASE_URI = (
-            f"{DB_DRIVER}://{DB_USER}:{_encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode=require"
-        )
+    # URL-encode the password to safely handle special characters
+    _encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
+    
+    SQLALCHEMY_DATABASE_URI = (
+        f"{DB_DRIVER}://{DB_USER}:{_encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode=require"
+    )
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
@@ -69,7 +32,7 @@ class Config:
         'pool_recycle': 300,
         'pool_pre_ping': True,
         'connect_args': {
-            'connect_timeout': 15,
+            'connect_timeout': 30,
             'keepalives': 1,
             'keepalives_idle': 30,
             'keepalives_interval': 10,
@@ -77,11 +40,18 @@ class Config:
         }
     }
 
-    # CORS
-    CORS_ORIGINS = os.getenv(
-        'CORS_ORIGINS', 
-        'https://hasamex-expert-management.vercel.app,http://localhost:5173,http://localhost:3000'
-    ).split(',')
+    # CORS Configuration
+    _default_origins = [
+        'https://hasamex-expert-management.vercel.app',
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'http://localhost:8080'
+    ]
+    _env_origins = os.getenv('CORS_ORIGINS', '')
+    if _env_origins:
+        CORS_ORIGINS = list(set(_default_origins + [o.strip() for o in _env_origins.split(',') if o.strip()]))
+    else:
+        CORS_ORIGINS = _default_origins
 
     # Flask-Mail
     MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
