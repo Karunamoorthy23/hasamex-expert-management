@@ -17,11 +17,30 @@ class Config:
     DB_STRING = (os.getenv('DATABASE_URL') or os.getenv('DB_STRING') or '').strip()
     DB_DRIVER = os.getenv('DB_DRIVER', 'postgresql')
     DB_USER = os.getenv('DB_USER', 'postgres')
-    # Extremely robust password handling: strip whitespace and all types of quotes
     DB_PASSWORD = os.getenv('DB_PASSWORD', '').strip().strip("'").strip('"')
-    DB_HOST = os.getenv('DB_HOST', 'localhost')
-    
-    _default_port = os.getenv('DB_PORT', '5432')
+    _raw_host = os.getenv('DB_HOST', 'localhost')
+    _raw_port = os.getenv('DB_PORT', '5432')
+    _host = _raw_host.strip().strip('`').strip('"').strip("'")
+    _port = _raw_port.strip().strip('`').strip('"').strip("'")
+    if ':' in _host:
+        _hp, _maybe = _host.rsplit(':', 1)
+        if _maybe.isdigit():
+            _host = _hp
+            if not _port.isdigit():
+                _port = _maybe
+    if not _port.isdigit():
+        if ':' in _port:
+            _candidate_host, _maybe_port = _port.rsplit(':', 1)
+            if _maybe_port.isdigit():
+                if _host in ('', 'localhost'):
+                    _host = _candidate_host
+                _port = _maybe_port
+            else:
+                _port = '5432'
+        else:
+            _port = '5432'
+    DB_HOST = _host
+    _default_port = _port if _port else '5432'
     DB_PORT = _default_port
     
     DB_NAME = os.getenv('DB_NAME', 'postgres')
