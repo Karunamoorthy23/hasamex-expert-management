@@ -152,6 +152,7 @@ body {
 
 .toggle-btn:hover {
   background-color: var(--bg-active);
+  color: black;
 }
 
 .nav-menu {
@@ -165,7 +166,7 @@ body {
   align-items: center;
   padding: 8px 10px;
   text-decoration: none;
-  color: var(--text-dark);
+  color: white;
   font-size: 13px;
   font-weight: 500;
   border-radius: 6px;
@@ -186,6 +187,7 @@ body {
 .nav-item:hover,
 .nav-item.active {
   background-color: var(--bg-active);
+  color: black;
 }
 
 .nav-item.active i {

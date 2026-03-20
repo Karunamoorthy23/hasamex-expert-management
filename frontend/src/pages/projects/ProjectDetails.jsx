@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchProjectById, fetchProjectExperts } from '../../api/projects';
+import { fetchClientById } from '../../api/clients';
 import { fetchExpertById } from '../../api/experts';
 import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
@@ -30,23 +31,62 @@ export default function ProjectDetails() {
             setProject(p || null);
             setIsLoading(false);
         });
-        fetchProjectExperts(id).then(async (rows) => {
-            if (cancelled) return;
-            setParticipants(Array.isArray(rows) ? rows : []);
-            // fetch expert details for richer info (email, linkedin)
-            const uniqueIds = Array.from(new Set((rows || []).map((r) => r.expert_id)));
-            const detailsEntries = await Promise.all(
-                uniqueIds.map(async (eid) => {
-                    const det = await fetchExpertById(eid);
-                    return [eid, det];
-                })
-            );
-            const map = {};
-            for (const [eid, det] of detailsEntries) {
-                if (det) map[eid] = det;
+        (async () => {
+            try {
+                const rows = await fetchProjectExperts(id);
+                if (cancelled) return;
+                const baseRows = Array.isArray(rows) ? rows : [];
+                // augment with experts mapped on the client
+                let extraRows = [];
+                const proj = await fetchProjectById(id);
+                if (!cancelled && proj?.client_id) {
+                    const client = await fetchClientById(proj.client_id);
+                    const existingIds = new Set(baseRows.map((r) => r.expert_id));
+                    const clientExpertIds = Array.isArray(client?.expert_ids) ? client.expert_ids : [];
+                    extraRows = clientExpertIds
+                        .filter((eid) => !existingIds.has(eid))
+                        .map((eid) => ({ expert_id: eid, stage: 'Linked', call_completed: false, call_date: null, expert_rate: null }));
+                }
+                const finalRows = [...baseRows, ...extraRows];
+                setParticipants(finalRows);
+                // fetch expert details for richer info (email, linkedin)
+                const uniqueIds = Array.from(new Set(finalRows.map((r) => r.expert_id)));
+                const detailsEntries = await Promise.all(
+                    uniqueIds.map(async (eid) => {
+                        const det = await fetchExpertById(eid);
+                        return [eid, det];
+                    })
+                );
+                const map = {};
+                for (const [eid, det] of detailsEntries) {
+                    if (det) map[eid] = det;
+                }
+                setExpertDetails(map);
+            } catch (err) {
+                if (cancelled) return;
+                // fallback: try only client experts if project experts endpoint unavailable
+                const proj = await fetchProjectById(id);
+                if (proj?.client_id) {
+                    const client = await fetchClientById(proj.client_id);
+                    const clientExpertIds = Array.isArray(client?.expert_ids) ? client.expert_ids : [];
+                    const finalRows = clientExpertIds.map((eid) => ({ expert_id: eid, stage: 'Linked', call_completed: false, call_date: null, expert_rate: null }));
+                    setParticipants(finalRows);
+                    const detailsEntries = await Promise.all(
+                        clientExpertIds.map(async (eid) => {
+                            const det = await fetchExpertById(eid);
+                            return [eid, det];
+                        })
+                    );
+                    const map = {};
+                    for (const [eid, det] of detailsEntries) {
+                        if (det) map[eid] = det;
+                    }
+                    setExpertDetails(map);
+                } else {
+                    setParticipants([]);
+                }
             }
-            setExpertDetails(map);
-        });
+        })();
         return () => {
             cancelled = true;
         };
@@ -115,7 +155,7 @@ export default function ProjectDetails() {
   .p-name-row { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
   .p-name { font-size: 0.88rem; font-weight: 600; color: #111111; }
   .li-badge { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; background: #0a66c2; border-radius: 3px; }
-  .li-badge svg { width: 9px; height: 9px; fill: white; }
+  .li-badge svg { width: 20px; height: 20px; fill: white; }
   .p-bio { font-size: 0.80rem; color: #444444; line-height: 1.62; }
   .status-wrap { display: flex; align-items: flex-start; padding-top: 0; }
   .s-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 0.76rem; font-weight: 500; padding: 4px 10px 4px 8px; border: 1px solid #c0c0c0; border-radius: 3px; background: #f7f7f7; color: #333333; white-space: nowrap; }

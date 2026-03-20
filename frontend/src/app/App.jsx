@@ -31,7 +31,70 @@ export default function App() {
     ];
 
     return (
-        <div className="dashboard">
+        <>
+            <style>{`
+                :root {
+                    --bg-dark: #000000;
+                    --bg-dark-2: #0c0c0c;
+                    --text-light: #ffffff;
+                    --text-muted: #d0d0d0;
+                    --border-dark: #222222;
+                    --accent: #8b1a1a;
+                }
+                body {
+                    background: var(--bg-dark);
+                    color: var(--text-light);
+                }
+                .dashboard {
+                    background: var(--bg-dark);
+                    color: var(--text-light);
+                }
+                .sidebar {
+                    background: var(--bg-dark);
+                    color: var(--text-light);
+                    border-right: 1px solid var(--border-dark);
+                }
+                .brand .brand-logo img {
+                    filter: brightness(0) invert(1);
+                }
+                .toggle-btn {
+                    color: var(--text-light);
+                    background: transparent;
+                }
+                .nav-menu .nav-item {
+                    color: var(--text-light);
+                    background: transparent;
+                }
+                .nav-menu .nav-item:hover {
+                    background: #9f9b9bff;
+                    border-radius: 3px;
+                }
+                .nav-menu .nav-item.active {
+                    background: #ffffff;
+                    color: #000000;
+                    border-radius: 3px;
+                }
+                .main-content {
+                    background: var(--bg-dark);
+                    color: var(--text-light);
+                }
+                .main-content .container {
+                    background: black;
+                    // color: #ffffff;
+                    color: black;
+                    // border: 1px solid #d8d8d8;
+                    // border-radius: 8px;
+                    padding: 16px;
+                }
+                .footer {
+                    background: var(--bg-dark);
+                    border-top: 1px solid var(--border-dark);
+                }
+                .footer__text {
+                    color: var(--text-muted);
+                }
+            `}</style>
+            <div className="dashboard">
             <aside className={cn('sidebar', collapsed && 'collapsed')}>
                 <div className="brand">
                     <h2 className="brand-logo">
@@ -113,5 +176,6 @@ export default function App() {
                 </footer>
             </main>
         </div>
+        </>
     );
 }
