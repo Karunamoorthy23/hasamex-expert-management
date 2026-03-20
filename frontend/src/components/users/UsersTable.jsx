@@ -48,8 +48,8 @@ export default function UsersTable({
                         <th>Avg Calls / Month</th>
                         <th>Status</th>
                         <th>User Manager</th>
-                        <th>Client Solution</th>
-                        <th>Sales Team</th>
+                        <th>Research Analyst</th>
+                        <th>Account Manager</th>
                         <th>Actions</th>
                     </tr>
                 </thead>

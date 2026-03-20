@@ -30,8 +30,8 @@ export default function ProjectsTable({
                         <th>User (PoC)</th>
                         <th>Project Type</th>
                         <th>Target Region</th>
-                        <th>Client Solution</th>
-                        <th>Sales Team</th>
+                        <th>Research Analyst</th>
+                        <th>Account Manager</th>
                         <th>Deadline</th>
                         <th>Last Modified</th>
                         <th>Actions</th>

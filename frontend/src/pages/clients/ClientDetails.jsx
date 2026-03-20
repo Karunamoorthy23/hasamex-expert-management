@@ -79,7 +79,7 @@ export default function ClientDetails() {
                     <h2 className="form-section__title">Solution & Team</h2>
                     <div className="form-grid">
                         <DetailItem
-                            label="Client Solution"
+                            label="Research Analyst"
                             value={
                                 Array.isArray(client.client_solution_owner_names) && client.client_solution_owner_names.length
                                     ? client.client_solution_owner_names.join(', ')
@@ -87,7 +87,7 @@ export default function ClientDetails() {
                             }
                         />
                         <DetailItem
-                            label="Sales Team"
+                            label="Account Manager"
                             value={
                                 Array.isArray(client.sales_team_names) && client.sales_team_names.length
                                     ? client.sales_team_names.join(', ')

@@ -225,8 +225,8 @@ export default function ProjectEditPage() {
                     <div className="form-section">
                         <h2 className="form-section__title">Solution & Team</h2>
                         <div className="form-grid">
-                            <div className="form-field">
-                                <label className="form-label">Client Solution</label>
+                        <div className="form-field">
+                            <label className="form-label">Research Analyst</label>
                                 <FilterDropdown
                                     label="Select owners"
                                     options={(lookups.hasamex_users || []).map((u) => u.name)}
@@ -237,8 +237,8 @@ export default function ProjectEditPage() {
                                     }}
                                 />
                             </div>
-                            <div className="form-field">
-                                <label className="form-label">Sales Team</label>
+                        <div className="form-field">
+                            <label className="form-label">Account Manager</label>
                                 <FilterDropdown
                                     label="Select sales team"
                                     options={(lookups.hasamex_users || []).map((u) => u.name)}

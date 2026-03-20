@@ -73,8 +73,8 @@ export default function ClientsTable({
                         <th>Client Status</th>
                         <th>Engagement Start</th>
                         <th>Users</th>
-                        <th>Client Solution</th>
-                        <th>Sales Team</th>
+                        <th>Research Analyst</th>
+                        <th>Account Manager</th>
                         <th>Project Count</th>
                         <th>Actions</th>
                     </tr>
