@@ -178,7 +178,7 @@ export default function ProjectDetails() {
                         <button className="btn-edit" onClick={() => navigate(`/projects/${project.project_id}/edit`)}>Edit Project</button>
                     </div>
                     <div className="hdr-subtitle">
-                        Client: <strong>{project.client_name || `#${project.client_id}`}</strong> • PoC: <strong>{project.poc_user_name || '—'}</strong> • Status: <strong>{project.status || '—'}</strong>
+                        Client: <strong>{project.client_id ? <a href={`/clients/${project.client_id}`}>{project.client_name || `#${project.client_id}`}</a> : (project.client_name || `#${project.client_id}`)}</strong> • PoC: <strong>{project.poc_user_id ? <a href={`/users/${project.poc_user_id}`}>{project.poc_user_name || '—'}</a> : (project.poc_user_name || '—')}</strong> • Status: <strong>{project.status || '—'}</strong>
                     </div>
                     <div className="team-row">
                         <div className="team-member">
@@ -211,7 +211,9 @@ export default function ProjectDetails() {
                     <div className="right-pane">
                         <div className="ideal-title">Key Info</div>
                         <ul className="ideal-list">
-                            <li>Client: {project.client_name || `#${project.client_id}`}</li>
+                            <li>
+                                Client: {project.client_id ? <a href={`/clients/${project.client_id}`}>{project.client_name || `#${project.client_id}`}</a> : (project.client_name || `#${project.client_id}`)}
+                            </li>
                             <li>Received Date: {receivedDate}</li>
                             <li>Deadline: {deadlineDate}</li>
                         </ul>

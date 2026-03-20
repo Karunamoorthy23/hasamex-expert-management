@@ -52,8 +52,20 @@ export default function ProjectsTable({
                                 <Link to={`/projects/${p.project_id}`}>{p.project_title || p.title || '—'}</Link>
                             </td>
                             <td>{p.received_date ? new Date(p.received_date).toLocaleDateString() : '—'}</td>
-                            <td>{p.client_name || '—'}</td>
-                            <td>{p.poc_user_name || '—'}</td>
+                            <td>
+                                {p.client_id ? (
+                                    <Link to={`/clients/${p.client_id}`}>{p.client_name || '—'}</Link>
+                                ) : (
+                                    p.client_name || '—'
+                                )}
+                            </td>
+                            <td>
+                                {p.poc_user_id ? (
+                                    <Link to={`/users/${p.poc_user_id}`}>{p.poc_user_name || '—'}</Link>
+                                ) : (
+                                    p.poc_user_name || '—'
+                                )}
+                            </td>
                             <td>{p.project_type || '—'}</td>
                             <td>{p.target_region || '—'}</td>
                             <td>
@@ -93,4 +105,3 @@ export default function ProjectsTable({
         </div>
     );
 }
-

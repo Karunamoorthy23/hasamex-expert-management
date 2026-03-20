@@ -129,7 +129,13 @@ export default function ClientsTable({
                                             '—'
                                         )}
                                     </td>
-                                    <td>{row.primaryContactName}</td>
+                            <td>
+                                {row.primary_contact_user_id ? (
+                                    <Link to={`/users/${row.primary_contact_user_id}`}>{row.primaryContactName}</Link>
+                                ) : (
+                                    row.primaryContactName
+                                )}
+                            </td>
                                     <td>{row.client_manager_internal || '—'}</td>
                                     <td>{row.billing_currency || '—'}</td>
                                     <td>{row.payment_terms || '—'}</td>

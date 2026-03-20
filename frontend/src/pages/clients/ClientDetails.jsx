@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { fetchClientById } from '../../api/clients';
 import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
@@ -70,7 +70,14 @@ export default function ClientDetails() {
                         <DetailItem label="Office Locations" value={client.office_locations} />
                         <DetailItem label="Website" value={websiteDisplay} />
                         <DetailItem label="LinkedIn" value={linkedinDisplay} />
-                        <DetailItem label="Primary Contact ID" value={client.primary_contact_user_id ?? '—'} />
+                        <DetailItem
+                            label="Primary Contact"
+                            value={
+                                client.primary_contact_user_id ? (
+                                    <Link to={`/users/${client.primary_contact_user_id}`}>{client.primary_contact_user_id}</Link>
+                                ) : '—'
+                            }
+                        />
                         <DetailItem label="Client Manager (Internal)" value={client.client_manager_internal} />
                     </div>
                 </div>

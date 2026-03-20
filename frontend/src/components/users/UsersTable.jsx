@@ -78,7 +78,13 @@ export default function UsersTable({
                                         </div>
                                     </div>
                                 </td>
-                                <td>{u.client_name || '—'}</td>
+                                <td>
+                                    {u.client_id ? (
+                                        <Link to={`/clients/${u.client_id}`}>{u.client_name || '—'}</Link>
+                                    ) : (
+                                        u.client_name || '—'
+                                    )}
+                                </td>
                                 <td>{u.client_type || '—'}</td>
                                 <td>{u.designation_title || '—'}</td>
                                 <td>{u.email || '—'}</td>
@@ -137,4 +143,3 @@ export default function UsersTable({
         </div>
     );
 }
-
