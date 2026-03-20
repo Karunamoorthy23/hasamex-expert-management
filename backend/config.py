@@ -15,6 +15,8 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY')
 
     DB_STRING = (os.getenv('DATABASE_URL') or os.getenv('DB_STRING') or '').strip()
+    if DB_STRING:
+        DB_STRING = DB_STRING.strip().strip('`').strip('"').strip("'")
     DB_DRIVER = os.getenv('DB_DRIVER', 'postgresql')
     DB_USER = os.getenv('DB_USER', 'postgres')
     DB_PASSWORD = os.getenv('DB_PASSWORD', '').strip().strip("'").strip('"')
