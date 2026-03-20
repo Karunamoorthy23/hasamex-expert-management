@@ -21,8 +21,7 @@ class Config:
     DB_PASSWORD = os.getenv('DB_PASSWORD', '').strip().strip("'").strip('"')
     DB_HOST = os.getenv('DB_HOST', 'localhost')
     
-    # As requested, default to 5431 if not specified, otherwise use 5432 or 6543 logic
-    _default_port = os.getenv('DB_PORT', '5431')
+    _default_port = os.getenv('DB_PORT', '5432')
     DB_PORT = _default_port
     
     DB_NAME = os.getenv('DB_NAME', 'postgres')
