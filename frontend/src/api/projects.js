@@ -25,6 +25,11 @@ export async function fetchProjectById(projectId) {
     return result.data || null;
 }
 
+export async function fetchProjectExperts(projectId) {
+    const result = await http(`/projects/${projectId}/experts`);
+    return result.data || [];
+}
+
 export async function createProject(payload) {
     const result = await http('/projects', {
         method: 'POST',

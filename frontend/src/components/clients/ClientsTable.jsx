@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import ClientProjectsTable from './ClientProjectsTable';
 import { cn } from '../../utils/cn';
 import { Link } from 'react-router-dom';
 import Checkbox from '../ui/Checkbox';
@@ -17,6 +16,7 @@ export default function ClientsTable({
     clients = [],
     usersById = {},
     projectsByClientId = {},
+    usersByClientId = {},
     selectedIds,
     onSelectClient,
     onSelectAll,
@@ -24,7 +24,15 @@ export default function ClientsTable({
     onDeleteClient,
 }) {
     const [expandedClientIds, setExpandedClientIds] = useState(() => new Set());
-
+    const toggleExpanded = (clientId) => {
+        setExpandedClientIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(clientId)) next.delete(clientId);
+            else next.add(clientId);
+            return next;
+        });
+    };
+    const compactCellStyle = { padding: '6px 10px' };
     const rows = useMemo(() => {
         return clients.map((c) => {
             const primary = c.primary_contact_user_id ? usersById[c.primary_contact_user_id] : null;
@@ -37,15 +45,6 @@ export default function ClientsTable({
             };
         });
     }, [clients, usersById, projectsByClientId]);
-
-    const toggleExpanded = (clientId) => {
-        setExpandedClientIds((prev) => {
-            const next = new Set(prev);
-            if (next.has(clientId)) next.delete(clientId);
-            else next.add(clientId);
-            return next;
-        });
-    };
 
     return (
         <div className="table-container">
@@ -74,6 +73,8 @@ export default function ClientsTable({
                         <th>Client Status</th>
                         <th>Engagement Start</th>
                         <th>Users</th>
+                        <th>Research Analyst</th>
+                        <th>Account Manager</th>
                         <th>Project Count</th>
                         <th>Actions</th>
                     </tr>
@@ -81,132 +82,154 @@ export default function ClientsTable({
                 <tbody>
                     {rows.map((row) => {
                         const expanded = expandedClientIds.has(row.client_id);
+                        const clientUsers = usersByClientId[row.client_id] || [];
                         return (
-                            <FragmentRows
-                                key={row.client_id}
-                                row={row}
-                                expanded={expanded}
-                                onToggle={() => toggleExpanded(row.client_id)}
-                                selected={selectedIds?.has(row.client_id) || false}
-                                onSelect={() => onSelectClient?.(row.client_id)}
-                                onDelete={() => onDeleteClient?.(row)}
-                            />
+                            <>
+                                <tr
+                                    key={row.client_id}
+                                    className={cn('client-row', expanded && 'client-row--expanded')}
+                                    onClick={() => toggleExpanded(row.client_id)}
+                                >
+                                    <td
+                                        className="col-check"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                        }}
+                                    >
+                                        <Checkbox checked={selectedIds?.has(row.client_id) || false} onChange={() => onSelectClient?.(row.client_id)} ariaLabel={`Select ${row.client_name}`} />
+                                    </td>
+                                    <td>
+                                        <div className="client-name-cell">
+                                            <i className={cn('fa-solid fa-chevron-right client-expand-icon', expanded && 'client-expand-icon--open')} aria-hidden="true" />
+                                            <div>
+                                                <div className="client-name">
+                                                    <Link to={`/clients/${row.client_id}`} onClick={(e) => e.stopPropagation()}>{row.client_name}</Link>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{row.client_type || row.type || '—'}</td>
+                                    <td>{row.country || row.location || '—'}</td>
+                                    <td>{row.office_locations || '—'}</td>
+                                    <td>
+                                        {row.website ? (
+                                            <a href={row.website.startsWith('http') ? row.website : `https://${row.website}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                                                {row.website}
+                                            </a>
+                                        ) : (
+                                            '—'
+                                        )}
+                                    </td>
+                                    <td>
+                                        {row.linkedin_url ? (
+                                            <a href={row.linkedin_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                                                LinkedIn
+                                            </a>
+                                        ) : (
+                                            '—'
+                                        )}
+                                    </td>
+                            <td>
+                                {row.primary_contact_user_id ? (
+                                    <Link to={`/users/${row.primary_contact_user_id}`}>{row.primaryContactName}</Link>
+                                ) : (
+                                    row.primaryContactName
+                                )}
+                            </td>
+                                    <td>{row.client_manager_internal || '—'}</td>
+                                    <td>{row.billing_currency || '—'}</td>
+                                    <td>{row.payment_terms || '—'}</td>
+                                    <td>{row.invoicing_email || '—'}</td>
+                                    <td>
+                                        <span className={cn(statusBadgeClass(row.client_status || row.status))}>
+                                            {row.client_status || row.status || '—'}
+                                        </span>
+                                    </td>
+                                    <td>{row.engagement_start_date ? new Date(row.engagement_start_date).toLocaleDateString() : '—'}</td>
+                                    <td>{row.users || '—'}</td>
+                                    <td>
+                                        {Array.isArray(row.client_solution_owner_names) && row.client_solution_owner_names.length
+                                            ? row.client_solution_owner_names.join(', ')
+                                            : '—'}
+                                    </td>
+                                    <td>
+                                        {Array.isArray(row.sales_team_names) && row.sales_team_names.length
+                                            ? row.sales_team_names.join(', ')
+                                            : '—'}
+                                    </td>
+                                    <td>
+                                        <span className="badge badge-outline-theme">{row.projectCount} projects</span>
+                                    </td>
+                                    <td onClick={(e) => e.stopPropagation()}>
+                                        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                                            <Link to={`/clients/${row.client_id}/edit`} className="action-btn" title="Edit" onClick={(e) => e.stopPropagation()}>
+                                                <EditIcon />
+                                            </Link>
+                                            <button
+                                                type="button"
+                                                className="action-btn action-btn--danger"
+                                                title="Delete"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onDeleteClient?.(row);
+                                                }}
+                                            >
+                                                <TrashIcon />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr
+                                    key={`${row.client_id}-users`}
+                                    className="client-nested-row"
+                                    style={{ display: expanded ? undefined : 'none' }}
+                                >
+                                    <td colSpan={19} className="p-0">
+                                        <div className="client-nested-wrapper" style={{ padding: '8px 12px' }}>
+                                            <h4 className="client-nested-title" style={{ marginBottom: 8 }}>Users for {row.client_name}</h4>
+                                            {clientUsers.length === 0 ? (
+                                                <p className="empty-state__text">No users found for this client.</p>
+                                            ) : (
+                                                <div className="client-details-card" style={{ padding: 0, margin: 0 }}>
+                                                    <table className="data-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th style={compactCellStyle}>User</th>
+                                                                <th style={compactCellStyle}>Designation</th>
+                                                                <th style={compactCellStyle}>Email</th>
+                                                                <th>Phone</th>
+                                                                <th>Status</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {clientUsers.map((u) => (
+                                                                <tr key={u.user_id}>
+                                                                    <td style={compactCellStyle}>
+                                                                        <Link to={`/users/${u.user_id}`} onClick={(e) => e.stopPropagation()}>
+                                                                            {u.user_name || '—'}
+                                                                        </Link>
+                                                                    </td>
+                                                                    <td style={compactCellStyle}>{u.designation_title || '—'}</td>
+                                                                    <td style={compactCellStyle}>{u.email || '—'}</td>
+                                                                    <td style={compactCellStyle}>{u.phone || '—'}</td>
+                                                                    <td style={compactCellStyle}>
+                                                                        <span className={cn(statusBadgeClass(u.status))}>{u.status || '—'}</span>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            </>
                         );
                     })}
                 </tbody>
             </table>
         </div>
-    );
-}
-
-function FragmentRows({ row, expanded, onToggle, selected, onSelect, onDelete }) {
-    return (
-        <>
-            <tr className={cn('client-row', expanded && 'client-row--expanded')} onClick={onToggle}>
-                <td
-                    className="col-check"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                    }}
-                >
-                    <Checkbox checked={selected} onChange={onSelect} ariaLabel={`Select ${row.client_name}`} />
-                </td>
-                <td>
-                    <div className="client-name-cell">
-                        <i className={cn('fa-solid fa-chevron-right client-expand-icon', expanded && 'client-expand-icon--open')} aria-hidden="true" />
-                        <div>
-                            <div className="client-name">{row.client_name}</div>
-                        </div>
-                    </div>
-                </td>
-                <td>{row.client_type || row.type || '—'}</td>
-                <td>{row.country || row.location || '—'}</td>
-                <td>{row.office_locations || '—'}</td>
-                <td>
-                    {row.website ? (
-                        <a href={row.website.startsWith('http') ? row.website : `https://${row.website}`} target="_blank" rel="noreferrer">
-                            {row.website}
-                        </a>
-                    ) : (
-                        '—'
-                    )}
-                </td>
-                <td>
-                    {row.linkedin_url ? (
-                        <a href={row.linkedin_url} target="_blank" rel="noreferrer">
-                            LinkedIn
-                        </a>
-                    ) : (
-                        '—'
-                    )}
-                </td>
-                <td>{row.primaryContactName}</td>
-                <td>{row.client_manager_internal || '—'}</td>
-                <td>{row.billing_currency || '—'}</td>
-                <td>{row.payment_terms || '—'}</td>
-                <td>{row.invoicing_email || '—'}</td>
-                <td>
-                    <span className={cn(statusBadgeClass(row.client_status || row.status))}>
-                        {row.client_status || row.status || '—'}
-                    </span>
-                </td>
-                <td>{row.engagement_start_date ? new Date(row.engagement_start_date).toLocaleDateString() : '—'}</td>
-                <td>{row.users || '—'}</td>
-                <td>
-                    <span className="badge badge-outline-theme">{row.projectCount} projects</span>
-                </td>
-                <td onClick={(e) => e.stopPropagation()}>
-                    <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-                        <Link to={`/clients/${row.client_id}/edit`} className="action-btn" title="Edit">
-                            <EditIcon />
-                        </Link>
-                        <button
-                            type="button"
-                            className="action-btn action-btn--danger"
-                            title="Delete"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onDelete?.();
-                            }}
-                        >
-                            <TrashIcon />
-                        </button>
-                    </div>
-                </td>
-            </tr>
-            <tr className="client-nested-row" style={{ display: expanded ? undefined : 'none' }}>
-                <td colSpan={17} className="p-0">
-                    <div className="client-nested-wrapper">
-                        <h4 className="client-nested-title">
-                            Projects for {row.client_name}
-                        </h4>
-                        <div className="client-details-card">
-                            <ul className="client-details-list">
-                                <ClientDetail label="Business Activity Summary" value={row.business_activity_summary} />
-                                <ClientDetail label="Notes" value={row.notes} />
-                                <ClientDetail label="Commercial Model" value={row.commercial_model} />
-                                <ClientDetail label="Agreed Pricing" value={row.agreed_pricing} />
-                                <ClientDetail
-                                    label="Signed MSA?"
-                                    value={row.signed_msa === true ? 'Yes' : row.signed_msa === false ? 'No' : null}
-                                />
-                                <ClientDetail label="MSA" value={row.msa} />
-                            </ul>
-                        </div>
-                        <ClientProjectsTable projects={row.projects} />
-                    </div>
-                </td>
-            </tr>
-        </>
-    );
-}
-
-function ClientDetail({ label, value }) {
-    return (
-        <li className="client-details-item">
-            <div className="client-details-item__label">{label}</div>
-            <div className="client-details-item__value">{value ? String(value) : '—'}</div>
-        </li>
     );
 }
 

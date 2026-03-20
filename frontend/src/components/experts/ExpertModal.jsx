@@ -24,14 +24,14 @@ export default function ExpertModal({ open, onClose, expert }) {
                         <h2 className="expert-modal-name">{fullName}</h2>
                         <div className="expert-modal-headline">{expert.title_headline || 'No headline provided'}</div>
                         <div className="expert-modal-tags">
-                            <span className="badge badge--blue">{expert.expert_id}</span>
+                            <span className="badge badge-outline-theme">{expert.expert_id}</span>
                             {expert.expert_status && (
-                                <span className={`badge ${expert.expert_status.includes('Active') ? 'badge--green' : 'badge--grey'}`}>
+                                <span className={`badge ${expert.expert_status.includes('Active') ? 'badge-active' : 'badge-outline-theme'}`}>
                                     {expert.expert_status}
                                 </span>
                             )}
                             {expert.hcms_classification && (
-                                <span className="badge badge--purple">{expert.hcms_classification}</span>
+                                <span className="badge badge-outline-theme">{expert.hcms_classification}</span>
                             )}
                         </div>
                     </div>
@@ -136,7 +136,13 @@ export default function ExpertModal({ open, onClose, expert }) {
                             <div className="expert-modal-topics">
                                 {expert.strength_topics ? (
                                     expert.strength_topics.split(',').map((topic, i) => (
-                                        <span key={i} className="badge badge--grey">{topic.trim()}</span>
+                                        <span
+                                            key={i}
+                                            className="badge"
+                                            style={{ background: 'transparent', border: 'none', color: 'inherit', padding: 0, marginRight: 8, whiteSpace: 'normal' }}
+                                        >
+                                            {topic.trim()}
+                                        </span>
                                     ))
                                 ) : (
                                     <p className="expert-modal-text">No topics listed.</p>

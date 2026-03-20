@@ -1,0 +1,376 @@
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import Button from '../../components/ui/Button';
+import Loader from '../../components/ui/Loader';
+import { http } from '../../api/http';
+import FilterDropdown from '../../components/experts/FilterDropdown';
+
+export default function EngagementEditPage() {
+    const { id } = useParams();
+    const navigate = useNavigate();
+    const [lookups, setLookups] = useState({});
+    const [form, setForm] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        async function fetchData() {
+            setIsLoading(true);
+            try {
+                const [lookupsData, engagementData] = await Promise.all([
+                    http('/lookups'),
+                    id ? http(`/engagements/${id}`) : Promise.resolve(null),
+                ]);
+                setLookups(lookupsData.data || {});
+                if (engagementData) {
+                    setForm(engagementData.data);
+                } else {
+                    setForm({
+                        project_id: '',
+                        expert_id: '',
+                        client_id: '',
+                        poc_user_id: '',
+                        call_owner_id: '',
+                        call_date: '',
+                        actual_call_duration_mins: '',
+                        engagement_method_id: '',
+                        notes: '',
+                        transcript_link_folder: '',
+                        client_rate: '',
+                        client_currency_id: '',
+                        discount_offered_percent: '',
+                        billable_client_amount_usd: '',
+                        expert_rate: '',
+                        expert_currency_id: '',
+                        prorated_expert_amount_base: '',
+                        prorated_expert_amount_usd: '',
+                        gross_margin_percent: '',
+                        gross_profit_usd: '',
+                        expert_post_call_status_id: '',
+                        expert_payment_due_date: '',
+                        actual_expert_payment_date: '',
+                        expert_payment_status_id: '',
+                        expert_paid_from: '',
+                        expert_payout_ref_id: '',
+                        client_invoice_number: '',
+                        client_invoice_date: '',
+                        client_payment_received_date: '',
+                        client_payment_received_account: '',
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to fetch data', error);
+                setLookups({});
+                if (!id) {
+                    setForm({
+                        project_id: '',
+                        expert_id: '',
+                        client_id: '',
+                        poc_user_id: '',
+                        call_owner_id: '',
+                        call_date: '',
+                        actual_call_duration_mins: '',
+                        engagement_method_id: '',
+                        notes: '',
+                        transcript_link_folder: '',
+                        client_rate: '',
+                        client_currency_id: '',
+                        discount_offered_percent: '',
+                        billable_client_amount_usd: '',
+                        expert_rate: '',
+                        expert_currency_id: '',
+                        prorated_expert_amount_base: '',
+                        prorated_expert_amount_usd: '',
+                        gross_margin_percent: '',
+                        gross_profit_usd: '',
+                        expert_post_call_status_id: '',
+                        expert_payment_due_date: '',
+                        actual_expert_payment_date: '',
+                        expert_payment_status_id: '',
+                        expert_paid_from: '',
+                        expert_payout_ref_id: '',
+                        client_invoice_number: '',
+                        client_invoice_date: '',
+                        client_payment_received_date: '',
+                        client_payment_received_account: '',
+                    });
+                }
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchData();
+    }, [id]);
+
+    async function handleSubmit(e) {
+        e.preventDefault();
+        if (!form) return;
+        setIsSaving(true);
+        try {
+            const url = id ? `/engagements/${id}` : '/engagements';
+            const method = id ? 'PUT' : 'POST';
+            await http(url, {
+                method,
+                body: JSON.stringify(form),
+            });
+            navigate('/engagements');
+        } catch (error) {
+            console.error('Failed to save engagement', error);
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
+    const handleFormChange = (field, value) => {
+        setForm(prev => ({ ...prev, [field]: value }));
+    };
+
+    if (isLoading || !form) return <Loader rows={8} />;
+
+    const findNameById = (list, id) => {
+        if (!Array.isArray(list)) return '';
+        const item = list.find((x) => String(x.id) === String(id));
+        return item ? item.name : '';
+    };
+    const findIdByName = (list, name) => {
+        if (!Array.isArray(list)) return '';
+        const item = list.find((x) => x.name === name);
+        return item ? item.id : '';
+    };
+    const dtValue = (iso) => {
+        if (!iso) return '';
+        try {
+            const d = new Date(iso);
+            const pad = (n) => String(n).padStart(2, '0');
+            const y = d.getFullYear();
+            const m = pad(d.getMonth() + 1);
+            const day = pad(d.getDate());
+            const hh = pad(d.getHours());
+            const mm = pad(d.getMinutes());
+            return `${y}-${m}-${day}T${hh}:${mm}`;
+        } catch {
+            return iso;
+        }
+    };
+
+    return (
+        <>
+            <div className="page-header">
+                <h1 className="page-title">{id ? 'Edit Engagement' : 'Add Engagement'}</h1>
+            </div>
+
+            <div className="card">
+                <form className="expert-form" onSubmit={handleSubmit}>
+                    <div className="form-section">
+                        <h2 className="form-section__title">Core Details</h2>
+                        <div className="form-grid">
+                            <div className="form-field">
+                                <label className="form-label">Project</label>
+                                <FilterDropdown
+                                    label={findNameById(lookups.projects, form.project_id) || 'Select project'}
+                                    options={(lookups.projects || []).map((x) => x.name)}
+                                    selected={findNameById(lookups.projects, form.project_id) ? [findNameById(lookups.projects, form.project_id)] : []}
+                                    onChange={(next) => handleFormChange('project_id', findIdByName(lookups.projects, next[0] || ''))}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Expert</label>
+                                <FilterDropdown
+                                    label={findNameById(lookups.experts, form.expert_id) || 'Select expert'}
+                                    options={(lookups.experts || []).map((x) => x.name)}
+                                    selected={findNameById(lookups.experts, form.expert_id) ? [findNameById(lookups.experts, form.expert_id)] : []}
+                                    onChange={(next) => handleFormChange('expert_id', findIdByName(lookups.experts, next[0] || ''))}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Client</label>
+                                <FilterDropdown
+                                    label={findNameById(lookups.clients, form.client_id) || 'Select client'}
+                                    options={(lookups.clients || []).map((x) => x.name)}
+                                    selected={findNameById(lookups.clients, form.client_id) ? [findNameById(lookups.clients, form.client_id)] : []}
+                                    onChange={(next) => handleFormChange('client_id', findIdByName(lookups.clients, next[0] || ''))}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Point of Contact</label>
+                                <FilterDropdown
+                                    label={findNameById(lookups.users, form.poc_user_id) || 'Select user'}
+                                    options={(lookups.users || []).map((x) => x.name)}
+                                    selected={findNameById(lookups.users, form.poc_user_id) ? [findNameById(lookups.users, form.poc_user_id)] : []}
+                                    onChange={(next) => handleFormChange('poc_user_id', findIdByName(lookups.users, next[0] || ''))}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Call Owner</label>
+                                <FilterDropdown
+                                    label={findNameById(lookups.hasamex_users, form.call_owner_id) || 'Select owner'}
+                                    options={(lookups.hasamex_users || []).map((x) => x.name)}
+                                    selected={findNameById(lookups.hasamex_users, form.call_owner_id) ? [findNameById(lookups.hasamex_users, form.call_owner_id)] : []}
+                                    onChange={(next) => handleFormChange('call_owner_id', findIdByName(lookups.hasamex_users, next[0] || ''))}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Call Date & Time</label>
+                                <input className="form-input" type="datetime-local" value={dtValue(form.call_date)} onChange={(e) => handleFormChange('call_date', e.target.value)} />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Duration (mins)</label>
+                                <input className="form-input" type="number" value={form.actual_call_duration_mins || ''} onChange={(e) => handleFormChange('actual_call_duration_mins', e.target.value)} />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Engagement Method</label>
+                                <FilterDropdown
+                                    label={findNameById(lookups.engagement_method, form.engagement_method_id) || 'Select method'}
+                                    options={(lookups.engagement_method || []).map((x) => x.name)}
+                                    selected={findNameById(lookups.engagement_method, form.engagement_method_id) ? [findNameById(lookups.engagement_method, form.engagement_method_id)] : []}
+                                    onChange={(next) => handleFormChange('engagement_method_id', findIdByName(lookups.engagement_method, next[0] || ''))}
+                                />
+                            </div>
+                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                <label className="form-label">Transcript Folder Link</label>
+                                <input className="form-input" value={form.transcript_link_folder || ''} onChange={(e) => handleFormChange('transcript_link_folder', e.target.value)} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="form-section">
+                        <h2 className="form-section__title">Financials</h2>
+                        <div className="form-grid">
+                            <div className="form-field">
+                                <label className="form-label">Client Rate</label>
+                                <input className="form-input" type="number" value={form.client_rate || ''} onChange={(e) => handleFormChange('client_rate', e.target.value)} />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Client Currency</label>
+                                <FilterDropdown
+                                    label={findNameById(lookups.currencies, form.client_currency_id) || 'Select currency'}
+                                    options={(lookups.currencies || []).map((x) => x.name)}
+                                    selected={findNameById(lookups.currencies, form.client_currency_id) ? [findNameById(lookups.currencies, form.client_currency_id)] : []}
+                                    onChange={(next) => handleFormChange('client_currency_id', findIdByName(lookups.currencies, next[0] || ''))}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Discount %</label>
+                                <input className="form-input" type="number" value={form.discount_offered_percent || ''} onChange={(e) => handleFormChange('discount_offered_percent', e.target.value)} />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Billable Amount (USD)</label>
+                                <input className="form-input" type="number" value={form.billable_client_amount_usd || ''} onChange={(e) => handleFormChange('billable_client_amount_usd', e.target.value)} />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Expert Rate</label>
+                                <input className="form-input" type="number" value={form.expert_rate || ''} onChange={(e) => handleFormChange('expert_rate', e.target.value)} />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Expert Currency</label>
+                                <FilterDropdown
+                                    label={findNameById(lookups.currencies, form.expert_currency_id) || 'Select currency'}
+                                    options={(lookups.currencies || []).map((x) => x.name)}
+                                    selected={findNameById(lookups.currencies, form.expert_currency_id) ? [findNameById(lookups.currencies, form.expert_currency_id)] : []}
+                                    onChange={(next) => handleFormChange('expert_currency_id', findIdByName(lookups.currencies, next[0] || ''))}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Prorated Expert Amount (Base)</label>
+                                <input className="form-input" type="number" value={form.prorated_expert_amount_base || ''} onChange={(e) => handleFormChange('prorated_expert_amount_base', e.target.value)} />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Prorated Expert Amount (USD)</label>
+                                <input className="form-input" type="number" value={form.prorated_expert_amount_usd || ''} onChange={(e) => handleFormChange('prorated_expert_amount_usd', e.target.value)} />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Gross Margin %</label>
+                                <input className="form-input" type="number" value={form.gross_margin_percent || ''} onChange={(e) => handleFormChange('gross_margin_percent', e.target.value)} />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Gross Profit (USD)</label>
+                                <input className="form-input" type="number" value={form.gross_profit_usd || ''} onChange={(e) => handleFormChange('gross_profit_usd', e.target.value)} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="form-section">
+                        <h2 className="form-section__title">Post-Call & Payments</h2>
+                        <div className="form-grid">
+                            <div className="form-field">
+                                <label className="form-label">Post Call Status</label>
+                                <FilterDropdown
+                                    label={findNameById(lookups.post_call_status, form.expert_post_call_status_id) || 'Select status'}
+                                    options={(lookups.post_call_status || []).map((x) => x.name)}
+                                    selected={findNameById(lookups.post_call_status, form.expert_post_call_status_id) ? [findNameById(lookups.post_call_status, form.expert_post_call_status_id)] : []}
+                                    onChange={(next) => handleFormChange('expert_post_call_status_id', findIdByName(lookups.post_call_status, next[0] || ''))}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Expert Payment Status</label>
+                                <FilterDropdown
+                                    label={findNameById(lookups.payment_status, form.expert_payment_status_id) || 'Select payment status'}
+                                    options={(lookups.payment_status || []).map((x) => x.name)}
+                                    selected={findNameById(lookups.payment_status, form.expert_payment_status_id) ? [findNameById(lookups.payment_status, form.expert_payment_status_id)] : []}
+                                    onChange={(next) => handleFormChange('expert_payment_status_id', findIdByName(lookups.payment_status, next[0] || ''))}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Payment Due Date</label>
+                                <input className="form-input" type="date" value={form.expert_payment_due_date || ''} onChange={(e) => handleFormChange('expert_payment_due_date', e.target.value)} />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Actual Expert Payment Date</label>
+                                <input className="form-input" type="date" value={form.actual_expert_payment_date || ''} onChange={(e) => handleFormChange('actual_expert_payment_date', e.target.value)} />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Paid From</label>
+                                <input className="form-input" value={form.expert_paid_from || ''} onChange={(e) => handleFormChange('expert_paid_from', e.target.value)} />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Payout Ref ID</label>
+                                <input className="form-input" value={form.expert_payout_ref_id || ''} onChange={(e) => handleFormChange('expert_payout_ref_id', e.target.value)} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="form-section">
+                        <h2 className="form-section__title">Client Invoicing</h2>
+                        <div className="form-grid">
+                            <div className="form-field">
+                                <label className="form-label">Invoice Number</label>
+                                <input className="form-input" value={form.client_invoice_number || ''} onChange={(e) => handleFormChange('client_invoice_number', e.target.value)} />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Invoice Date</label>
+                                <input className="form-input" type="date" value={form.client_invoice_date || ''} onChange={(e) => handleFormChange('client_invoice_date', e.target.value)} />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Client Payment Received Date</label>
+                                <input className="form-input" type="date" value={form.client_payment_received_date || ''} onChange={(e) => handleFormChange('client_payment_received_date', e.target.value)} />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Payment Received Account</label>
+                                <input className="form-input" value={form.client_payment_received_account || ''} onChange={(e) => handleFormChange('client_payment_received_account', e.target.value)} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="form-section">
+                        <h2 className="form-section__title">Notes</h2>
+                        <div className="form-grid">
+                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                <label className="form-label">Notes</label>
+                                <textarea className="form-textarea" rows={3} value={form.notes || ''} onChange={(e) => handleFormChange('notes', e.target.value)} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="form-actions">
+                        <Button type="button" variant="secondary" onClick={() => navigate('/engagements')}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" variant="primary" loading={isSaving}>
+                            {id ? 'Save Changes' : 'Create Engagement'}
+                        </Button>
+                    </div>
+                </form>
+            </div>
+        </>
+    );
+}
