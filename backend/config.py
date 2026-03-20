@@ -70,10 +70,17 @@ class Config:
                         encoded_pass = urllib.parse.quote_plus(password)
                         netloc = f"{user}:{encoded_pass}@{host_port}"
                 
-                # Add sslmode=require if missing
-                if 'sslmode' not in path:
-                    separator = '&' if '?' in path else '?'
-                    path += f"{separator}sslmode=require"
+                if '?' in path:
+                    _path_only, _query = path.split('?', 1)
+                    _params = urllib.parse.parse_qsl(_query, keep_blank_values=True)
+                    _filtered = [(k, v) for (k, v) in _params if k.lower() != 'pgbouncer']
+                    _has_ssl = any(k.lower() == 'sslmode' for (k, _) in _filtered)
+                    if not _has_ssl:
+                        _filtered.append(('sslmode', 'require'))
+                    _new_query = urllib.parse.urlencode(_filtered, doseq=True)
+                    path = f"{_path_only}?{_new_query}" if _new_query else _path_only
+                else:
+                    path = f"{path}?sslmode=require"
                 
                 SQLALCHEMY_DATABASE_URI = f"{scheme}://{netloc}{path}"
             else:
