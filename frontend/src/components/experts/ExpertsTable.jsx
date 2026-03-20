@@ -53,6 +53,7 @@ export default function ExpertsTable({
                         {renderHeader('Title / Headline', 'title_headline', 'col-title')}
                         {renderHeader('Sector', 'primary_sector', 'col-sector')}
                         {renderHeader('Region', 'region', 'col-region')}
+                        <th className="col-solution">Client Solution</th>
                         <th className="col-status">Status</th>
                         <th className="col-actions">Actions</th>
                     </tr>
@@ -82,6 +83,7 @@ export default function ExpertsTable({
                             <td className="col-title">{truncate(expert.title_headline, 50)}</td>
                             <td className="col-sector">{expert.primary_sector || '—'}</td>
                             <td className="col-region">{expert.region || '—'}</td>
+                            <td className="col-solution">{expert.client_solution_owner_name || '—'}</td>
                             <td className="col-status">{expert.expert_status || '—'}</td>
                             <td className="col-actions">
                                 <div style={{ display: 'flex', gap: 'var(--space-2)' }}>

@@ -4,6 +4,7 @@ import { getFilterOptions, fetchExpertById, updateExpert } from '../../api/exper
 import { UploadIcon, XIcon, FileIcon } from '../../components/icons/Icons';
 import Skeletons from '../../components/experts/Skeletons';
 import TimezoneSelect from '../../components/ui/TimezoneSelect';
+import FilterDropdown from '../../components/experts/FilterDropdown';
 
 /**
  * Form field sections configuration.
@@ -61,6 +62,7 @@ const FORM_SECTIONS = [
             { name: 'hcms_classification', label: 'HCMS Classification', type: 'select', lookupCategory: 'hcms_classification', gridSpan: 1 },
             { name: 'total_calls_completed', label: 'Total Calls Completed', type: 'number', gridSpan: 1 },
             { name: 'project_id_added_to', label: 'Project ID Added To', type: 'text', gridSpan: 1 },
+            { name: 'client_solution_owner_id', label: 'Client Solution', type: 'select_hx_user', lookupCategory: 'hasamex_users', gridSpan: 1 },
         ],
     },
     {
@@ -112,6 +114,7 @@ function getInitialFormData() {
         profile_pdf_url: '',
         total_calls_completed: '',
         project_id_added_to: '',
+        client_solution_owner_id: '',
     };
 }
 
@@ -331,6 +334,9 @@ export default function ExpertEditPage() {
             if (payload.total_calls_completed !== undefined && payload.total_calls_completed !== '') {
                 payload.total_calls_completed = parseInt(payload.total_calls_completed, 10);
             }
+            if (payload.client_solution_owner_id !== undefined && payload.client_solution_owner_id !== '') {
+                payload.client_solution_owner_id = parseInt(payload.client_solution_owner_id, 10);
+            }
 
             // 3. Build employment_history string from array
             if (payload.employmentHistoryArray && payload.employmentHistoryArray.length > 0) {
@@ -436,6 +442,31 @@ export default function ExpertEditPage() {
                             <option key={opt} value={opt}>{opt}</option>
                         ))}
                     </select>
+                );
+                break;
+            }
+            case 'select_hx_user': {
+                const options = lookups[field.lookupCategory] || [];
+                const selectedName = options.find((u) => String(u.id) === String(formData[field.name]))?.name || '';
+                input = (
+                    <FilterDropdown
+                        label={selectedName || 'Select user'}
+                        options={options.map((u) => u.name)}
+                        selected={selectedName ? [selectedName] : []}
+                        onChange={(next) => {
+                            const name = next[0] || '';
+                            const match = options.find((u) => u.name === name);
+                            const idVal = match ? match.id : '';
+                            setFormData((prev) => ({ ...prev, [field.name]: idVal }));
+                            if (errors[field.name]) {
+                                setErrors((prev) => {
+                                    const nextErr = { ...prev };
+                                    delete nextErr[field.name];
+                                    return nextErr;
+                                });
+                            }
+                        }}
+                    />
                 );
                 break;
             }

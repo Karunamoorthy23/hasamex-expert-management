@@ -9,13 +9,13 @@
 
 
 -- example 
-INSERT INTO users (user_name, email, role, is_active, created_at, updated_at)
-VALUES
-  ('Admin User', 'admin@yourcompany.com', 'admin', true, NOW(), NOW()),
-  ('Ops User',   'ops@yourcompany.com',   'ops',   true, NOW(), NOW()),
-  ('Viewer',     'viewer@yourcompany.com','viewer',true, NOW(), NOW())
-ON CONFLICT (email) DO UPDATE
-SET role = EXCLUDED.role,
-    is_active = EXCLUDED.is_active,
-    updated_at = NOW();
+-- INSERT INTO users (user_name, email, role, is_active, created_at, updated_at)
+-- VALUES
+--   ('Admin User', 'admin@yourcompany.com', 'admin', true, NOW(), NOW()),
+--   ('Ops User',   'ops@yourcompany.com',   'ops',   true, NOW(), NOW()),
+--   ('Viewer',     'viewer@yourcompany.com','viewer',true, NOW(), NOW())
+-- ON CONFLICT (email) DO UPDATE
+-- SET role = EXCLUDED.role,
+--     is_active = EXCLUDED.is_active,
+--     updated_at = NOW();
 

@@ -65,6 +65,16 @@ export default function ClientsPage() {
         }
         return map;
     }, [projects]);
+    
+    const usersByClientId = useMemo(() => {
+        const map = {};
+        for (const u of users) {
+            const key = u.client_id;
+            if (!map[key]) map[key] = [];
+            map[key].push(u);
+        }
+        return map;
+    }, [users]);
 
     // Search is handled server-side for pagination correctness.
     const filteredClients = clients;
@@ -179,6 +189,7 @@ export default function ClientsPage() {
                                 clients={filteredClients}
                                 usersById={usersById}
                                 projectsByClientId={projectsByClientId}
+                                usersByClientId={usersByClientId}
                                 selectedIds={selectedIds}
                                 onSelectClient={onSelectClient}
                                 onSelectAll={onSelectAll}

@@ -68,6 +68,21 @@ class LkProjectTargetGeography(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), unique=True, nullable=False)
 
+class LkEngagementMethod(db.Model):
+    __tablename__ = 'lk_engagement_methods'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+
+class LkPostCallStatus(db.Model):
+    __tablename__ = 'lk_post_call_statuses'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+
+class LkPaymentStatus(db.Model):
+    __tablename__ = 'lk_payment_statuses'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+
 
 class ExpertExperience(db.Model):
     __tablename__ = 'expert_experiences'
@@ -161,6 +176,10 @@ class Expert(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Hasamex internal: who found/owns the client solution for this expert
+    client_solution_owner_id = db.Column(db.Integer, db.ForeignKey('hasamex_users.id'), nullable=True)
+    rel_client_solution_owner = db.relationship('HasamexUser', foreign_keys=[client_solution_owner_id], lazy='joined')
+
     experiences = db.relationship('ExpertExperience', backref='expert', lazy='joined', cascade='all, delete-orphan')
     strengths = db.relationship('ExpertStrength', backref='expert', lazy='joined', cascade='all, delete-orphan')
 
@@ -234,6 +253,8 @@ class Expert(db.Model):
             'profile_pdf_url': self.profile_pdf_url,
             'last_modified': self.last_modified.isoformat() if self.last_modified else None,
             'total_calls_completed': self.total_calls_completed,
+            'client_solution_owner_id': self.client_solution_owner_id,
+            'client_solution_owner_name': self.rel_client_solution_owner.username if self.rel_client_solution_owner else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'experiences': [exp.to_dict() for exp in self.experiences],
@@ -273,6 +294,8 @@ class User(db.Model):
     notes = db.Column(db.Text)
     user_manager = db.Column(db.String(255))
     ai_generated_bio = db.Column(db.Text)
+    client_solution_owner_ids = db.Column(db.Text)
+    sales_team_ids = db.Column(db.Text)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -281,6 +304,23 @@ class User(db.Model):
 
     def to_dict(self):
         full_name = " ".join([p for p in [self.first_name, self.last_name] if p]).strip() or None
+        def _split_csv_ids(txt):
+            if not txt: return []
+            parts = [p.strip() for p in str(txt).split(',') if p and str(p).strip()]
+            return parts
+        from models import HasamexUser
+        def _to_int_list(csv_txt):
+            ids = []
+            for x in _split_csv_ids(csv_txt):
+                try:
+                    ids.append(int(x))
+                except (ValueError, TypeError):
+                    continue
+            return ids
+        sol_ids = _to_int_list(self.client_solution_owner_ids)
+        sales_ids = _to_int_list(self.sales_team_ids)
+        sol_users = HasamexUser.query.filter(HasamexUser.id.in_(sol_ids)).all() if sol_ids else []
+        sales_users = HasamexUser.query.filter(HasamexUser.id.in_(sales_ids)).all() if sales_ids else []
         return {
             'user_id': self.user_id,
             'user_name': self.user_name,
@@ -304,6 +344,10 @@ class User(db.Model):
             'notes': self.notes,
             'user_manager': self.user_manager,
             'ai_generated_bio': self.ai_generated_bio,
+            'client_solution_owner_ids': sol_ids,
+            'client_solution_owner_names': [u.username for u in sol_users],
+            'sales_team_ids': sales_ids,
+            'sales_team_names': [u.username for u in sales_users],
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -385,6 +429,11 @@ class Client(db.Model):
     number_of_users = db.Column(db.Integer)
     msa = db.Column(db.Text)
 
+    # New: client solution owners (Hasamex users), sales team (Hasamex users), and linked experts
+    client_solution_owner_ids = db.Column(db.Text)  # comma-separated hasamex_user ids
+    sales_team_ids = db.Column(db.Text)            # comma-separated hasamex_user ids
+    expert_ids = db.Column(db.Text)                # comma-separated expert UUIDs
+
     # Legacy fields (kept for backward compatibility)
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id', ondelete='SET NULL'), nullable=True)
     location = db.Column(db.String(255))
@@ -404,6 +453,29 @@ class Client(db.Model):
     projects = db.relationship('Project', backref='client', lazy=True, cascade='all, delete-orphan')
 
     def to_dict(self):
+        def _split_csv_ids(txt):
+            if not txt: return []
+            parts = [p.strip() for p in str(txt).split(',') if p and str(p).strip()]
+            # keep as strings; cast where needed on consumer side
+            return parts
+        from models import HasamexUser, Expert  # local import to avoid circulars
+        # resolve names for hasamex user ids
+        def _to_int_list(csv_txt):
+            ids = []
+            for x in _split_csv_ids(csv_txt):
+                try:
+                    ids.append(int(x))
+                except (ValueError, TypeError):
+                    continue
+            return ids
+            
+        sol_ids = _to_int_list(self.client_solution_owner_ids)
+        sales_ids = _to_int_list(self.sales_team_ids)
+        sol_users = HasamexUser.query.filter(HasamexUser.id.in_(sol_ids)).all() if sol_ids else []
+        sales_users = HasamexUser.query.filter(HasamexUser.id.in_(sales_ids)).all() if sales_ids else []
+        exp_ids = _split_csv_ids(self.expert_ids)
+        exp_rows = Expert.query.filter(Expert.id.in_(exp_ids)).all() if exp_ids else []
+        exp_map = {e.id: f"{e.expert_id}" for e in exp_rows}
         return {
             'client_id': self.client_id,
             'client_name': self.client_name,
@@ -429,6 +501,13 @@ class Client(db.Model):
             'users': self.users,
             'number_of_users': self.number_of_users,
             'msa': self.msa,
+            # new fields
+            'client_solution_owner_ids': sol_ids,
+            'client_solution_owner_names': [u.username for u in sol_users],
+            'sales_team_ids': sales_ids,
+            'sales_team_names': [u.username for u in sales_users],
+            'expert_ids': exp_ids,
+            'expert_codes': [exp_map.get(x, x) for x in exp_ids],
 
             # legacy passthrough
             'user_id': self.user_id,
@@ -467,6 +546,8 @@ class Project(db.Model):
     last_modified_time = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    client_solution_owner_ids = db.Column(db.Text)
+    sales_team_ids = db.Column(db.Text)
 
     allocations = db.relationship('ProjectExpert', backref='project', lazy=True, cascade='all, delete-orphan')
     calls = db.relationship('Call', backref='project', lazy=True, cascade='all, delete-orphan')
@@ -480,6 +561,23 @@ class Project(db.Model):
     )
 
     def to_dict(self):
+        def _split_csv_ids(txt):
+            if not txt: return []
+            parts = [p.strip() for p in str(txt).split(',') if p and str(p).strip()]
+            return parts
+        from models import HasamexUser
+        def _to_int_list(csv_txt):
+            ids = []
+            for x in _split_csv_ids(csv_txt):
+                try:
+                    ids.append(int(x))
+                except (ValueError, TypeError):
+                    continue
+            return ids
+        sol_ids = _to_int_list(self.client_solution_owner_ids)
+        sales_ids = _to_int_list(self.sales_team_ids)
+        sol_users = HasamexUser.query.filter(HasamexUser.id.in_(sol_ids)).all() if sol_ids else []
+        sales_users = HasamexUser.query.filter(HasamexUser.id.in_(sales_ids)).all() if sales_ids else []
         return {
             'project_id': self.project_id,
             'client_id': self.client_id,
@@ -505,6 +603,10 @@ class Project(db.Model):
             'poc_user_id': self.poc_user_id,
             'poc_user_name': self.rel_poc_user.user_name if self.rel_poc_user else None,
             'project_created_by': self.project_created_by,
+            'client_solution_owner_ids': sol_ids,
+            'client_solution_owner_names': [u.username for u in sol_users],
+            'sales_team_ids': sales_ids,
+            'sales_team_names': [u.username for u in sales_users],
             'last_modified_time': self.last_modified_time.isoformat() if self.last_modified_time else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
@@ -561,4 +663,101 @@ class Call(db.Model):
             'recording_url': self.recording_url,
             'transcript_url': self.transcript_url,
             'call_status': self.call_status,
+        }
+
+class Engagement(db.Model):
+    __tablename__ = 'engagements'
+    id = db.Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.project_id'), nullable=False)
+    expert_id = db.Column(UUID(as_uuid=False), db.ForeignKey('experts.id'), nullable=False)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.client_id'), nullable=False)
+    poc_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'))
+    call_owner_id = db.Column(db.Integer, db.ForeignKey('hasamex_users.id'))
+    call_date = db.Column(db.DateTime, nullable=False)
+    actual_call_duration_mins = db.Column(db.Integer)
+    engagement_method_id = db.Column(db.Integer, db.ForeignKey('lk_engagement_methods.id'))
+    notes = db.Column(db.Text)
+    transcript_link_folder = db.Column(db.String(512))
+    client_rate = db.Column(db.Numeric(12, 2))
+    client_currency_id = db.Column(db.Integer, db.ForeignKey('lk_currencies.id'))
+    discount_offered_percent = db.Column(db.Numeric(5, 2), default=0)
+    billable_client_amount_usd = db.Column(db.Numeric(12, 2))
+    expert_rate = db.Column(db.Numeric(12, 2))
+    expert_currency_id = db.Column(db.Integer, db.ForeignKey('lk_currencies.id'))
+    prorated_expert_amount_base = db.Column(db.Numeric(12, 2))
+    prorated_expert_amount_usd = db.Column(db.Numeric(12, 2))
+    gross_margin_percent = db.Column(db.Numeric(5, 2))
+    gross_profit_usd = db.Column(db.Numeric(12, 2))
+    expert_post_call_status_id = db.Column(db.Integer, db.ForeignKey('lk_post_call_statuses.id'))
+    expert_payment_due_date = db.Column(db.Date)
+    actual_expert_payment_date = db.Column(db.Date)
+    expert_payment_status_id = db.Column(db.Integer, db.ForeignKey('lk_payment_statuses.id'))
+    expert_paid_from = db.Column(db.String(100))
+    expert_payout_ref_id = db.Column(db.String(255))
+    client_invoice_number = db.Column(db.String(100))
+    client_invoice_date = db.Column(db.Date)
+    client_payment_received_date = db.Column(db.Date)
+    client_payment_received_account = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    project = db.relationship('Project', backref='engagements')
+    expert = db.relationship('Expert', backref='engagements')
+    client = db.relationship('Client', backref='engagements')
+    poc_user = db.relationship('User', backref='engagements')
+    call_owner = db.relationship('HasamexUser', backref='engagements')
+    engagement_method = db.relationship('LkEngagementMethod', lazy='joined')
+    client_currency = db.relationship('LkCurrency', foreign_keys=[client_currency_id], lazy='joined')
+    expert_currency = db.relationship('LkCurrency', foreign_keys=[expert_currency_id], lazy='joined')
+    expert_post_call_status = db.relationship('LkPostCallStatus', lazy='joined')
+    expert_payment_status = db.relationship('LkPaymentStatus', lazy='joined')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'project_id': self.project_id,
+            'project_name': self.project.title if self.project else None,
+            'expert_id': self.expert_id,
+            'expert_name': f"{self.expert.first_name} {self.expert.last_name}" if self.expert else None,
+            'client_id': self.client_id,
+            'client_name': self.client.client_name if self.client else None,
+            'poc_user_id': self.poc_user_id,
+            'poc_user_name': self.poc_user.user_name if self.poc_user else None,
+            'call_owner_id': self.call_owner_id,
+            'call_owner_name': self.call_owner.username if self.call_owner else None,
+            'call_date': self.call_date.isoformat() if self.call_date else None,
+            'actual_call_duration_mins': self.actual_call_duration_mins,
+            # Engagement method (both id and name for form prefill)
+            'engagement_method_id': self.engagement_method.id if self.engagement_method else None,
+            'engagement_method': self.engagement_method.name if self.engagement_method else None,
+            'notes': self.notes,
+            'transcript_link_folder': self.transcript_link_folder,
+            'client_rate': float(self.client_rate) if self.client_rate else None,
+            # Currencies (both id and name for form prefill)
+            'client_currency_id': self.client_currency.id if self.client_currency else self.client_currency_id,
+            'client_currency': self.client_currency.name if self.client_currency else None,
+            'discount_offered_percent': float(self.discount_offered_percent) if self.discount_offered_percent else None,
+            'billable_client_amount_usd': float(self.billable_client_amount_usd) if self.billable_client_amount_usd else None,
+            'expert_rate': float(self.expert_rate) if self.expert_rate else None,
+            'expert_currency_id': self.expert_currency.id if self.expert_currency else self.expert_currency_id,
+            'expert_currency': self.expert_currency.name if self.expert_currency else None,
+            'prorated_expert_amount_base': float(self.prorated_expert_amount_base) if self.prorated_expert_amount_base else None,
+            'prorated_expert_amount_usd': float(self.prorated_expert_amount_usd) if self.prorated_expert_amount_usd else None,
+            'gross_margin_percent': float(self.gross_margin_percent) if self.gross_margin_percent else None,
+            'gross_profit_usd': float(self.gross_profit_usd) if self.gross_profit_usd else None,
+            # Post-call + Payment statuses (both id and name)
+            'expert_post_call_status_id': self.expert_post_call_status.id if self.expert_post_call_status else self.expert_post_call_status_id,
+            'expert_post_call_status': self.expert_post_call_status.name if self.expert_post_call_status else None,
+            'expert_payment_due_date': self.expert_payment_due_date.isoformat() if self.expert_payment_due_date else None,
+            'actual_expert_payment_date': self.actual_expert_payment_date.isoformat() if self.actual_expert_payment_date else None,
+            'expert_payment_status_id': self.expert_payment_status.id if self.expert_payment_status else self.expert_payment_status_id,
+            'expert_payment_status': self.expert_payment_status.name if self.expert_payment_status else None,
+            'expert_paid_from': self.expert_paid_from,
+            'expert_payout_ref_id': self.expert_payout_ref_id,
+            'client_invoice_number': self.client_invoice_number,
+            'client_invoice_date': self.client_invoice_date.isoformat() if self.client_invoice_date else None,
+            'client_payment_received_date': self.client_payment_received_date.isoformat() if self.client_payment_received_date else None,
+            'client_payment_received_account': self.client_payment_received_account,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

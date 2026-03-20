@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchClients } from '../../api/clients';
+import { fetchLookups } from '../../api/lookups';
 import { createUser } from '../../api/users';
 import FilterDropdown from '../../components/experts/FilterDropdown';
 import Button from '../../components/ui/Button';
@@ -8,6 +9,7 @@ import Button from '../../components/ui/Button';
 export default function UserCreatePage() {
     const navigate = useNavigate();
     const [clients, setClients] = useState([]);
+    const [lookups, setLookups] = useState({});
     const [isSaving, setIsSaving] = useState(false);
 
     const [form, setForm] = useState({
@@ -28,10 +30,13 @@ export default function UserCreatePage() {
         notes: '',
         user_manager: '',
         ai_generated_bio: '',
+        client_solution_owner_ids: [],
+        sales_team_ids: [],
     });
 
     useEffect(() => {
         fetchClients({ page: 1, limit: 1000, search: '' }).then((r) => setClients(r.data || []));
+        fetchLookups().then(setLookups);
     }, []);
 
     const clientOptions = useMemo(() => (clients || []).map((c) => c.client_name), [clients]);
@@ -39,6 +44,16 @@ export default function UserCreatePage() {
         () => clients.find((c) => String(c.client_id) === String(form.client_id))?.client_name,
         [clients, form.client_id]
     );
+    const hasamexIdByName = useMemo(() => {
+        const map = {};
+        (lookups.hasamex_users || []).forEach((u) => (map[u.name] = u.id));
+        return map;
+    }, [lookups.hasamex_users]);
+    const hasamexNameById = useMemo(() => {
+        const map = {};
+        (lookups.hasamex_users || []).forEach((u) => (map[u.id] = u.name));
+        return map;
+    }, [lookups.hasamex_users]);
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -111,6 +126,36 @@ export default function UserCreatePage() {
                             <div className="form-field">
                                 <label className="form-label">LinkedIn URL</label>
                                 <input className="form-input" value={form.linkedin_url} onChange={(e) => setForm((p) => ({ ...p, linkedin_url: e.target.value }))} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="form-section">
+                        <h2 className="form-section__title">Solution & Team</h2>
+                        <div className="form-grid">
+                            <div className="form-field">
+                                <label className="form-label">Research Analyst</label>
+                                <FilterDropdown
+                                    label="Select owners"
+                                    options={(lookups.hasamex_users || []).map((u) => u.name)}
+                                    selected={(form.client_solution_owner_ids || []).map((id) => hasamexNameById[id]).filter(Boolean)}
+                                    onChange={(names) => {
+                                        const ids = names.map((n) => hasamexIdByName[n]).filter(Boolean);
+                                        setForm((p) => ({ ...p, client_solution_owner_ids: ids }));
+                                    }}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Account Manager</label>
+                                <FilterDropdown
+                                    label="Select sales team"
+                                    options={(lookups.hasamex_users || []).map((u) => u.name)}
+                                    selected={(form.sales_team_ids || []).map((id) => hasamexNameById[id]).filter(Boolean)}
+                                    onChange={(names) => {
+                                        const ids = names.map((n) => hasamexIdByName[n]).filter(Boolean);
+                                        setForm((p) => ({ ...p, sales_team_ids: ids }));
+                                    }}
+                                />
                             </div>
                         </div>
                     </div>
