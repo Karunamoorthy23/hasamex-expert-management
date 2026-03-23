@@ -10,6 +10,7 @@ export default function ProjectsTable({
     onSelectAll,
     allSelected,
     onDeleteProject,
+    onOpenStatusModal,
 }) {
     return (
         <div className="table-container">
@@ -32,6 +33,13 @@ export default function ProjectsTable({
                         <th>Target Region</th>
                         <th>Research Analyst</th>
                         <th>Account Manager</th>
+                        <th title="Leads">L</th>
+                        <th title="Invited">I</th>
+                        <th title="Accepted">A</th>
+                        <th title="Scheduled">S</th>
+                        <th title="Completed">C</th>
+                        <th title="Goal">G</th>
+                        <th title="Progress">P (%)</th>
                         <th>Deadline</th>
                         <th>Last Modified</th>
                         <th>Actions</th>
@@ -78,6 +86,40 @@ export default function ProjectsTable({
                                     ? p.sales_team_names.join(', ')
                                     : '—'}
                             </td>
+                            <td>
+                                <button
+                                    type="button"
+                                    className="link-btn"
+                                    onClick={() => onOpenStatusModal?.(p)}
+                                    title="View Leads"
+                                >
+                                    {p.leads_count ?? 0}
+                                </button>
+                            </td>
+                            <td>
+                                <button
+                                    type="button"
+                                    className="link-btn"
+                                    onClick={() => onOpenStatusModal?.(p)}
+                                    title="View Invited"
+                                >
+                                    {p.invited_count ?? 0}
+                                </button>
+                            </td>
+                            <td>
+                                <button
+                                    type="button"
+                                    className="link-btn"
+                                    onClick={() => onOpenStatusModal?.(p)}
+                                    title="View Accepted"
+                                >
+                                    {p.accepted_count ?? 0}
+                                </button>
+                            </td>
+                            <td>{p.scheduled_calls_count ?? 0}</td>
+                            <td>{p.completed_calls_count ?? 0}</td>
+                            <td>{p.goal_calls_count ?? 0}</td>
+                            <td>{typeof p.progress_percent === 'number' ? p.progress_percent.toFixed(2) : '0.00'}</td>
                             <td>{p.project_deadline ? new Date(p.project_deadline).toLocaleDateString() : '—'}</td>
                             <td>{p.last_modified_time ? new Date(p.last_modified_time).toLocaleString() : '—'}</td>
                             <td onClick={(e) => e.stopPropagation()}>

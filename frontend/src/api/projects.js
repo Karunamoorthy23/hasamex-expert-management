@@ -59,3 +59,17 @@ export async function bulkDeleteProjects(ids) {
     return result;
 }
 
+export async function fetchProjectExpertStatus(projectId) {
+    const result = await http(`/projects/${projectId}/expert-status`);
+    return result.data || { leads: [], invited: [], accepted: [], counts: { L: 0, I: 0, A: 0 } };
+}
+
+export async function setProjectExpertStatus(projectId, { expert_id, category }) {
+    const result = await http(`/projects/${projectId}/expert-status`, {
+        method: 'POST',
+        body: JSON.stringify({ expert_id, category }),
+    });
+    return result.data;
+}
+
+

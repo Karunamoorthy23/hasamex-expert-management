@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { fetchClientById } from '../../api/clients';
+import { fetchClientById, fetchProjects } from '../../api/clients';
 import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
 
@@ -18,6 +18,7 @@ export default function ClientDetails() {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
     const [client, setClient] = useState(null);
+    const [projects, setProjects] = useState([]);
 
     useEffect(() => {
         let cancelled = false;
@@ -26,6 +27,10 @@ export default function ClientDetails() {
             if (cancelled) return;
             setClient(c || null);
             setIsLoading(false);
+        });
+        fetchProjects({ clientId: id }).then((rows) => {
+            if (cancelled) return;
+            setProjects(rows || []);
         });
         return () => {
             cancelled = true;
@@ -50,6 +55,47 @@ export default function ClientDetails() {
             </a>
         );
     }, [client?.linkedin_url]);
+    
+    const usersProjectsMap = useMemo(() => {
+        const map = {};
+        for (const p of projects || []) {
+            const uname = p.poc_user_name || null;
+            if (!uname) continue;
+            if (!map[uname]) map[uname] = [];
+            map[uname].push({
+                id: p.project_id,
+                title: p.project_title || p.title || `Project #${p.project_id}`,
+            });
+        }
+        return map;
+    }, [projects]);
+    
+    const usersWithAssignments = useMemo(() => {
+        const raw = String(client?.users || '');
+        const names = raw.split(',').map((s) => s.trim()).filter(Boolean);
+        if (!names.length) return client?.users || '—';
+        return (
+            <div style={{ display: 'grid', gap: '6px' }}>
+                {names.map((name) => {
+                    const projs = usersProjectsMap[name] || [];
+                    return (
+                        <div key={name}>
+                            <span style={{ fontWeight: 600 }}>{name}</span>
+                            {projs.length ? (
+                                <span> — {projs.map((p, idx) => (
+                                    <span key={p.id}>
+                                        <Link to={`/projects/${p.id}`}>{p.title}</Link>{idx < projs.length - 1 ? ', ' : ''}
+                                    </span>
+                                ))}</span>
+                            ) : (
+                                <span> — No assigned project</span>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    }, [client?.users, usersProjectsMap]);
 
     if (isLoading || !client) return <Loader rows={8} />;
 
@@ -139,6 +185,7 @@ export default function ClientDetails() {
                         <DetailItem label="Business Activity Summary" value={client.business_activity_summary} full />
                         <DetailItem label="Notes" value={client.notes} full />
                         <DetailItem label="Users" value={client.users} full />
+                        <DetailItem label="Users & Assigned Projects" value={usersWithAssignments} full />
                         <DetailItem label="MSA" value={client.msa} full />
                     </div>
                 </div>

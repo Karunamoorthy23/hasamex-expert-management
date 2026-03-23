@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { fetchUserById } from '../../api/users';
+import { fetchProjectsPaged } from '../../api/projects';
 import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
 
@@ -18,6 +19,7 @@ export default function UserDetails() {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
     const [user, setUser] = useState(null);
+    const [assignedProjects, setAssignedProjects] = useState([]);
 
     useEffect(() => {
         let cancelled = false;
@@ -32,10 +34,41 @@ export default function UserDetails() {
         };
     }, [id]);
 
+    useEffect(() => {
+        let cancelled = false;
+        const uname = user?.user_name || null;
+        if (!uname) {
+            setAssignedProjects([]);
+            return;
+        }
+        fetchProjectsPaged({ search: uname, limit: 100 }).then((res) => {
+            if (cancelled) return;
+            setAssignedProjects(res?.data || []);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [user?.user_name]);
+
     const nameDisplay = useMemo(() => {
         if (!user) return 'User';
         return user.full_name || user.user_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'User';
     }, [user]);
+
+    const assignedProjectsDisplay = useMemo(() => {
+        const rows = Array.isArray(assignedProjects) ? assignedProjects : [];
+        if (!rows.length) return '—';
+        return (
+            <span>
+                {rows.map((p, idx) => (
+                    <span key={p.project_id}>
+                        <Link to={`/projects/${p.project_id}`}>{p.project_title || p.title || `Project #${p.project_id}`}</Link>
+                        {idx < rows.length - 1 ? ', ' : ''}
+                    </span>
+                ))}
+            </span>
+        );
+    }, [assignedProjects]);
 
     if (isLoading || !user) return <Loader rows={8} />;
 
@@ -116,6 +149,13 @@ export default function UserDetails() {
                                     : '—'
                             }
                         />
+                    </div>
+                </div>
+
+                <div className="form-section">
+                    <h2 className="form-section__title">Projects</h2>
+                    <div className="form-grid">
+                        <DetailItem label="Assigned Projects" value={assignedProjectsDisplay} full />
                     </div>
                 </div>
 

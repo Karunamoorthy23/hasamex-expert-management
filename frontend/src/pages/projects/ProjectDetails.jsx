@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { fetchProjectById, fetchProjectExperts } from '../../api/projects';
-import { fetchClientById } from '../../api/clients';
-import { fetchExpertById } from '../../api/experts';
+import { fetchProjectById, fetchProjectExpertStatus } from '../../api/projects';
 import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
 
@@ -21,7 +19,6 @@ export default function ProjectDetails() {
     const [isLoading, setIsLoading] = useState(true);
     const [project, setProject] = useState(null);
     const [participants, setParticipants] = useState([]);
-    const [expertDetails, setExpertDetails] = useState({});
 
     useEffect(() => {
         let cancelled = false;
@@ -33,58 +30,14 @@ export default function ProjectDetails() {
         });
         (async () => {
             try {
-                const rows = await fetchProjectExperts(id);
+                const status = await fetchProjectExpertStatus(id);
                 if (cancelled) return;
-                const baseRows = Array.isArray(rows) ? rows : [];
-                // augment with experts mapped on the client
-                let extraRows = [];
-                const proj = await fetchProjectById(id);
-                if (!cancelled && proj?.client_id) {
-                    const client = await fetchClientById(proj.client_id);
-                    const existingIds = new Set(baseRows.map((r) => r.expert_id));
-                    const clientExpertIds = Array.isArray(client?.expert_ids) ? client.expert_ids : [];
-                    extraRows = clientExpertIds
-                        .filter((eid) => !existingIds.has(eid))
-                        .map((eid) => ({ expert_id: eid, stage: 'Linked', call_completed: false, call_date: null, expert_rate: null }));
-                }
-                const finalRows = [...baseRows, ...extraRows];
-                setParticipants(finalRows);
-                // fetch expert details for richer info (email, linkedin)
-                const uniqueIds = Array.from(new Set(finalRows.map((r) => r.expert_id)));
-                const detailsEntries = await Promise.all(
-                    uniqueIds.map(async (eid) => {
-                        const det = await fetchExpertById(eid);
-                        return [eid, det];
-                    })
-                );
-                const map = {};
-                for (const [eid, det] of detailsEntries) {
-                    if (det) map[eid] = det;
-                }
-                setExpertDetails(map);
+                const leads = (status?.leads || []).map((e) => ({ ...e, category: 'Leads' }));
+                const invited = (status?.invited || []).map((e) => ({ ...e, category: 'Invited' }));
+                const accepted = (status?.accepted || []).map((e) => ({ ...e, category: 'Accepted' }));
+                setParticipants([...leads, ...invited, ...accepted]);
             } catch (err) {
-                if (cancelled) return;
-                // fallback: try only client experts if project experts endpoint unavailable
-                const proj = await fetchProjectById(id);
-                if (proj?.client_id) {
-                    const client = await fetchClientById(proj.client_id);
-                    const clientExpertIds = Array.isArray(client?.expert_ids) ? client.expert_ids : [];
-                    const finalRows = clientExpertIds.map((eid) => ({ expert_id: eid, stage: 'Linked', call_completed: false, call_date: null, expert_rate: null }));
-                    setParticipants(finalRows);
-                    const detailsEntries = await Promise.all(
-                        clientExpertIds.map(async (eid) => {
-                            const det = await fetchExpertById(eid);
-                            return [eid, det];
-                        })
-                    );
-                    const map = {};
-                    for (const [eid, det] of detailsEntries) {
-                        if (det) map[eid] = det;
-                    }
-                    setExpertDetails(map);
-                } else {
-                    setParticipants([]);
-                }
+                if (!cancelled) setParticipants([]);
             }
         })();
         return () => {
@@ -156,6 +109,7 @@ export default function ProjectDetails() {
   .p-name { font-size: 0.88rem; font-weight: 600; color: #111111; }
   .li-badge { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; background: #0a66c2; border-radius: 3px; }
   .li-badge svg { width: 20px; height: 20px; fill: white; }
+  .id-badge { display: inline-flex; align-items: center; justify-content: center; padding: 2px 6px; font-size: 0.72rem; font-weight: 700; color: #333; background: #efefef; border: 1px solid #d0d0d0; border-radius: 3px; }
   .p-bio { font-size: 0.80rem; color: #444444; line-height: 1.62; }
   .status-wrap { display: flex; align-items: flex-start; padding-top: 0; }
   .s-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 0.76rem; font-weight: 500; padding: 4px 10px 4px 8px; border: 1px solid #c0c0c0; border-radius: 3px; background: #f7f7f7; color: #333333; white-space: nowrap; }
@@ -235,29 +189,29 @@ export default function ProjectDetails() {
                         <div className="p-bar-col">Basic Info</div>
                     </div>
                     {(participants || []).map((row, idx) => {
-                        const det = expertDetails[row.expert_id] || null;
-                        const name = det ? `${det.first_name || ''} ${det.last_name || ''}`.trim() || det.title_headline || 'Expert' : 'Expert';
-                        const linkedin = det?.linkedin_url || null;
-                        const email = det?.primary_email || det?.secondary_email || '—';
-                        const phone = det?.primary_phone || det?.secondary_phone || '—';
-                        const rate = typeof row.expert_rate === 'number' ? row.expert_rate : det?.hourly_rate;
+                        const name = row.name || 'Expert';
+                        const email = row.email || '—';
+                        const phone = row.phone || '—';
+                        const title = row.title || '—';
+                        const linkedin = row.linkedin_url || null;
+                        const statusLabel = row.category || '—';
                         let statusClass = 's-pending';
-                        let statusLabel = 'Pending';
-                        if (row.call_completed) { statusClass = 's-completed'; statusLabel = 'Completed'; }
-                        else if (row.call_date) { statusClass = 's-scheduled'; statusLabel = 'Scheduled'; }
-                        else if ((row.stage || '').toLowerCase().includes('contact')) { statusClass = 's-contacted'; statusLabel = 'Contacted'; }
+                        if (statusLabel === 'Leads') statusClass = 's-pending';
+                        else if (statusLabel === 'Invited') statusClass = 's-contacted';
+                        else if (statusLabel === 'Accepted') statusClass = 's-completed';
                         return (
-                            <div className="p-row" key={`${row.expert_id}-${idx}`}>
+                            <div className="p-row" key={`${row.id || row.expert_id || idx}-${idx}`}>
                                 <div className="p-cell">
                                     <div className="p-name-row">
                                         <div className="p-name">{name}</div>
+                                        {row.expert_code ? <span className="id-badge" title="Expert Number">{row.expert_code}</span> : null}
                                         {linkedin ? (
                                             <a className="li-badge" href={linkedin} target="_blank" rel="noreferrer" title="LinkedIn">
                                                 <svg viewBox="0 0 72 72"><path d="M16.5,29.5h7.1V56H16.5V29.5z M20.1,16.5c2.3,0,3.9,1.6,3.9,3.6c0,2-1.6,3.6-3.9,3.6h0c-2.3,0-3.9-1.6-3.9-3.6 C16.2,18.1,17.8,16.5,20.1,16.5z M29.5,29.5h6.8v3.6h0.1c0.9-1.7,3.2-3.5,6.6-3.5c7,0,8.3,4.6,8.3,10.6V56h-7.1V42.6 c0-3.2-0.1-7.3-4.5-7.3c-4.5,0-5.2,3.5-5.2,7.1V56h-7.1V29.5z" fill="white"></path></svg>
                                             </a>
                                         ) : null}
                                     </div>
-                                    <div className="p-bio">{det?.title_headline || det?.bio || '—'}</div>
+                                    <div className="p-bio">{title}</div>
                                 </div>
                                 <div className="p-cell">
                                     <div className="status-wrap">
@@ -268,7 +222,7 @@ export default function ProjectDetails() {
                                     <div className="bi">
                                         <div className="bi-row email">{email}</div>
                                         <div className="bi-row">{phone}</div>
-                                        <div className="bi-row">Fee: <span className="bi-fee">{rate ? `$${Number(rate).toFixed(2)}` : '—'}</span></div>
+                                        <div className="bi-row">Fee: <span className="bi-fee">—</span></div>
                                     </div>
                                 </div>
                             </div>

@@ -1,7 +1,8 @@
 from flask import Blueprint, request, jsonify
 from extensions import db
+from auth import decode_token
 from models import (
-    Project, ProjectExpert, Call,
+    Project, ProjectExpert, Call, Expert, HasamexUser,
     Client, User, LkProjectType, LkRegion, LkProjectTargetGeography
 )
 from datetime import datetime, date
@@ -108,6 +109,21 @@ def create_project():
             return date.fromisoformat(val)
         except Exception:
             return None
+    
+    created_by_name = None
+    try:
+        auth = request.headers.get('Authorization') or ''
+        if auth.startswith('Bearer '):
+            claims = decode_token(auth.split(' ', 1)[1].strip())
+            user_id = claims.get('user_id')
+            email = claims.get('email')
+            if user_id:
+                u = HasamexUser.query.get(user_id)
+                created_by_name = (u.username if u and u.username else None) or email
+            else:
+                created_by_name = email
+    except Exception:
+        pass
 
     new_project = Project(
         client_id=_safe_int(data.get('client_id')),
@@ -122,12 +138,15 @@ def create_project():
         target_functions_titles=data.get('target_functions_titles'),
         current_former_both=data.get('current_former_both'),
         number_of_calls=_safe_int(data.get('number_of_calls')),
+        scheduled_calls_count=_safe_int(data.get('scheduled_calls_count')),
+        completed_calls_count=_safe_int(data.get('completed_calls_count')),
+        goal_calls_count=_safe_int(data.get('goal_calls_count')),
         profile_question_1=data.get('profile_question_1'),
         profile_question_2=data.get('profile_question_2'),
         profile_question_3=data.get('profile_question_3'),
         compliance_question_1=data.get('compliance_question_1'),
         project_deadline=parse_date(data.get('project_deadline')),
-        project_created_by=data.get('project_created_by'),
+        project_created_by=created_by_name or data.get('project_created_by'),
         status=data.get('status', 'Planning'),
         client_solution_owner_ids=_csv_from_list(data.get('client_solution_owner_ids') or []),
         sales_team_ids=_csv_from_list(data.get('sales_team_ids') or []),
@@ -138,6 +157,11 @@ def create_project():
     if isinstance(geo_names, list) and geo_names:
         geos = LkProjectTargetGeography.query.filter(LkProjectTargetGeography.name.in_(geo_names)).all()
         new_project.target_geographies = geos
+    
+    # Initial invited experts
+    invited_ids = data.get('invited_expert_ids') or data.get('expert_ids') or []
+    if isinstance(invited_ids, list):
+        new_project.invited_expert_ids = [str(x) for x in invited_ids if str(x).strip() != '']
 
     db.session.add(new_project)
     db.session.commit()
@@ -190,8 +214,18 @@ def update_project(project_id):
             continue
         elif key in csv_list_fields:
             setattr(project, key, _csv_from_list(value))
+        elif key == 'goal_calls_count':
+            setattr(project, key, _safe_int(value))
+        elif key in ['scheduled_calls_count', 'completed_calls_count']:
+            setattr(project, key, _safe_int(value))
         else:
             setattr(project, key, value)
+    
+    # Update invited experts if provided (supports alias 'expert_ids')
+    if 'invited_expert_ids' in data or 'expert_ids' in data:
+        invited_ids = data.get('invited_expert_ids') or data.get('expert_ids') or []
+        if isinstance(invited_ids, list):
+            project.invited_expert_ids = [str(x) for x in invited_ids if str(x).strip() != '']
             
     db.session.commit()
     return jsonify({'data': project.to_dict()})
@@ -320,3 +354,63 @@ def delete_call(call_id):
     db.session.delete(call)
     db.session.commit()
     return jsonify({'message': 'Call record deleted'})
+
+# ── Expert categories (L/I/A) endpoints ──
+
+@projects_bp.route('/<int:project_id>/expert-status', methods=['GET'])
+def get_expert_status(project_id):
+    project = Project.query.get_or_404(project_id)
+    def _fetch(ids):
+        if not ids:
+            return []
+        rows = Expert.query.filter(Expert.id.in_(ids)).all()
+        return [{
+            'id': e.id,
+            'expert_code': e.expert_id,
+            'name': f"{e.first_name or ''} {e.last_name or ''}".strip() or "Unnamed Expert",
+            'email': e.primary_email or "No Email",
+            'phone': e.primary_phone or e.secondary_phone or None,
+            'title': e.title_headline or None,
+            'linkedin_url': e.linkedin_url or None
+        } for e in rows]
+    leads = project.leads_expert_ids or []
+    invited = project.invited_expert_ids or []
+    accepted = project.accepted_expert_ids or []
+    return jsonify({
+        'data': {
+            'leads': _fetch(leads),
+            'invited': _fetch(invited),
+            'accepted': _fetch(accepted),
+            'counts': {
+                'L': len(leads),
+                'I': len(invited),
+                'A': len(accepted),
+            }
+        }
+    })
+
+@projects_bp.route('/<int:project_id>/expert-status', methods=['POST'])
+def set_expert_status(project_id):
+    project = Project.query.get_or_404(project_id)
+    data = request.get_json() or {}
+    expert_id = (data.get('expert_id') or '').strip()
+    category = (data.get('category') or '').strip().upper()
+    if not expert_id or category not in {'L', 'I', 'A'}:
+        return jsonify({'error': 'Invalid expert_id or category'}), 400
+    leads = set(project.leads_expert_ids or [])
+    invited = set(project.invited_expert_ids or [])
+    accepted = set(project.accepted_expert_ids or [])
+    leads.discard(expert_id)
+    invited.discard(expert_id)
+    accepted.discard(expert_id)
+    if category == 'L':
+        leads.add(expert_id)
+    elif category == 'I':
+        invited.add(expert_id)
+    elif category == 'A':
+        accepted.add(expert_id)
+    project.leads_expert_ids = list(leads)
+    project.invited_expert_ids = list(invited)
+    project.accepted_expert_ids = list(accepted)
+    db.session.commit()
+    return jsonify({'data': project.to_dict()})

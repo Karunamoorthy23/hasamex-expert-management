@@ -35,6 +35,10 @@ export default function ProjectCreatePage() {
         project_created_by: '',
         client_solution_owner_ids: [],
         sales_team_ids: [],
+        invited_expert_ids: [],
+        scheduled_calls_count: 0,
+        completed_calls_count: 0,
+        goal_calls_count: 0,
     });
 
     useEffect(() => {
@@ -55,6 +59,21 @@ export default function ProjectCreatePage() {
         (lookups.hasamex_users || []).forEach((u) => (map[u.id] = u.name));
         return map;
     }, [lookups.hasamex_users]);
+    const expertLabelById = useMemo(() => {
+        const map = {};
+        (lookups.experts_codes || []).forEach((e) => {
+            map[e.id] = `${e.code} — ${e.name}`;
+        });
+        return map;
+    }, [lookups.experts_codes]);
+    const expertIdByLabel = useMemo(() => {
+        const map = {};
+        (lookups.experts_codes || []).forEach((e) => {
+            const label = `${e.code} — ${e.name}`;
+            map[label] = e.id;
+        });
+        return map;
+    }, [lookups.experts_codes]);
 
     const selectedClientName = useMemo(() => clients.find((c) => String(c.client_id) === String(form.client_id))?.client_name, [clients, form.client_id]);
     const selectedUserName = useMemo(() => users.find((u) => String(u.user_id) === String(form.poc_user_id))?.user_name, [users, form.poc_user_id]);
@@ -80,7 +99,6 @@ export default function ProjectCreatePage() {
                 'profile_question_3',
                 'compliance_question_1',
                 'project_deadline',
-                'project_created_by',
             ];
             const requiredArrays = ['target_geographies', 'client_solution_owner_ids', 'sales_team_ids'];
             const missing = [];
@@ -100,6 +118,10 @@ export default function ProjectCreatePage() {
                 client_id: form.client_id ? Number(form.client_id) : null,
                 poc_user_id: form.poc_user_id ? Number(form.poc_user_id) : null,
                 number_of_calls: form.number_of_calls ? Number(form.number_of_calls) : null,
+                scheduled_calls_count: form.scheduled_calls_count ? Number(form.scheduled_calls_count) : 0,
+                completed_calls_count: form.completed_calls_count ? Number(form.completed_calls_count) : 0,
+                goal_calls_count: form.goal_calls_count ? Number(form.goal_calls_count) : 0,
+                invited_expert_ids: form.invited_expert_ids || [],
             };
             await createProject(payload);
             navigate('/projects');
@@ -229,6 +251,18 @@ export default function ProjectCreatePage() {
                                     }}
                                 />
                             </div>
+                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                <label className="form-label">Invited Experts (IDs)</label>
+                                <FilterDropdown
+                                    label="Select experts"
+                                    options={(lookups.experts_codes || []).map((e) => `${e.code} — ${e.name}`)}
+                                    selected={(form.invited_expert_ids || []).map((id) => expertLabelById[id]).filter(Boolean)}
+                                    onChange={(labels) => {
+                                        const ids = labels.map((lbl) => expertIdByLabel[lbl]).filter(Boolean);
+                                        setForm((p) => ({ ...p, invited_expert_ids: ids }));
+                                    }}
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -305,6 +339,33 @@ export default function ProjectCreatePage() {
                                     required
                                     value={form.number_of_calls}
                                     onChange={(e) => setForm((p) => ({ ...p, number_of_calls: e.target.value }))}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Calls Scheduled (S)</label>
+                                <input
+                                    className="form-input"
+                                    type="number"
+                                    value={form.scheduled_calls_count}
+                                    onChange={(e) => setForm((p) => ({ ...p, scheduled_calls_count: e.target.value }))}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Calls Completed (C)</label>
+                                <input
+                                    className="form-input"
+                                    type="number"
+                                    value={form.completed_calls_count}
+                                    onChange={(e) => setForm((p) => ({ ...p, completed_calls_count: e.target.value }))}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Goal Calls (G)</label>
+                                <input
+                                    className="form-input"
+                                    type="number"
+                                    value={form.goal_calls_count}
+                                    onChange={(e) => setForm((p) => ({ ...p, goal_calls_count: e.target.value }))}
                                 />
                             </div>
 

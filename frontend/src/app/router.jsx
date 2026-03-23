@@ -21,6 +21,9 @@ import EngagementEditPage from '../pages/engagements/EngagementEditPage';
 import LoginPage from '../pages/auth/LoginPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from '../pages/auth/ResetPasswordPage';
+import EmployeesPage from '../pages/employees/EmployeesPage';
+import EmployeeCreatePage from '../pages/employees/EmployeeCreatePage';
+import EmployeeEditPage from '../pages/employees/EmployeeEditPage';
 
 /**
  * Application router configuration.
@@ -129,6 +132,18 @@ const router = createBrowserRouter([
             {
                 path: 'experts/:id/edit',
                 element: <ExpertEditPage />
+            },
+            {
+                path: 'employees',
+                element: <EmployeesPage />,
+            },
+            {
+                path: 'employees/new',
+                element: <EmployeeCreatePage />,
+            },
+            {
+                path: 'employees/:id/edit',
+                element: <EmployeeEditPage />,
             },
         ],
     },

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { bulkDeleteProjects, deleteProject, fetchProjectsPaged } from '../../api/projects';
+import { bulkDeleteProjects, deleteProject, fetchProjectsPaged, fetchProjectExpertStatus, setProjectExpertStatus } from '../../api/projects';
 import { fetchClients } from '../../api/clients';
 import { fetchUsers } from '../../api/users';
 import Loader from '../../components/ui/Loader';
@@ -9,6 +9,7 @@ import Button from '../../components/ui/Button';
 import ProjectsTable from '../../components/projects/ProjectsTable';
 import BulkDeleteBar from '../../components/ui/BulkDeleteBar';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import Modal from '../../components/ui/Modal';
 
 export default function ProjectsPage() {
     const LIMIT = 20;
@@ -123,6 +124,42 @@ export default function ProjectsPage() {
         }
     };
 
+    const [statusOpen, setStatusOpen] = useState(false);
+    const [statusLoading, setStatusLoading] = useState(false);
+    const [activeProject, setActiveProject] = useState(null);
+    const [statusData, setStatusData] = useState({ leads: [], invited: [], accepted: [], counts: { L: 0, I: 0, A: 0 } });
+    const [statusSearch, setStatusSearch] = useState('');
+
+    const onOpenStatusModal = async (project) => {
+        setActiveProject(project);
+        setStatusOpen(true);
+        setStatusLoading(true);
+        try {
+            const res = await fetchProjectExpertStatus(project.project_id);
+            setStatusData(res);
+        } finally {
+            setStatusLoading(false);
+        }
+    };
+
+    const changeExpertCategory = async (expertId, nextCategory) => {
+        if (!activeProject) return;
+        try {
+            const updatedProject = await setProjectExpertStatus(activeProject.project_id, { expert_id: expertId, category: nextCategory });
+            // Update counts in table data
+            setData((prev) => {
+                if (!prev) return prev;
+                const nextRows = prev.data.map((p) => (p.project_id === updatedProject.project_id ? { ...p, ...updatedProject } : p));
+                return { ...prev, data: nextRows };
+            });
+            // Re-fetch status to reflect lists
+            const res = await fetchProjectExpertStatus(activeProject.project_id);
+            setStatusData(res);
+        } catch (e) {
+            alert('Failed to update expert category');
+        }
+    };
+
     return (
         <>
             <div className="page-header">
@@ -178,6 +215,7 @@ export default function ProjectsPage() {
                                 onSelectAll={onSelectAll}
                                 allSelected={allSelected}
                                 onDeleteProject={(p) => openConfirmForIds([p.project_id])}
+                                onOpenStatusModal={onOpenStatusModal}
                             />
                             <Pagination
                                 page={meta.current_page}
@@ -210,6 +248,127 @@ export default function ProjectsPage() {
                 isDestructive={true}
                 isLoading={isDeleting}
             />
+
+            {statusOpen && (
+                <Modal
+                    open={statusOpen}
+                    onClose={() => setStatusOpen(false)}
+                    title={`Experts by Status — ${activeProject?.project_title || activeProject?.title || 'Project'}`}
+                >
+                    {statusLoading ? (
+                        <Loader rows={6} />
+                    ) : (
+                        <div className="form-grid">
+                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                <label className="form-label">Search Experts</label>
+                                <input
+                                    className="form-input"
+                                    type="text"
+                                    placeholder="Search by name, email, or title"
+                                    value={statusSearch}
+                                    onChange={(e) => setStatusSearch(e.target.value)}
+                                />
+                            </div>
+                            {(() => {
+                                const q = statusSearch.trim().toLowerCase();
+                                const match = (e) =>
+                                    !q ||
+                                    (e.name && e.name.toLowerCase().includes(q)) ||
+                                    (e.email && e.email.toLowerCase().includes(q)) ||
+                                    (e.title && String(e.title).toLowerCase().includes(q));
+                                const leadsList = statusData.leads.filter(match);
+                                const invitedList = statusData.invited.filter(match);
+                                const acceptedList = statusData.accepted.filter(match);
+                                return (
+                                    <>
+                                        <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                            <label className="form-label">Leads (L)</label>
+                                            <table className="data-table">
+                                                <thead>
+                                                    <tr><th>Name</th><th>Email</th><th>Title</th><th>Category</th></tr>
+                                                </thead>
+                                                <tbody>
+                                                    {leadsList.map((e) => (
+                                                        <tr key={`L-${e.id}`}>
+                                                            <td>{e.name}</td>
+                                                            <td>{e.email}</td>
+                                                            <td>{e.title || '—'}</td>
+                                                            <td>
+                                                                <select value="L" onChange={(ev) => changeExpertCategory(e.id, ev.target.value)}>
+                                                                    <option value="L">Leads</option>
+                                                                    <option value="I">Invited</option>
+                                                                    <option value="A">Accepted</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {leadsList.length === 0 && (
+                                                        <tr><td colSpan="4">No matching leads</td></tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                            <label className="form-label">Invited (I)</label>
+                                            <table className="data-table">
+                                                <thead>
+                                                    <tr><th>Name</th><th>Email</th><th>Title</th><th>Category</th></tr>
+                                                </thead>
+                                                <tbody>
+                                                    {invitedList.map((e) => (
+                                                        <tr key={`I-${e.id}`}>
+                                                            <td>{e.name}</td>
+                                                            <td>{e.email}</td>
+                                                            <td>{e.title || '—'}</td>
+                                                            <td>
+                                                                <select value="I" onChange={(ev) => changeExpertCategory(e.id, ev.target.value)}>
+                                                                    <option value="L">Leads</option>
+                                                                    <option value="I">Invited</option>
+                                                                    <option value="A">Accepted</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {invitedList.length === 0 && (
+                                                        <tr><td colSpan="4">No matching invited experts</td></tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                            <label className="form-label">Accepted (A)</label>
+                                            <table className="data-table">
+                                                <thead>
+                                                    <tr><th>Name</th><th>Email</th><th>Title</th><th>Category</th></tr>
+                                                </thead>
+                                                <tbody>
+                                                    {acceptedList.map((e) => (
+                                                        <tr key={`A-${e.id}`}>
+                                                            <td>{e.name}</td>
+                                                            <td>{e.email}</td>
+                                                            <td>{e.title || '—'}</td>
+                                                            <td>
+                                                                <select value="A" onChange={(ev) => changeExpertCategory(e.id, ev.target.value)}>
+                                                                    <option value="L">Leads</option>
+                                                                    <option value="I">Invited</option>
+                                                                    <option value="A">Accepted</option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {acceptedList.length === 0 && (
+                                                        <tr><td colSpan="4">No matching accepted experts</td></tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </>
+                                );
+                            })()}
+                        </div>
+                    )}
+                </Modal>
+            )}
         </>
     );
 }

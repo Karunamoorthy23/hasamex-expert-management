@@ -5,7 +5,7 @@ SQLAlchemy models for Hasamex Expert Database.
 import uuid
 from datetime import datetime
 from extensions import db
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 
 class LkRegion(db.Model):
@@ -357,12 +357,22 @@ class HasamexUser(db.Model):
     __tablename__ = 'hasamex_users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(120), nullable=False)
+    first_name = db.Column(db.String(120))
+    last_name = db.Column(db.String(120))
+    title = db.Column(db.String(255))
+    pan_number = db.Column(db.String(20))
+    aadhar_number = db.Column(db.String(20))
+    date_of_joining = db.Column(db.Date)
+    linkedin_url = db.Column(db.String(500))
+    mobile = db.Column(db.String(50))
+    reporting_manager_id = db.Column(db.Integer, db.ForeignKey('hasamex_users.id', ondelete='SET NULL'))
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.Text, nullable=False)
     role = db.Column(db.String(50))
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    manager = db.relationship('HasamexUser', remote_side=[id], lazy='joined')
 
     def to_auth_dict(self):
         return {
@@ -371,6 +381,29 @@ class HasamexUser(db.Model):
             'role': self.role,
             'username': self.username,
             'is_active': self.is_active,
+        }
+    
+    def to_dict(self):
+        display_name = " ".join([p for p in [self.first_name, self.last_name] if p]).strip() or self.username
+        return {
+            'id': self.id,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'email': self.email,
+            'title': self.title,
+            'role': self.role,
+            'pan_number': self.pan_number,
+            'aadhar_number': self.aadhar_number,
+            'date_of_joining': self.date_of_joining.isoformat() if self.date_of_joining else None,
+            'linkedin_url': self.linkedin_url,
+            'mobile': self.mobile,
+            'reporting_manager_id': self.reporting_manager_id,
+            'reporting_manager_name': (" ".join([p for p in [self.manager.first_name, self.manager.last_name] if p]).strip()) if self.manager else None,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'username': self.username,
+            'display_name': display_name,
         }
 
 
@@ -548,6 +581,12 @@ class Project(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     client_solution_owner_ids = db.Column(db.Text)
     sales_team_ids = db.Column(db.Text)
+    leads_expert_ids = db.Column(JSONB, nullable=False, default=list)
+    invited_expert_ids = db.Column(JSONB, nullable=False, default=list)
+    accepted_expert_ids = db.Column(JSONB, nullable=False, default=list)
+    scheduled_calls_count = db.Column(db.Integer, default=0)
+    completed_calls_count = db.Column(db.Integer, default=0)
+    goal_calls_count = db.Column(db.Integer, default=0)
 
     allocations = db.relationship('ProjectExpert', backref='project', lazy=True, cascade='all, delete-orphan')
     calls = db.relationship('Call', backref='project', lazy=True, cascade='all, delete-orphan')
@@ -578,6 +617,18 @@ class Project(db.Model):
         sales_ids = _to_int_list(self.sales_team_ids)
         sol_users = HasamexUser.query.filter(HasamexUser.id.in_(sol_ids)).all() if sol_ids else []
         sales_users = HasamexUser.query.filter(HasamexUser.id.in_(sales_ids)).all() if sales_ids else []
+        leads = self.leads_expert_ids or []
+        invited = self.invited_expert_ids or []
+        accepted = self.accepted_expert_ids or []
+        s_count = self.scheduled_calls_count or 0
+        c_count = self.completed_calls_count or 0
+        g_count = self.goal_calls_count or 0
+        progress = 0.0
+        if g_count and g_count > 0:
+            try:
+                progress = round((c_count / g_count) * 100, 2)
+            except Exception:
+                progress = 0.0
         return {
             'project_id': self.project_id,
             'client_id': self.client_id,
@@ -610,6 +661,16 @@ class Project(db.Model):
             'last_modified_time': self.last_modified_time.isoformat() if self.last_modified_time else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'leads_count': len(leads),
+            'invited_count': len(invited),
+            'accepted_count': len(accepted),
+            'scheduled_calls_count': s_count,
+            'completed_calls_count': c_count,
+            'goal_calls_count': g_count,
+            'progress_percent': progress,
+            'leads_expert_ids': leads,
+            'invited_expert_ids': invited,
+            'accepted_expert_ids': accepted,
         }
 
 class ProjectTargetGeography(db.Model):
