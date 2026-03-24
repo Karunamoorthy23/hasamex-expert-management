@@ -12,6 +12,7 @@ export default function EngagementEditPage() {
     const [form, setForm] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [projectExperts, setProjectExperts] = useState(null);
 
     useEffect(() => {
         async function fetchData() {
@@ -23,7 +24,10 @@ export default function EngagementEditPage() {
                 ]);
                 setLookups(lookupsData.data || {});
                 if (engagementData) {
-                    setForm(engagementData.data);
+                    const clean = { ...engagementData.data };
+                    delete clean.gross_margin_percent;
+                    delete clean.gross_profit_usd;
+                    setForm(clean);
                 } else {
                     setForm({
                         project_id: '',
@@ -44,8 +48,6 @@ export default function EngagementEditPage() {
                         expert_currency_id: '',
                         prorated_expert_amount_base: '',
                         prorated_expert_amount_usd: '',
-                        gross_margin_percent: '',
-                        gross_profit_usd: '',
                         expert_post_call_status_id: '',
                         expert_payment_due_date: '',
                         actual_expert_payment_date: '',
@@ -81,8 +83,6 @@ export default function EngagementEditPage() {
                         expert_currency_id: '',
                         prorated_expert_amount_base: '',
                         prorated_expert_amount_usd: '',
-                        gross_margin_percent: '',
-                        gross_profit_usd: '',
                         expert_post_call_status_id: '',
                         expert_payment_due_date: '',
                         actual_expert_payment_date: '',
@@ -102,6 +102,37 @@ export default function EngagementEditPage() {
         fetchData();
     }, [id]);
 
+    useEffect(() => {
+        let cancelled = false;
+        const pid = form?.project_id || '';
+        if (!pid) {
+            setProjectExperts(null);
+            return;
+        }
+        (async () => {
+            try {
+                const res = await http(`/projects/${pid}/expert-status`);
+                if (cancelled) return;
+                const status = res?.data || {};
+                setProjectExperts(status);
+                const firstAccepted = (status.accepted && status.accepted[0]?.id) || null;
+                const firstInvited = (status.invited && status.invited[0]?.id) || null;
+                const firstLeads = (status.leads && status.leads[0]?.id) || null;
+                const autoId = firstAccepted || firstInvited || firstLeads || '';
+                setForm(prev => {
+                    if (!prev) return prev;
+                    if (!prev.expert_id || prev.project_id !== pid) {
+                        return { ...prev, expert_id: autoId };
+                    }
+                    return prev;
+                });
+            } catch {
+                if (!cancelled) setProjectExperts(null);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [form?.project_id]);
+
     async function handleSubmit(e) {
         e.preventDefault();
         if (!form) return;
@@ -109,9 +140,10 @@ export default function EngagementEditPage() {
         try {
             const url = id ? `/engagements/${id}` : '/engagements';
             const method = id ? 'PUT' : 'POST';
+            const { gross_margin_percent, gross_profit_usd, ...payload } = form;
             await http(url, {
                 method,
-                body: JSON.stringify(form),
+                body: JSON.stringify(payload),
             });
             navigate('/engagements');
         } catch (error) {
@@ -173,14 +205,50 @@ export default function EngagementEditPage() {
                                     onChange={(next) => handleFormChange('project_id', findIdByName(lookups.projects, next[0] || ''))}
                                 />
                             </div>
-                            <div className="form-field">
-                                <label className="form-label">Expert</label>
-                                <FilterDropdown
-                                    label={findNameById(lookups.experts, form.expert_id) || 'Select expert'}
-                                    options={(lookups.experts || []).map((x) => x.name)}
-                                    selected={findNameById(lookups.experts, form.expert_id) ? [findNameById(lookups.experts, form.expert_id)] : []}
-                                    onChange={(next) => handleFormChange('expert_id', findIdByName(lookups.experts, next[0] || ''))}
-                                />
+                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                <label className="form-label">Project Experts</label>
+                                <div style={{ fontSize: 13.5, border: '1px solid #e0e0e0', borderRadius: 4, padding: 10, background: '#fafafa' }}>
+                                    {projectExperts ? (
+                                        <div style={{ display: 'grid', gap: 8 }}>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 8, alignItems: 'flex-start' }}>
+                                                <div style={{ fontWeight: 700, color: 'var(--text-strong)' }}>Accepted</div>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                                    {(projectExperts.accepted || []).length
+                                                        ? (projectExperts.accepted || []).map((e) => (
+                                                            <span key={`acc-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid #c8c8c8', borderRadius: 12, background: '#ffffff', fontSize: 12.5 }}>
+                                                                {e.name}
+                                                            </span>
+                                                        ))
+                                                        : <span>—</span>}
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 8, alignItems: 'flex-start' }}>
+                                                <div style={{ fontWeight: 700, color: 'var(--text-strong)' }}>Invited</div>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                                    {(projectExperts.invited || []).length
+                                                        ? (projectExperts.invited || []).map((e) => (
+                                                            <span key={`inv-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid #c8c8c8', borderRadius: 12, background: '#ffffff', fontSize: 12.5 }}>
+                                                                {e.name}
+                                                            </span>
+                                                        ))
+                                                        : <span>—</span>}
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 8, alignItems: 'flex-start' }}>
+                                                <div style={{ fontWeight: 700, color: 'var(--text-strong)' }}>Leads</div>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                                    {(projectExperts.leads || []).length
+                                                        ? (projectExperts.leads || []).map((e) => (
+                                                            <span key={`lead-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid #c8c8c8', borderRadius: 12, background: '#ffffff', fontSize: 12.5 }}>
+                                                                {e.name}
+                                                            </span>
+                                                        ))
+                                                        : <span>—</span>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : '—'}
+                                </div>
                             </div>
                             <div className="form-field">
                                 <label className="form-label">Client</label>
@@ -278,14 +346,7 @@ export default function EngagementEditPage() {
                                 <label className="form-label">Prorated Expert Amount (USD)</label>
                                 <input className="form-input" type="number" value={form.prorated_expert_amount_usd || ''} onChange={(e) => handleFormChange('prorated_expert_amount_usd', e.target.value)} />
                             </div>
-                            <div className="form-field">
-                                <label className="form-label">Gross Margin %</label>
-                                <input className="form-input" type="number" value={form.gross_margin_percent || ''} onChange={(e) => handleFormChange('gross_margin_percent', e.target.value)} />
-                            </div>
-                            <div className="form-field">
-                                <label className="form-label">Gross Profit (USD)</label>
-                                <input className="form-input" type="number" value={form.gross_profit_usd || ''} onChange={(e) => handleFormChange('gross_profit_usd', e.target.value)} />
-                            </div>
+                            
                         </div>
                     </div>
 

@@ -7,6 +7,10 @@ import Pagination from '../../components/experts/Pagination';
 import Button from '../../components/ui/Button';
 import BulkDeleteBar from '../../components/ui/BulkDeleteBar';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import ClientsCardGrid from '../../components/clients/ClientsCardGrid';
+import { TableIcon, CardsIcon } from '../../components/icons/Icons';
+import { cn } from '../../utils/cn';
+import Modal from '../../components/ui/Modal';
 
 export default function ClientsPage() {
     const LIMIT = 20;
@@ -19,6 +23,9 @@ export default function ClientsPage() {
     const [meta, setMeta] = useState({ total_records: 0, current_page: 1, total_pages: 1, limit: LIMIT });
     const [isLoading, setIsLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [view, setView] = useState('table');
+    const [rulesOpen, setRulesOpen] = useState(false);
+    const [rulesText, setRulesText] = useState('');
 
     const [selectedIds, setSelectedIds] = useState(() => new Set());
     const [confirmOpen, setConfirmOpen] = useState(false);
@@ -174,10 +181,35 @@ export default function ClientsPage() {
                     </div>
                 </div>
 
+                <div className="view-toggle-row">
+                    <div className="view-toggle">
+                        <button
+                            type="button"
+                            className={cn('view-btn', view === 'table' && 'view-btn--active')}
+                            title="Table view"
+                            aria-pressed={view === 'table'}
+                            onClick={() => setView('table')}
+                        >
+                            <TableIcon />
+                            Table
+                        </button>
+                        <button
+                            type="button"
+                            className={cn('view-btn', view === 'cards' && 'view-btn--active')}
+                            title="Card view"
+                            aria-pressed={view === 'cards'}
+                            onClick={() => setView('cards')}
+                        >
+                            <CardsIcon />
+                            Cards
+                        </button>
+                    </div>
+                </div>
+
                 <div className="content-area">
                     {isLoading ? (
                         <Loader rows={8} />
-                    ) : (
+                    ) : view === 'table' ? (
                         <>
                             <BulkDeleteBar
                                 count={selectedIds.size}
@@ -195,6 +227,10 @@ export default function ClientsPage() {
                                 onSelectAll={onSelectAll}
                                 allSelected={allSelected}
                                 onDeleteClient={(row) => openConfirmForIds([row.client_id])}
+                                onOpenRules={(txt) => {
+                                    setRulesText(String(txt || '').trim());
+                                    setRulesOpen(true);
+                                }}
                             />
 
                             {filteredClients.length > 0 && (
@@ -210,9 +246,30 @@ export default function ClientsPage() {
                                 />
                             )}
                         </>
+                    ) : (
+                        <ClientsCardGrid
+                            clients={filteredClients}
+                            projectsByClientId={projectsByClientId}
+                            usersByClientId={usersByClientId}
+                            selectedIds={selectedIds}
+                            onSelectClient={onSelectClient}
+                            onViewClient={(id) => navigate(`/clients/${id}`)}
+                            onDeleteClient={(id) => openConfirmForIds([id])}
+                            onOpenRules={(txt) => {
+                                setRulesText(String(txt || '').trim());
+                                setRulesOpen(true);
+                            }}
+                            onEditClient={(id) => navigate(`/clients/${id}/edit`)}
+                        />
                     )}
                 </div>
             </div>
+
+            <Modal open={rulesOpen} onClose={() => setRulesOpen(false)} title="Service Rules">
+                <div style={{ whiteSpace: 'pre-wrap', color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6 }}>
+                    {rulesText || '—'}
+                </div>
+            </Modal>
 
             <ConfirmDialog
                 open={confirmOpen}

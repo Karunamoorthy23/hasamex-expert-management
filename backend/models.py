@@ -461,6 +461,7 @@ class Client(db.Model):
     users = db.Column(db.Text)  # free-text list of client users
     number_of_users = db.Column(db.Integer)
     msa = db.Column(db.Text)
+    service_rules = db.Column(db.Text)
 
     # New: client solution owners (Hasamex users), sales team (Hasamex users), and linked experts
     client_solution_owner_ids = db.Column(db.Text)  # comma-separated hasamex_user ids
@@ -534,6 +535,7 @@ class Client(db.Model):
             'users': self.users,
             'number_of_users': self.number_of_users,
             'msa': self.msa,
+            'service_rules': self.service_rules,
             # new fields
             'client_solution_owner_ids': sol_ids,
             'client_solution_owner_names': [u.username for u in sol_users],
@@ -729,6 +731,7 @@ class Call(db.Model):
 class Engagement(db.Model):
     __tablename__ = 'engagements'
     id = db.Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    engagement_code = db.Column(db.String(32), unique=True)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.project_id'), nullable=False)
     expert_id = db.Column(UUID(as_uuid=False), db.ForeignKey('experts.id'), nullable=False)
     client_id = db.Column(db.Integer, db.ForeignKey('clients.client_id'), nullable=False)
@@ -776,6 +779,7 @@ class Engagement(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'engagement_id': self.engagement_code,
             'project_id': self.project_id,
             'project_name': self.project.title if self.project else None,
             'expert_id': self.expert_id,

@@ -160,6 +160,7 @@ export default function EngagementDashboardPage() {
                                 engagements={engagements}
                                 onEdit={(id) => navigate(`/engagements/${id}/edit`)}
                                 onDelete={handleDelete}
+                                onRowClick={(id) => navigate(`/engagements/${id}`)}
                                 sortBy={sort.field}
                                 sortOrder={sort.order}
                                 onSort={handleSort}

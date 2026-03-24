@@ -22,6 +22,7 @@ export default function ClientsTable({
     onSelectAll,
     allSelected,
     onDeleteClient,
+    onOpenRules,
 }) {
     const [expandedClientIds, setExpandedClientIds] = useState(() => new Set());
     const toggleExpanded = (clientId) => {
@@ -76,6 +77,7 @@ export default function ClientsTable({
                         <th>Research Analyst</th>
                         <th>Account Manager</th>
                         <th>Project Count</th>
+                        <th>Service Rules</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -160,6 +162,22 @@ export default function ClientsTable({
                                     <td>
                                         <span className="badge badge-outline-theme">{row.projectCount} projects</span>
                                     </td>
+                                    <td>
+                                        {row.service_rules ? (
+                                            <a
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    onOpenRules?.(row.service_rules);
+                                                }}
+                                            >
+                                                Service Rules
+                                            </a>
+                                        ) : (
+                                            '—'
+                                        )}
+                                    </td>
                                     <td onClick={(e) => e.stopPropagation()}>
                                         <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
                                             <Link to={`/clients/${row.client_id}/edit`} className="action-btn" title="Edit" onClick={(e) => e.stopPropagation()}>
@@ -184,7 +202,7 @@ export default function ClientsTable({
                                     className="client-nested-row"
                                     style={{ display: expanded ? undefined : 'none' }}
                                 >
-                                    <td colSpan={19} className="p-0">
+                                    <td colSpan={20} className="p-0">
                                         <div className="client-nested-wrapper" style={{ padding: '8px 12px' }}>
                                             <h4 className="client-nested-title" style={{ marginBottom: 8 }}>Users for {row.client_name}</h4>
                                             {clientUsers.length === 0 ? (

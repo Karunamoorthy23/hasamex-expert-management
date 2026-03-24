@@ -96,7 +96,7 @@ export default function UserDetails() {
   .info-key { font-weight: 700; color: #111111; }
   .right-pane { padding: 12px 12px; background: #fafafa; }
   .ideal-title { font-size: 0.97rem; font-weight: 700; color: #111111; margin-bottom: 8px; }
-  .ideal-list { list-style: none; margin-bottom: 8px; display: flex; flex-direction: column; gap: 3px; }
+  .ideal-list { list-style: none; margin-bottom: 18px; display: flex; flex-direction: column; gap: 3px; }
   .ideal-list li { display: flex; align-items: flex-start; gap: 7px; font-size: 0.83rem; color: #333333; }
   .proj-list { list-style: none; margin-bottom: 8px; display: flex; flex-direction: column; gap: 3px; }
   .proj-list li { display: flex; align-items: flex-start; gap: 7px; font-size: 0.83rem; color: #333333; }
@@ -134,15 +134,14 @@ export default function UserDetails() {
                         <div className="sec-title">User Overview</div>
                         <div className="desc-text">{user.ai_generated_bio || '—'}</div>
                         <div className="divider"></div>
-                        <div className="sec-title">Contact</div>
-                        <div className="info-row"><div className="info-key">Email</div><div>{user.email || '—'}</div></div>
-                        <div className="info-row"><div className="info-key">Phone</div><div>{user.phone || '—'}</div></div>
-                        <div className="divider"></div>
                         <div className="sec-title">Preferences</div>
                         <div className="info-row"><div className="info-key">Location</div><div>{user.location || '—'}</div></div>
                         <div className="info-row"><div className="info-key">Preferred Contact</div><div>{user.preferred_contact_method || '—'}</div></div>
                         <div className="info-row"><div className="info-key">Time Zone</div><div>{user.time_zone || '—'}</div></div>
                         <div className="info-row"><div className="info-key">Avg Calls / Month</div><div>{user.avg_calls_per_month ?? '—'}</div></div>
+                        <div className="divider"></div>
+                        <div className="sec-title">Assigned Projects</div>
+                        <div>{assignedProjectsDisplay}</div>
                         <div className="divider"></div>
                         <div className="sec-title">Notes</div>
                         <div className="desc-text">{user.notes || '—'}</div>
@@ -157,8 +156,12 @@ export default function UserDetails() {
                             <li><span className="info-key">Status:</span><span>{user.status || '—'}</span></li>
                             <li><span className="info-key">User Manager:</span><span>{user.user_manager || '—'}</span></li>
                         </ul>
-                        <div className="ideal-title">Assigned Projects</div>
-                        <div>{assignedProjectsDisplay}</div>
+                        <div className="ideal-title">Contact</div>
+                        <ul className="ideal-list">
+                            <li><span className="info-key">Email:</span><span>{user.email || '—'}</span></li>
+                            <li><span className="info-key">Phone:</span><span>{user.phone || '—'}</span></li>
+                            <li><span className="info-key">LinkedIn:</span><span>{linkedinDisplay}</span></li>
+                        </ul>
                     </div>
                 </div>
             </div>

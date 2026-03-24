@@ -19,6 +19,7 @@ import UserEditPage from '../pages/users/UserEditPage';
 import UserDetails from '../pages/users/UserDetails';
 import EngagementDashboardPage from '../pages/EngagementDashboardPage';
 import EngagementEditPage from '../pages/engagements/EngagementEditPage';
+import EngagementDetails from '../pages/engagements/EngagementDetails';
 import LoginPage from '../pages/auth/LoginPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from '../pages/auth/ResetPasswordPage';
@@ -117,6 +118,10 @@ const router = createBrowserRouter([
             {
                 path: 'engagements',
                 element: <EngagementDashboardPage />,
+            },
+            {
+                path: 'engagements/:id',
+                element: <EngagementDetails />,
             },
             {
                 path: 'engagements/new',

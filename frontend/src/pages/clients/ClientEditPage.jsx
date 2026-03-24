@@ -52,6 +52,7 @@ export default function ClientEditPage() {
                 agreed_pricing: c?.agreed_pricing || '',
                 users: c?.users || '',
                 msa: c?.msa || '',
+                service_rules: c?.service_rules || '',
                 client_solution_owner_ids: Array.isArray(c?.client_solution_owner_ids) ? c.client_solution_owner_ids : [],
                 sales_team_ids: Array.isArray(c?.sales_team_ids) ? c.sales_team_ids : [],
             });
@@ -252,6 +253,10 @@ export default function ClientEditPage() {
                                 <textarea className="form-textarea" rows={3} value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
                             </div>
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                <label className="form-label">Service Rules</label>
+                                <textarea className="form-textarea" rows={4} value={form.service_rules} onChange={(e) => setForm((p) => ({ ...p, service_rules: e.target.value }))} />
+                            </div>
+                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
                                 <label className="form-label">Users</label>
                                 <FilterDropdown
                                     label="Select users"
@@ -283,4 +288,3 @@ export default function ClientEditPage() {
         </>
     );
 }
-

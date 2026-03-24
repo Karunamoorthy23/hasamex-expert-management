@@ -33,6 +33,7 @@ export default function ClientCreatePage() {
         agreed_pricing: '',
         users: '',
         msa: '',
+        service_rules: '',
         client_solution_owner_ids: [],
         sales_team_ids: [],
     });
@@ -233,6 +234,10 @@ export default function ClientCreatePage() {
                                 <textarea className="form-textarea" rows={3} value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
                             </div>
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                <label className="form-label">Service Rules</label>
+                                <textarea className="form-textarea" rows={4} value={form.service_rules} onChange={(e) => setForm((p) => ({ ...p, service_rules: e.target.value }))} />
+                            </div>
+                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
                                 <label className="form-label">Users</label>
                                 <FilterDropdown
                                     label="Select users"
@@ -264,4 +269,3 @@ export default function ClientCreatePage() {
         </>
     );
 }
-

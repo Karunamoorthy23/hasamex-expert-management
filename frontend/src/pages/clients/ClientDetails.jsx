@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { fetchClientById, fetchProjects } from '../../api/clients';
+import { fetchUsers } from '../../api/users';
 import Loader from '../../components/ui/Loader';
 
 export default function ClientDetails() {
@@ -9,6 +10,7 @@ export default function ClientDetails() {
     const [isLoading, setIsLoading] = useState(true);
     const [client, setClient] = useState(null);
     const [projects, setProjects] = useState([]);
+    const [fetchedUserIds, setFetchedUserIds] = useState({});
 
     useEffect(() => {
         let cancelled = false;
@@ -60,6 +62,51 @@ export default function ClientDetails() {
         return map;
     }, [projects]);
 
+    const projectUserIdByName = useMemo(() => {
+        const m = {};
+        for (const p of projects || []) {
+            const name = p.poc_user_name || null;
+            const uid = p.poc_user_id || null;
+            if (name && uid && !m[name]) m[name] = uid;
+        }
+        return m;
+    }, [projects]);
+    
+    useEffect(() => {
+        let cancelled = false;
+        const raw = String(client?.users || '');
+        const names = raw.split(',').map((s) => s.trim()).filter(Boolean);
+        const toFetch = names.filter((n) => n && !fetchedUserIds[n]);
+        if (!toFetch.length) return;
+        (async () => {
+            try {
+                const results = await Promise.all(
+                    toFetch.map(async (name) => {
+                        try {
+                            const res = await fetchUsers({ search: name, limit: 1 });
+                            const row = (res?.data || [])[0] || null;
+                            const uid = row?.user_id || row?.id || null;
+                            return [name, uid];
+                        } catch {
+                            return [name, null];
+                        }
+                    })
+                );
+                if (cancelled) return;
+                const upd = { ...fetchedUserIds };
+                for (const [name, uid] of results) {
+                    if (uid && !upd[name]) upd[name] = uid;
+                }
+                setFetchedUserIds(upd);
+            } catch {
+                if (!cancelled) setFetchedUserIds((prev) => ({ ...prev }));
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [client?.users, fetchedUserIds]);
+    
     const usersWithAssignments = useMemo(() => {
         const raw = String(client?.users || '');
         const names = raw.split(',').map((s) => s.trim()).filter(Boolean);
@@ -68,9 +115,14 @@ export default function ClientDetails() {
             <div style={{ display: 'grid', gap: '6px' }}>
                 {names.map((name) => {
                     const projs = usersProjectsMap[name] || [];
+                    const uid = projectUserIdByName[name] || fetchedUserIds[name] || null;
                     return (
                         <div key={name}>
-                            <span style={{ fontWeight: 600 }}>{name}</span>
+                            {uid ? (
+                                <Link to={`/users/${uid}`} style={{ fontWeight: 600 }}>{name}</Link>
+                            ) : (
+                                <span style={{ fontWeight: 600 }}>{name}</span>
+                            )}
                             {projs.length ? (
                                 <span> — {projs.map((p, idx) => (
                                     <span key={p.id}>
@@ -85,7 +137,7 @@ export default function ClientDetails() {
                 })}
             </div>
         );
-    }, [client?.users, usersProjectsMap]);
+    }, [client?.users, usersProjectsMap, projectUserIdByName, fetchedUserIds]);
 
     if (isLoading || !client) return <Loader rows={8} />;
 
@@ -173,6 +225,10 @@ export default function ClientDetails() {
                         <div className="divider"></div>
                         <div className="sec-title">Notes</div>
                         <div className="desc-text">{client.notes || '—'}</div>
+                        <div className="divider"></div>
+                        <div className="sec-title">Users & Assigned Projects</div>
+                        <div>{usersWithAssignments}</div>
+                        <div className="divider"></div>
                         <div className="sec-title">MSA</div>
                         <div className="desc-text">{client.msa || '—'}</div>
                     </div>
@@ -183,8 +239,6 @@ export default function ClientDetails() {
                             <li><span className="info-key">Client Manager:</span><span>{client.client_manager_internal || '—'}</span></li>
                             <li><span className="info-key">Office Locations:</span><span>{client.office_locations || '—'}</span></li>
                         </ul>
-                        <div className="ideal-title">Users & Assigned Projects</div>
-                        <div>{usersWithAssignments}</div>
                     </div>
                 </div>
             </div>
