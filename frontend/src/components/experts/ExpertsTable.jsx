@@ -1,6 +1,7 @@
 import Checkbox from '../ui/Checkbox';
 import { truncate } from '../../utils/format';
 import { EditIcon, TrashIcon, LinkIcon, MailIcon, SortIcon } from '../icons/Icons';
+import { Link } from 'react-router-dom';
 
 /**
  * ExpertsTable — data table for expert list view.
@@ -69,16 +70,9 @@ export default function ExpertsTable({
                             </td>
                             <td className="col-id">{expert.expert_id}</td>
                             <td className="col-name">
-                                <a
-                                    href="#"
-                                    className="expert-name"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        onViewExpert(expert.id);
-                                    }}
-                                >
+                                <Link to={`/experts/${expert.id}`} className="expert-name">
                                     {expert.first_name} {expert.last_name}
-                                </a>
+                                </Link>
                             </td>
                             <td className="col-title">{truncate(expert.title_headline, 50)}</td>
                             <td className="col-sector">{expert.primary_sector || '—'}</td>

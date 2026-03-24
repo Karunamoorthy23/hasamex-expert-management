@@ -4,6 +4,7 @@ import App from './App';
 import ExpertsPage from '../pages/experts/ExpertsPage';
 import ExpertCreatePage from '../pages/experts/ExpertCreatePage';
 import ExpertEditPage from '../pages/experts/ExpertEditPage';
+import ExpertDetails from '../pages/experts/ExpertDetails';
 import ClientsPage from '../pages/clients/ClientsPage';
 import UsersPage from '../pages/users/UsersPage';
 import ProjectsPage from '../pages/projects/ProjectsPage';
@@ -128,6 +129,10 @@ const router = createBrowserRouter([
             {
                 path: 'experts/new',
                 element: <ExpertCreatePage />,
+            },
+            {
+                path: 'experts/:id',
+                element: <ExpertDetails />
             },
             {
                 path: 'experts/:id/edit',

@@ -8,7 +8,6 @@ import ExpertsFiltersPanel from '../../components/experts/ExpertsFiltersPanel';
 import BulkActionsBar from '../../components/experts/BulkActionsBar';
 import ExpertsTable from '../../components/experts/ExpertsTable';
 import ExpertsCardGrid from '../../components/experts/ExpertsCardGrid';
-import ExpertModal from '../../components/experts/ExpertModal';
 import Pagination from '../../components/experts/Pagination';
 import Skeletons from '../../components/experts/Skeletons';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -37,7 +36,6 @@ export default function ExpertsPage() {
     const [view, setView] = useState('table'); // 'table' | 'cards'
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [filtersPanelOpen, setFiltersPanelOpen] = useState(false);
-    const [modalExpertId, setModalExpertId] = useState(null);
     const [expertToDelete, setExpertToDelete] = useState(null);
     const [importModalOpen, setImportModalOpen] = useState(false);
     const [emailModalOpen, setEmailModalOpen] = useState(false);
@@ -148,12 +146,9 @@ export default function ExpertsPage() {
     }, []);
 
     const handleViewExpert = useCallback((id) => {
-        setModalExpertId(id);
-    }, []);
+        navigate(`/experts/${id}`);
+    }, [navigate]);
 
-    const handleCloseModal = useCallback(() => {
-        setModalExpertId(null);
-    }, []);
 
     const handleEditExpert = useCallback((id) => {
         navigate(`/experts/${id}/edit`);
@@ -274,9 +269,7 @@ export default function ExpertsPage() {
     const allPageSelected =
         experts.length > 0 && experts.every((e) => selectedIds.has(e.id));
 
-    const modalExpert = modalExpertId
-        ? experts.find((e) => e.id === modalExpertId) || null
-        : null;
+    
 
     return (
         <>
@@ -394,12 +387,7 @@ export default function ExpertsPage() {
                 )}
             </div>
 
-            {/* Expert Detail Modal */}
-            <ExpertModal
-                open={modalExpertId !== null}
-                onClose={handleCloseModal}
-                expert={modalExpert}
-            />
+            
 
             {/* Delete Confirmation Modal */}
             <ConfirmDialog
