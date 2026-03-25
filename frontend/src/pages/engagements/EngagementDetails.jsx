@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { http } from '../../api/http';
 import Loader from '../../components/ui/Loader';
 
@@ -108,20 +108,29 @@ export default function EngagementDetails() {
   .hdr-title { font-size: 1.25rem; font-weight: 700; color: #111111; letter-spacing: -0.01em; }
   .btn-edit { display: inline-flex; align-items: center; gap: 6px; background: #1a5ca8; color: #ffffff; font-family: inherit; font-size: 0.78rem; font-weight: 600; padding: 7px 16px; border: none; border-radius: 3px; cursor: pointer; letter-spacing: 0.01em; white-space: nowrap; flex-shrink: 0; }
   .btn-edit:hover { background: #164d8c; }
-  .hdr-subtitle { font-size: 0.82rem; color: #444444; margin-bottom: 14px; }
-  .hdr-subtitle a { color: #444444; font-weight: 500; }
-  .body-split { display: grid; grid-template-columns: 1fr 260px; border-bottom: 1px solid #d0d0d0; }
-  .left-pane { padding: 12px 14px; border-right: 1px solid #d0d0d0; }
+  .hdr-subtitle { font-size: 0.82rem; color: #444444; margin-bottom: 14px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+  .hdr-subtitle-item { display: flex; align-items: center; gap: 4px; }
+  .team-row { display: flex; flex-wrap: wrap; gap: 14px; padding: 10px 0; margin-bottom: 8px; }
+  .team-member { display: flex; align-items: center; gap: 12px; }
+  .t-avatar { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; color: #ffffff; flex-shrink: 0; }
+  .t-av-dark { background: #2c2c3e; } .t-av-wine { background: #7c1c3c; }
+  .t-info { display: flex; flex-direction: column; gap: 1px; }
+  .t-name { font-weight: 600; font-size: 0.88rem; color: #111111; }
+  .t-name a { color: #111111; }
+  .t-role { font-size: 0.75rem; color: #666666; font-weight: 500; }
+  .body-split { display: grid; grid-template-columns: 1fr 300px; border-bottom: 1px solid #d0d0d0; }
+  .left-pane { padding: 12px 20px; border-right: 1px solid #d0d0d0; }
   .sec-title { font-size: 0.97rem; font-weight: 700; color: #111111; margin-bottom: 6px; }
   .desc-text { font-size: 0.84rem; color: #333333; line-height: 1.65; margin-bottom: 6px; white-space: pre-wrap; }
-  .divider { height: 1px; background: #e0e0e0; margin: 8px 0; }
-  .info-row { display: grid; grid-template-columns: 150px 1fr; gap: 8px; padding: 4px 0; font-size: 0.84rem; color: #333333; }
+  .divider { height: 1px; background: #e0e0e0; margin: 12px 0; }
+  .info-row { display: grid; grid-template-columns: 180px 1fr; gap: 20px; padding: 0px 0; font-size: 0.84rem; color: #333333; }
   .info-key { font-weight: 700; color: #111111; }
-  .right-pane { padding: 12px 12px; background: #fafafa; }
-  .ideal-title { font-size: 0.97rem; font-weight: 700; color: #111111; margin-bottom: 8px; }
-  .ideal-list { list-style: none; margin-bottom: 8px; display: flex; flex-direction: column; gap: 3px; }
-  .ideal-list li { display: flex; align-items: flex-start; gap: 7px; font-size: 0.83rem; color: #333333; }
-  .bullet-list { list-style: disc; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+  .right-pane { padding: 12px 16px; background: #fafafa; }
+  .ideal-title { font-size: 0.97rem; font-weight: 700; color: #111111; margin-bottom: 12px; }
+  .ideal-list { list-style: none; margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .ideal-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.83rem; color: #333333; }
+  .ideal-list .info-key { min-width: 100px; }
+  .bullet-list { list-style: disc; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
   @media (max-width: 700px) { .body-split { grid-template-columns: 1fr; } }
             `}</style>
             <div className="page">
@@ -131,11 +140,48 @@ export default function EngagementDetails() {
                         <button className="btn-edit" onClick={() => navigate(`/engagements/${eng.id}/edit`)}>Edit Engagement</button>
                     </div>
                     <div className="hdr-subtitle">
-                        Project: <strong>{eng.project_id ? <a href={`/projects/${eng.project_id}`}>{eng.project_name || `#${eng.project_id}`}</a> : (eng.project_name || `#${eng.project_id}`)}</strong> • Expert: <strong>{eng.expert_id ? <a href={`/experts/${eng.expert_id}`}>{eng.expert_name || '—'}</a> : (eng.expert_name || '—')}</strong> • Client: <strong>{eng.client_id ? <a href={`/clients/${eng.client_id}`}>{eng.client_name || `#${eng.client_id}`}</a> : (eng.client_name || `#${eng.client_id}`)}</strong>
+                        <div className="hdr-subtitle-item">ID: <strong>{eng.engagement_id || '—'}</strong></div>
+                        <span style={{ color: '#ccc' }}>•</span>
+                        <div className="hdr-subtitle-item">Project: <strong>{eng.project_id ? <Link to={`/projects/${eng.project_id}`}>{eng.project_name || `#${eng.project_id}`}</Link> : (eng.project_name || `#${eng.project_id}`)}</strong></div>
+                        <span style={{ color: '#ccc' }}>•</span>
+                        <div className="hdr-subtitle-item">Expert: <strong>{eng.expert_id ? <Link to={`/experts/${eng.expert_id}`}>{eng.expert_name || '—'}</Link> : (eng.expert_name || '—')}</strong></div>
+                        <span style={{ color: '#ccc' }}>•</span>
+                        <div className="hdr-subtitle-item">Client: <strong>{eng.client_id ? <Link to={`/clients/${eng.client_id}`}>{eng.client_name || `#${eng.client_id}`}</Link> : (eng.client_name || `#${eng.client_id}`)}</strong></div>
                     </div>
                 </div>
                 <div className="body-split">
                     <div className="left-pane">
+                        <div className="sec-title">Project Team</div>
+                        {projUsers ? (
+                            <div className="team-row">
+                                <div className="team-member">
+                                    <div className="t-avatar t-av-dark">{(projUsers.poc_user_name || 'P').slice(0, 2).toUpperCase()}</div>
+                                    <div className="t-info">
+                                        <div className="t-name">
+                                            {projUsers.poc_user_id ? <Link to={`/users/${projUsers.poc_user_id}`}>{projUsers.poc_user_name || '—'}</Link> : (projUsers.poc_user_name || '—')}
+                                        </div>
+                                        <div className="t-role">PoC</div>
+                                    </div>
+                                </div>
+                                <div className="team-member">
+                                    <div className="t-avatar t-av-wine">{(projUsers.ra_names[0] || 'RA').slice(0, 2).toUpperCase()}</div>
+                                    <div className="t-info">
+                                        <div className="t-name">{projUsers.ra_names.length ? projUsers.ra_names.join(', ') : '—'}</div>
+                                        <div className="t-role">Research Analyst</div>
+                                    </div>
+                                </div>
+                                <div className="team-member">
+                                    <div className="t-avatar t-av-dark">{(projUsers.am_names[0] || 'AM').slice(0, 2).toUpperCase()}</div>
+                                    <div className="t-info">
+                                        <div className="t-name">{projUsers.am_names.length ? projUsers.am_names.join(', ') : '—'}</div>
+                                        <div className="t-role">Account Manager</div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="desc-text">—</div>
+                        )}
+                        <div className="divider"></div>
                         <div className="sec-title">Call Info</div>
                         <div className="info-row"><div className="info-key">Call Date</div><div>{callDate}</div></div>
                         <div className="info-row"><div className="info-key">Duration</div><div>{eng.actual_call_duration_mins ?? '—'} mins</div></div>
@@ -178,16 +224,6 @@ export default function EngagementDetails() {
                             <li><span className="info-key">Client Currency:</span><span>{eng.client_currency || '—'}</span></li>
                             <li><span className="info-key">Expert Currency:</span><span>{eng.expert_currency || '—'}</span></li>
                         </ul>
-                        <div className="ideal-title">Project Team & Users</div>
-                        {projUsers ? (
-                            <ul className="bullet-list">
-                                <li>PoC: {projUsers.poc_user_id ? <a href={`/users/${projUsers.poc_user_id}`}>{projUsers.poc_user_name || '—'}</a> : (projUsers.poc_user_name || '—')}</li>
-                                <li>Research Analysts: {projUsers.ra_names.length ? projUsers.ra_names.join(', ') : '—'}</li>
-                                <li>Account Managers: {projUsers.am_names.length ? projUsers.am_names.join(', ') : '—'}</li>
-                            </ul>
-                        ) : (
-                            <div className="desc-text">—</div>
-                        )}
                     </div>
                 </div>
             </div>

@@ -371,7 +371,12 @@ def get_expert_status(project_id):
             'email': e.primary_email or "No Email",
             'phone': e.primary_phone or e.secondary_phone or None,
             'title': e.title_headline or None,
-            'linkedin_url': e.linkedin_url or None
+            'bio': e.bio or None,
+            'linkedin_url': e.linkedin_url or None,
+            'location': e.location or None,
+            'timezone': e.timezone or None,
+            'rating': e.rating or 0,
+            'client_solution_owner_name': e.client_solution_owner_name or None
         } for e in rows]
     leads = project.leads_expert_ids or []
     invited = project.invited_expert_ids or []

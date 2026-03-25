@@ -54,7 +54,7 @@ export default function ExpertsTable({
                         {renderHeader('Title / Headline', 'title_headline', 'col-title')}
                         {renderHeader('Sector', 'primary_sector', 'col-sector')}
                         {renderHeader('Region', 'region', 'col-region')}
-                        <th className="col-solution">Client Solution</th>
+                        <th className="col-solution">Research Analysts</th>
                         <th className="col-status">Status</th>
                         <th className="col-actions">Actions</th>
                     </tr>

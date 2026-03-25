@@ -171,6 +171,7 @@ class Expert(db.Model):
     payment_details = db.Column(db.Text)
     events_invited_to = db.Column(db.Text)
     profile_pdf_url = db.Column(db.String(500))
+    rating = db.Column(db.Integer, default=0)
     last_modified = db.Column(db.DateTime)
     total_calls_completed = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -203,6 +204,8 @@ class Expert(db.Model):
     def hcms_classification(self): return self.rel_hcms_classification.name if self.rel_hcms_classification else None
     @property
     def expert_status(self): return self.rel_expert_status.name if self.rel_expert_status else None
+    @property
+    def client_solution_owner_name(self): return self.rel_client_solution_owner.username if self.rel_client_solution_owner else None
 
     @property
     def strength_topics(self):
@@ -247,6 +250,7 @@ class Expert(db.Model):
             'hourly_rate': float(self.hourly_rate) if self.hourly_rate else None,
             'hcms_classification': self.hcms_classification,
             'expert_status': self.expert_status,
+            'rating': self.rating,
             'notes': self.notes,
             'payment_details': self.payment_details,
             'events_invited_to': self.events_invited_to,

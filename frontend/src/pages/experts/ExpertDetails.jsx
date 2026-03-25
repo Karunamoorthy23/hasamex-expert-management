@@ -147,7 +147,7 @@ export default function ExpertDetails() {
                             <li><span className="info-key">Status:</span><span>{expert.expert_status || '—'}</span></li>
                             <li><span className="info-key">LinkedIn:</span><span>{linkedinDisplay}</span></li>
                             <li><span className="info-key">Profile PDF:</span><span>{profilePdfDisplay}</span></li>
-                            <li><span className="info-key">Client Solution:</span><span>{expert.client_solution_owner_name || '—'}</span></li>
+                            <li><span className="info-key">Research Analyst:</span><span>{expert.client_solution_owner_name || '—'}</span></li>
                             <li><span className="info-key">Calls Completed:</span><span>{expert.total_calls_completed ?? 0}</span></li>
                             <li><span className="info-key">Rate:</span><span>{expert.hourly_rate ? `${expert.hourly_rate} ${expert.currency || 'USD'}/hr` : '—'}</span></li>
                         </ul>
