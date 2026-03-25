@@ -77,14 +77,17 @@ export default function App() {
                 .main-content {
                     background: var(--bg-dark);
                     color: var(--text-light);
+                    display: flex;
+                    flex-direction: column;
                 }
                 .main-content .container {
-                    background: black;
-                    // color: #ffffff;
-                    color: black;
-                    // border: 1px solid #d8d8d8;
-                    // border-radius: 8px;
-                    padding: 16px;
+                    background: transparent;
+                    color: inherit;
+                    // padding: 1.5rem; /* 24px / 16 */
+                    width: 100%;
+                    max-width: var(--container-max);
+                    margin: 0 auto;
+                    flex: 1;
                 }
                 .footer {
                     background: var(--bg-dark);
@@ -98,7 +101,7 @@ export default function App() {
             <aside className={cn('sidebar', collapsed && 'collapsed')}>
                 <div className="brand">
                     <h2 className="brand-logo">
-                        <img src={logo} alt="Hasamex" height={26} />
+                        <img src={logo} alt="Hasamex" height={20} />
                     </h2>
                     <button
                         type="button"

@@ -118,19 +118,19 @@ export default function EngagementDetails() {
   .t-name { font-weight: 600; font-size: 0.88rem; color: #111111; }
   .t-name a { color: #111111; }
   .t-role { font-size: 0.75rem; color: #666666; font-weight: 500; }
-  .body-split { display: grid; grid-template-columns: 1fr 300px; border-bottom: 1px solid #d0d0d0; }
-  .left-pane { padding: 12px 20px; border-right: 1px solid #d0d0d0; }
-  .sec-title { font-size: 0.97rem; font-weight: 700; color: #111111; margin-bottom: 6px; }
-  .desc-text { font-size: 0.84rem; color: #333333; line-height: 1.65; margin-bottom: 6px; white-space: pre-wrap; }
-  .divider { height: 1px; background: #e0e0e0; margin: 12px 0; }
-  .info-row { display: grid; grid-template-columns: 180px 1fr; gap: 20px; padding: 0px 0; font-size: 0.84rem; color: #333333; }
+  .body-split { display: grid; grid-template-columns: 1fr 22rem; border-bottom: 1px solid #d0d0d0; }
+  .left-pane { padding: 0.75rem 1.25rem; border-right: 1px solid #d0d0d0; }
+  .sec-title { font-size: 0.97rem; font-weight: 700; color: #111111; margin-bottom: 0.625rem; }
+  .desc-text { font-size: 0.84rem; color: #333333; line-height: 1.65; margin-bottom: 0.375rem; white-space: pre-wrap; }
+  .divider { height: 1px; background: #e0e0e0; margin: 0.75rem 0; }
+  .info-row { display: grid; grid-template-columns: 11.25rem 1fr; gap: 1.25rem; padding: 0.375rem 0; font-size: 0.84rem; color: #333333; }
   .info-key { font-weight: 700; color: #111111; }
-  .right-pane { padding: 12px 16px; background: #fafafa; }
-  .ideal-title { font-size: 0.97rem; font-weight: 700; color: #111111; margin-bottom: 12px; }
-  .ideal-list { list-style: none; margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
-  .ideal-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.83rem; color: #333333; }
-  .ideal-list .info-key { min-width: 100px; }
-  .bullet-list { list-style: disc; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+  .right-pane { padding: 0.75rem 1rem; background: #fafafa; }
+  .ideal-title { font-size: 0.97rem; font-weight: 700; color: #111111; margin-bottom: 0.75rem; }
+  .ideal-list { list-style: none; margin-bottom: 0.75rem; display: flex; flex-direction: column; gap: 0.375rem; }
+  .ideal-list li { display: flex; align-items: flex-start; gap: 0.625rem; font-size: 0.83rem; color: #333333; }
+  .ideal-list .info-key { min-width: 6.25rem; }
+  .bullet-list { list-style: disc; padding-left: 1.125rem; display: flex; flex-direction: column; gap: 0.375rem; }
   @media (max-width: 700px) { .body-split { grid-template-columns: 1fr; } }
             `}</style>
             <div className="page">
