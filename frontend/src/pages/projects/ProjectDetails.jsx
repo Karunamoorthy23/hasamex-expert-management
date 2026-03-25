@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, useRef, useLayoutEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { fetchProjectById, fetchProjectExpertStatus, setProjectExpertStatus } from '../../api/projects';
+import { fetchProjectById, fetchProjectExpertStatus, setProjectExpertStatus, setProjectCallAssignment } from '../../api/projects';
+import { fetchClientById } from '../../api/clients';
+import Modal from '../../components/ui/Modal';
 import { updateExpert } from '../../api/experts';
 import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
@@ -72,101 +74,37 @@ function ExpandableBio({ bio, title, isExpanded, onToggle }) {
 
 function StarRating({ rating, onRate }) {
     const [hover, setHover] = useState(0);
-    const [isOpen, setIsOpen] = useState(false);
-    const containerRef = useRef(null);
-
-    useEffect(() => {
-        function handleClickOutside(event) {
-            if (containerRef.current && !containerRef.current.contains(event.target)) {
-                setIsOpen(false);
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    const stars = [1, 2, 3, 4, 5];
+    const stars = [1, 2, 3];
 
     return (
-        <div className="star-rating-container" ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
-            <div 
-                className="star-icon-trigger" 
-                onClick={() => setIsOpen(!isOpen)}
-                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-            >
-                <svg 
-                    width="18" 
-                    height="18" 
-                    viewBox="0 0 24 24" 
-                    fill={rating > 0 ? "#FFD700" : "none"} 
-                    stroke={rating > 0 ? "#FFD700" : "#999"} 
+        <div 
+            className="star-rating-container" 
+            style={{ 
+                display: 'flex', 
+                gap: '0.25rem',
+                alignItems: 'center'
+            }}
+        >
+            {stars.map((star) => (
+                <svg
+                    key={star}
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill={(hover || rating) >= star ? "#FFD700" : "none"}
+                    stroke={(hover || rating) >= star ? "#FFD700" : "#999"}
                     strokeWidth="2"
+                    onMouseEnter={() => setHover(star)}
+                    onMouseLeave={() => setHover(0)}
+                    onClick={() => {
+                        onRate(rating === star ? 0 : star);
+                    }}
+                    style={{ cursor: 'pointer', transition: 'transform 0.1s ease' }}
+                    className="star-svg"
                 >
                     <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                 </svg>
-            </div>
-
-            {isOpen && (
-                <div 
-                    className="star-popup"
-                    style={{
-                        position: 'absolute',
-                        top: '100%',
-                        left: '0',
-                        backgroundColor: '#fff',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px',
-                        padding: '8px',
-                        display: 'flex',
-                        gap: '4px',
-                        zIndex: 100,
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                        marginTop: '4px'
-                    }}
-                >
-                    {stars.map((star) => (
-                        <svg
-                            key={star}
-                            width="20"
-                            height="20"
-                            viewBox="0 0 24 24"
-                            fill={(hover || rating) >= star ? "#FFD700" : "none"}
-                            stroke={(hover || rating) >= star ? "#FFD700" : "#ccc"}
-                            strokeWidth="2"
-                            onMouseEnter={() => setHover(star)}
-                            onMouseLeave={() => setHover(0)}
-                            onClick={() => {
-                                onRate(rating === star ? 0 : star);
-                                setIsOpen(false);
-                            }}
-                            style={{ cursor: 'pointer' }}
-                        >
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                        </svg>
-                    ))}
-                    {rating > 0 && (
-                        <div 
-                            title="Clear Rating"
-                            onClick={() => {
-                                onRate(0);
-                                setIsOpen(false);
-                            }}
-                            style={{ 
-                                cursor: 'pointer', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                marginLeft: '4px',
-                                color: '#999'
-                            }}
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                            </svg>
-                        </div>
-                    )}
-                </div>
-            )}
+            ))}
         </div>
     );
 }
@@ -180,16 +118,35 @@ export default function ProjectDetails() {
     const [expandedExpertId, setExpandedExpertId] = useState(null);
     const [statusFilter, setStatusFilter] = useState('All');
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+    const [updatingId, setUpdatingId] = useState(null);
     const [selectedIds, setSelectedIds] = useState(new Set());
+    const [serviceOpen, setServiceOpen] = useState(false);
+    const [clientData, setClientData] = useState(null);
 
     const loadParticipants = async () => {
         try {
             const status = await fetchProjectExpertStatus(id);
-            const leads = (status?.leads || []).map((e) => ({ ...e, category: 'Leads' }));
-            const invited = (status?.invited || []).map((e) => ({ ...e, category: 'Invited' }));
-            const accepted = (status?.accepted || []).map((e) => ({ ...e, category: 'Accepted' }));
-            setParticipants([...leads, ...invited, ...accepted]);
+            const map = new Map();
+            // Scheduled and Completed take precedence
+            for (const e of (status?.scheduled || [])) {
+                map.set(e.id, { ...e, category: 'Scheduled' });
+            }
+            for (const e of (status?.completed || [])) {
+                map.set(e.id, { ...e, category: 'Completed' });
+            }
+            // Then Accepted, Invited, Leads if not already present
+            for (const e of (status?.accepted || [])) {
+                if (!map.has(e.id)) map.set(e.id, { ...e, category: 'Accepted' });
+            }
+            for (const e of (status?.invited || [])) {
+                if (!map.has(e.id)) map.set(e.id, { ...e, category: 'Invited' });
+            }
+            for (const e of (status?.leads || [])) {
+                if (!map.has(e.id)) map.set(e.id, { ...e, category: 'Leads' });
+            }
+            setParticipants(Array.from(map.values()));
         } catch (err) {
+            console.error('Failed to load participants', err);
             setParticipants([]);
         }
     };
@@ -201,6 +158,12 @@ export default function ProjectDetails() {
             if (cancelled) return;
             setProject(p || null);
             setIsLoading(false);
+            const cid = p?.client_id;
+            if (cid) {
+                fetchClientById(cid).then((c) => {
+                    if (!cancelled) setClientData(c || null);
+                }).catch(() => {});
+            }
         });
         loadParticipants();
         return () => {
@@ -208,19 +171,54 @@ export default function ProjectDetails() {
         };
     }, [id]);
 
-    const handleStatusChange = async (expertId, newCategory) => {
+    const handleStatusChange = async (expertId, newCategory, currentCategory) => {
         const catMap = { 'Leads': 'L', 'Invited': 'I', 'Accepted': 'A' };
         const catCode = catMap[newCategory];
-        if (!catCode) return;
+        if (!catCode) {
+        // Handle Scheduled/Completed assignment
+            if (newCategory === 'Scheduled' || newCategory === 'Completed') {
+                setIsUpdatingStatus(true);
+                setUpdatingId(expertId);
+                try {
+                    // switching to S/C — if currently S/C and different, remove previous
+                    if (currentCategory === 'Scheduled' || currentCategory === 'Completed') {
+                        const prevCode = currentCategory === 'Scheduled' ? 'S' : 'C';
+                        const nextCode = newCategory === 'Scheduled' ? 'S' : 'C';
+                        if (prevCode !== nextCode) {
+                            await setProjectCallAssignment(id, { expert_id: expertId, category: prevCode, action: 'REMOVE' });
+                        }
+                        await setProjectCallAssignment(id, { expert_id: expertId, category: nextCode, action: 'ADD' });
+                    } else {
+                        const code = newCategory === 'Scheduled' ? 'S' : 'C';
+                        await setProjectCallAssignment(id, { expert_id: expertId, category: code, action: 'ADD' });
+                    }
+                    await loadParticipants();
+                } catch (err) {
+                    console.error('Failed to update status:', err);
+                    alert('Failed to update status');
+                } finally {
+                    setUpdatingId(null);
+                    setIsUpdatingStatus(false);
+                }
+            }
+            return;
+        }
 
         setIsUpdatingStatus(true);
+        setUpdatingId(expertId);
         try {
+            // leaving S/C -> remove assignment before setting L/I/A
+            if (currentCategory === 'Scheduled' || currentCategory === 'Completed') {
+                const prevCode = currentCategory === 'Scheduled' ? 'S' : 'C';
+                await setProjectCallAssignment(id, { expert_id: expertId, category: prevCode, action: 'REMOVE' });
+            }
             await setProjectExpertStatus(id, { expert_id: expertId, category: catCode });
             await loadParticipants();
         } catch (err) {
             console.error('Failed to update status:', err);
             alert('Failed to update status');
         } finally {
+            setUpdatingId(null);
             setIsUpdatingStatus(false);
         }
     };
@@ -273,10 +271,7 @@ export default function ProjectDetails() {
         () => (project?.project_deadline ? new Date(project.project_deadline).toLocaleDateString() : '—'),
         [project?.project_deadline]
     );
-    const lastModified = useMemo(
-        () => (project?.last_modified_time ? new Date(project.last_modified_time).toLocaleString() : '—'),
-        [project?.last_modified_time]
-    );
+    // Removed unused lastModified calculation
 
     if (isLoading || !project) return <Loader rows={8} />;
 
@@ -286,7 +281,7 @@ export default function ProjectDetails() {
   *, *::before, *::after { box-sizing: border-box; padding: 0; }
   body { font-family: 'Inter', system-ui, sans-serif; background: #f0f0f0; color: #1a1a1a; font-size: 13.5px; line-height: 1.5; }
   a { color: #1a1a1a; text-decoration: none; }
-  .page { margin: 12px auto; background: #ffffff; border: 1px solid #c8c8c8; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.10); }
+  .page { margin: 12px auto; background: #ffffff; border: 1px solid #c8c8c8; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.10); }
   .hdr { background: #ffffff; border-bottom: 1px solid #d0d0d0; padding: 10px 14px 0 14px; position: relative; }
   .hdr-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 4px; }
   .hdr-title { font-size: 1.25rem; font-weight: 700; color: #111111; letter-spacing: -0.01em; }
@@ -318,18 +313,23 @@ export default function ProjectDetails() {
   .ideal-list li { display: flex; align-items: flex-start; gap: 7px; font-size: 0.83rem; color: #333333; }
   .ideal-list li::before { content: '•'; color: #555555; flex-shrink: 0; font-size: 1rem; }
   .participants-wrap { background: #ffffff; width: 100%; }
-  .p-bar { display: grid; grid-template-columns: 3rem 4rem 2fr 1.2fr 1.8fr; background: #ebebeb; border-bottom: 1px solid #c8c8c8; align-items: center; }
+  .p-bar { display: grid; grid-template-columns: 3rem 6.5rem 1.5fr 2fr 0.8fr 1.5fr; background: #ebebeb; border-bottom: 1px solid #c8c8c8; align-items: center; position: sticky; top: 0; z-index: 10; }
   .p-bar-col { padding: 0.75rem 1rem; font-size: 0.8rem; font-weight: 600; color: #333333; display: flex; align-items: center; gap: 0.5rem; }
   .p-bar-col:not(:last-child) { border-right: 1px solid #c8c8c8; }
-  .p-row { display: grid; grid-template-columns: 3rem 4rem 2fr 1.2fr 1.8fr; border-bottom: 1px solid #e4e4e4; align-items: stretch; }
+  .p-row { display: grid; grid-template-columns: 3rem 6.5rem 1.5fr 2fr 0.8fr 1.5fr; border-bottom: 1px solid #e4e4e4; align-items: stretch; }
   .p-row:last-child { border-bottom: none; }
-  .p-cell { padding: 10px 12px; vertical-align: top; }
+  .p-cell { padding: 10px 12px; vertical-align: top; overflow: hidden; }
   .p-cell:not(:last-child) { border-right: 1px solid #e4e4e4; }
   .p-name-row { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
   .p-name { font-size: 0.88rem; font-weight: 600; color: #111111; }
   .li-badge { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; background: #0a66c2; border-radius: 3px; }
   .li-badge svg { width: 20px; height: 20px; fill: white; }
   .id-badge { display: inline-flex; align-items: center; justify-content: center; padding: 2px 6px; font-size: 0.72rem; font-weight: 700; color: #333; background: #efefef; border: 1px solid #d0d0d0; border-radius: 3px; }
+  .p-history { font-size: 0.80rem; color: #444444; line-height: 1.5; }
+  .p-history-item { margin-bottom: 4px; }
+  .p-history-role { font-weight: 600; color: #111; }
+  .p-history-company { color: #555; }
+  .p-history-years { font-size: 0.72rem; color: #888; }
   .p-bio-wrap { margin-top: 4px; position: relative; }
   .p-bio { font-size: 0.80rem; color: #444444; line-height: 1.62; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; white-space: pre-wrap; padding-right: 0; }
   .p-bio.expanded { -webkit-line-clamp: initial; display: block; padding-bottom: 20px; }
@@ -362,7 +362,7 @@ export default function ProjectDetails() {
                         <button className="btn-edit" onClick={() => navigate(`/projects/${project.project_id}/edit`)}>Edit Project</button>
                     </div>
                     <div className="hdr-subtitle">
-                        Client: <strong>{project.client_id ? <a href={`/clients/${project.client_id}`}>{project.client_name || `#${project.client_id}`}</a> : (project.client_name || `#${project.client_id}`)}</strong> • PoC: <strong>{project.poc_user_id ? <a href={`/users/${project.poc_user_id}`}>{project.poc_user_name || '—'}</a> : (project.poc_user_name || '—')}</strong> • Status: <strong>{project.status || '—'}</strong>
+                        Client: <strong>{project.client_id ? <a href={`/clients/${project.client_id}`}>{project.client_name || `#${project.client_id}`}</a> : (project.client_name || `#${project.client_id}`)}</strong> • PoC: <strong>{project.poc_user_id ? <a href={`/users/${project.poc_user_id}`}>{project.poc_user_name || '—'}</a> : (project.poc_user_name || '—')}</strong> • Status: <strong>{project.status || '—'}</strong> • <a href="#" onClick={(e) => { e.preventDefault(); setServiceOpen(true); }}>Service Rules</a>
                     </div>
                     <div className="team-row">
                         <div className="team-member">
@@ -381,6 +381,17 @@ export default function ProjectDetails() {
                         </div>
                     </div>
                 </div>
+                {serviceOpen && (
+                    <Modal
+                        open={serviceOpen}
+                        onClose={() => setServiceOpen(false)}
+                        title="Service Rules"
+                    >
+                        <div className="desc-text" style={{ whiteSpace: 'pre-wrap' }}>
+                            {clientData?.service_rules || '—'}
+                        </div>
+                    </Modal>
+                )}
                 <div className="body-split">
                     <div className="left-pane">
                         <div className="sec-title">Project Description</div>
@@ -424,6 +435,7 @@ export default function ProjectDetails() {
                         </div>
                         <div className="p-bar-col" title="Favorite">Fav</div>
                         <div className="p-bar-col">Participants ({filteredParticipants.length})</div>
+                        <div className="p-bar-col">Employment History</div>
                         <div className="p-bar-col">
                             Status
                             <select 
@@ -435,6 +447,8 @@ export default function ProjectDetails() {
                                 <option value="Leads">Leads</option>
                                 <option value="Invited">Invited</option>
                                 <option value="Accepted">Accepted</option>
+                                <option value="Scheduled">Scheduled</option>
+                                <option value="Completed">Completed</option>
                             </select>
                         </div>
                         <div className="p-bar-col">Basic Info</div>
@@ -446,10 +460,12 @@ export default function ProjectDetails() {
                         const phone = row.phone || '—';
                         const linkedin = row.linkedin_url || null;
                         const statusLabel = row.category || '—';
+                        const history = Array.isArray(row.employment_history) ? row.employment_history : [];
                         let statusClass = 's-pending';
                         if (statusLabel === 'Leads') statusClass = 's-pending';
                         else if (statusLabel === 'Invited') statusClass = 's-contacted';
                         else if (statusLabel === 'Accepted') statusClass = 's-completed';
+                        else if (statusLabel === 'Scheduled') statusClass = 's-scheduled';
                         return (
                             <div className="p-row" key={`${expertId}-${idx}`}>
                                 <div className="p-cell">
@@ -484,19 +500,45 @@ export default function ProjectDetails() {
                                     />
                                 </div>
                                 <div className="p-cell">
+                                    <div className="p-history">
+                                        {history.length > 0 ? (
+                                            history.map((exp, i) => (
+                                                <div key={i} className="p-history-item">
+                                                    <div className="p-history-role">{exp.role_title}</div>
+                                                    <div className="p-history-company">{exp.company_name}</div>
+                                                    <div className="p-history-years">
+                                                        {exp.start_year || '??'} – {exp.end_year || 'Present'}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div style={{ color: '#999' }}>—</div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="p-cell">
                                     <div className="status-wrap">
                                         <div className={`s-chip ${statusClass}`}>
                                             <span className="arrow">▶</span>{statusLabel}
                                             <select 
                                                 className="status-select"
                                                 value={statusLabel}
-                                                disabled={isUpdatingStatus}
-                                                onChange={(e) => handleStatusChange(expertId, e.target.value)}
+                                                disabled={isUpdatingStatus || updatingId === expertId}
+                                                onChange={(e) => handleStatusChange(expertId, e.target.value, statusLabel)}
                                             >
                                                 <option value="Leads">Leads</option>
                                                 <option value="Invited">Invited</option>
                                                 <option value="Accepted">Accepted</option>
+                                                <option value="Scheduled">Scheduled</option>
+                                                <option value="Completed">Completed</option>
                                             </select>
+                                            {updatingId === expertId && (
+                                                <svg width="14" height="14" viewBox="0 0 50 50" style={{ marginLeft: 6 }}>
+                                                    <circle cx="25" cy="25" r="20" stroke="#888" strokeWidth="5" fill="none" strokeDasharray="31.4 31.4">
+                                                        <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+                                                    </circle>
+                                                </svg>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

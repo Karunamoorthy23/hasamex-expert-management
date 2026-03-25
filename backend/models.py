@@ -590,6 +590,8 @@ class Project(db.Model):
     leads_expert_ids = db.Column(JSONB, nullable=False, default=list)
     invited_expert_ids = db.Column(JSONB, nullable=False, default=list)
     accepted_expert_ids = db.Column(JSONB, nullable=False, default=list)
+    expert_scheduled = db.Column(JSONB, nullable=False, default=list)
+    expert_call_completed = db.Column(JSONB, nullable=False, default=list)
     scheduled_calls_count = db.Column(db.Integer, default=0)
     completed_calls_count = db.Column(db.Integer, default=0)
     goal_calls_count = db.Column(db.Integer, default=0)
@@ -626,6 +628,8 @@ class Project(db.Model):
         leads = self.leads_expert_ids or []
         invited = self.invited_expert_ids or []
         accepted = self.accepted_expert_ids or []
+        scheduled_assigned = self.expert_scheduled or []
+        completed_assigned = self.expert_call_completed or []
         s_count = self.scheduled_calls_count or 0
         c_count = self.completed_calls_count or 0
         g_count = self.goal_calls_count or 0
@@ -672,11 +676,15 @@ class Project(db.Model):
             'accepted_count': len(accepted),
             'scheduled_calls_count': s_count,
             'completed_calls_count': c_count,
+            'expert_scheduled_count': len(scheduled_assigned),
+            'expert_call_completed_count': len(completed_assigned),
             'goal_calls_count': g_count,
             'progress_percent': progress,
             'leads_expert_ids': leads,
             'invited_expert_ids': invited,
             'accepted_expert_ids': accepted,
+            'expert_scheduled': scheduled_assigned,
+            'expert_call_completed': completed_assigned,
         }
 
 class ProjectTargetGeography(db.Model):

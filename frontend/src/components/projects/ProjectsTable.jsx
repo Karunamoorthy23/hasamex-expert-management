@@ -116,8 +116,26 @@ export default function ProjectsTable({
                                     {p.accepted_count ?? 0}
                                 </button>
                             </td>
-                            <td>{p.scheduled_calls_count ?? 0}</td>
-                            <td>{p.completed_calls_count ?? 0}</td>
+                            <td>
+                                <button
+                                    type="button"
+                                    className="link-btn"
+                                    onClick={() => onOpenStatusModal?.(p)}
+                                    title="View Scheduled"
+                                >
+                                    {(p.expert_scheduled_count ?? 0)}/{p.scheduled_calls_count ?? 0}
+                                </button>
+                            </td>
+                            <td>
+                                <button
+                                    type="button"
+                                    className="link-btn"
+                                    onClick={() => onOpenStatusModal?.(p)}
+                                    title="View Completed"
+                                >
+                                    {(p.expert_call_completed_count ?? 0)}/{p.completed_calls_count ?? 0}
+                                </button>
+                            </td>
                             <td>{p.goal_calls_count ?? 0}</td>
                             <td>{typeof p.progress_percent === 'number' ? p.progress_percent.toFixed(2) : '0.00'}</td>
                             <td>{p.project_deadline ? new Date(p.project_deadline).toLocaleDateString() : '—'}</td>

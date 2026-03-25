@@ -82,7 +82,7 @@ export default function App() {
                 }
                 .main-content .container {
                     background: transparent;
-                    color: inherit;
+                    color: black;
                     // padding: 1.5rem; /* 24px / 16 */
                     width: 100%;
                     max-width: var(--container-max);

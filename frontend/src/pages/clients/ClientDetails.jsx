@@ -3,6 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { fetchClientById, fetchProjects } from '../../api/clients';
 import { fetchUsers } from '../../api/users';
 import Loader from '../../components/ui/Loader';
+import Modal from '../../components/ui/Modal';
 
 export default function ClientDetails() {
     const { id } = useParams();
@@ -11,6 +12,7 @@ export default function ClientDetails() {
     const [client, setClient] = useState(null);
     const [projects, setProjects] = useState([]);
     const [fetchedUserIds, setFetchedUserIds] = useState({});
+    const [serviceOpen, setServiceOpen] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -189,7 +191,7 @@ export default function ClientDetails() {
                         <button className="btn-edit" onClick={() => navigate(`/clients/${client.client_id}/edit`)}>Edit Client</button>
                     </div>
                     <div className="hdr-subtitle">
-                        Type: <strong>{clientType || '—'}</strong> • Country: <strong>{country || '—'}</strong> • Website: <strong>{websiteDisplay || '—'}</strong> • LinkedIn: <strong>{linkedinDisplay || '—'}</strong>
+                        Type: <strong>{clientType || '—'}</strong> • Country: <strong>{country || '—'}</strong> • Website: <strong>{websiteDisplay || '—'}</strong> • LinkedIn: <strong>{linkedinDisplay || '—'}</strong> • <a href="#" onClick={(e) => { e.preventDefault(); setServiceOpen(true); }}>Service Rules</a>
                     </div>
                     <div className="team-row">
                         <div className="team-member">
@@ -241,6 +243,17 @@ export default function ClientDetails() {
                         </ul>
                     </div>
                 </div>
+                {serviceOpen && (
+                    <Modal
+                        open={serviceOpen}
+                        onClose={() => setServiceOpen(false)}
+                        title="Service Rules"
+                    >
+                        <div className="desc-text" style={{ whiteSpace: 'pre-wrap' }}>
+                            {client?.service_rules || '—'}
+                        </div>
+                    </Modal>
+                )}
             </div>
         </>
     );

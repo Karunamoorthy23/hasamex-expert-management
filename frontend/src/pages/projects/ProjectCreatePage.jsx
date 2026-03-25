@@ -48,7 +48,11 @@ export default function ProjectCreatePage() {
     }, []);
 
     const clientOptions = useMemo(() => (clients || []).map((c) => c.client_name), [clients]);
-    const userOptions = useMemo(() => (users || []).map((u) => u.user_name), [users]);
+    const filteredUsers = useMemo(() => {
+        if (!form?.client_id) return users || [];
+        return (users || []).filter((u) => String(u.client_id) === String(form.client_id));
+    }, [users, form?.client_id]);
+    const userOptions = useMemo(() => (filteredUsers || []).map((u) => u.user_name), [filteredUsers]);
     const hasamexIdByName = useMemo(() => {
         const map = {};
         (lookups.hasamex_users || []).forEach((u) => (map[u.name] = u.id));
@@ -77,6 +81,16 @@ export default function ProjectCreatePage() {
 
     const selectedClientName = useMemo(() => clients.find((c) => String(c.client_id) === String(form.client_id))?.client_name, [clients, form.client_id]);
     const selectedUserName = useMemo(() => users.find((u) => String(u.user_id) === String(form.poc_user_id))?.user_name, [users, form.poc_user_id]);
+
+    const clientId = form?.client_id;
+    const pocUserId = form?.poc_user_id;
+    useEffect(() => {
+        if (!clientId && !pocUserId) return;
+        const currentUser = (users || []).find((u) => String(u.user_id) === String(pocUserId));
+        if (clientId && currentUser && String(currentUser.client_id) !== String(clientId)) {
+            setForm((p) => ({ ...p, poc_user_id: '' }));
+        }
+    }, [clientId, pocUserId, users]);
 
     async function handleSubmit(e) {
         e.preventDefault();

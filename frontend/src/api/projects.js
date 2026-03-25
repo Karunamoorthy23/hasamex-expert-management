@@ -72,4 +72,12 @@ export async function setProjectExpertStatus(projectId, { expert_id, category })
     return result.data;
 }
 
+export async function setProjectCallAssignment(projectId, { expert_id, category, action }) {
+    const result = await http(`/projects/${projectId}/expert-calls`, {
+        method: 'POST',
+        body: JSON.stringify({ expert_id, category, action }),
+    });
+    return result.data;
+}
+
 

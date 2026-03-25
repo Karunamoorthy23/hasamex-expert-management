@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { bulkDeleteProjects, deleteProject, fetchProjectsPaged, fetchProjectExpertStatus, setProjectExpertStatus } from '../../api/projects';
+import { bulkDeleteProjects, deleteProject, fetchProjectsPaged, fetchProjectExpertStatus, setProjectExpertStatus, setProjectCallAssignment } from '../../api/projects';
 import { fetchClients } from '../../api/clients';
 import { fetchUsers } from '../../api/users';
 import Loader from '../../components/ui/Loader';
@@ -127,8 +127,9 @@ export default function ProjectsPage() {
     const [statusOpen, setStatusOpen] = useState(false);
     const [statusLoading, setStatusLoading] = useState(false);
     const [activeProject, setActiveProject] = useState(null);
-    const [statusData, setStatusData] = useState({ leads: [], invited: [], accepted: [], counts: { L: 0, I: 0, A: 0 } });
+    const [statusData, setStatusData] = useState({ leads: [], invited: [], accepted: [], scheduled: [], completed: [], counts: { L: 0, I: 0, A: 0, S: 0, C: 0 } });
     const [statusSearch, setStatusSearch] = useState('');
+    const [updatingId, setUpdatingId] = useState(null);
 
     const onOpenStatusModal = async (project) => {
         setActiveProject(project);
@@ -142,23 +143,88 @@ export default function ProjectsPage() {
         }
     };
 
-    const changeExpertCategory = async (expertId, nextCategory) => {
+    const changeExpertCategory = async (expertId, nextCategory, currentCategory) => {
         if (!activeProject) return;
         try {
-            const updatedProject = await setProjectExpertStatus(activeProject.project_id, { expert_id: expertId, category: nextCategory });
+            setUpdatingId(expertId);
+            let updatedProject = null;
+            const isNextSC = nextCategory === 'S' || nextCategory === 'C';
+            const isCurrSC = currentCategory === 'S' || currentCategory === 'C';
+            if (isNextSC) {
+                const cap = nextCategory === 'S' ? (activeProject?.scheduled_calls_count ?? 0) : (activeProject?.completed_calls_count ?? 0);
+                const currentAssigned = nextCategory === 'S' ? ((statusData?.counts?.S ?? 0)) : ((statusData?.counts?.C ?? 0));
+                if (currentCategory !== nextCategory) {
+                    if (cap === 0 || currentAssigned >= cap) {
+                        alert(nextCategory === 'S' ? 'Scheduled capacity reached' : 'Completed capacity reached');
+                        return;
+                    }
+                }
+            }
+            if (isNextSC) {
+                if (isCurrSC && nextCategory !== currentCategory) {
+                    await setProjectCallAssignment(activeProject.project_id, { expert_id: expertId, category: currentCategory, action: 'REMOVE' });
+                }
+                updatedProject = await setProjectCallAssignment(activeProject.project_id, { expert_id: expertId, category: nextCategory, action: 'ADD' });
+            } else {
+                if (isCurrSC) {
+                    await setProjectCallAssignment(activeProject.project_id, { expert_id: expertId, category: currentCategory, action: 'REMOVE' });
+                }
+                updatedProject = await setProjectExpertStatus(activeProject.project_id, { expert_id: expertId, category: nextCategory });
+            }
             // Update counts in table data
             setData((prev) => {
                 if (!prev) return prev;
                 const nextRows = prev.data.map((p) => (p.project_id === updatedProject.project_id ? { ...p, ...updatedProject } : p));
                 return { ...prev, data: nextRows };
             });
-            // Re-fetch status to reflect lists
-            const res = await fetchProjectExpertStatus(activeProject.project_id);
-            setStatusData(res);
-        } catch (e) {
-            alert('Failed to update expert category');
+            // Optimistically move expert across lists locally
+            setStatusData((prev) => {
+                const lists = {
+                    leads: [...prev.leads],
+                    invited: [...prev.invited],
+                    accepted: [...prev.accepted],
+                    scheduled: [...prev.scheduled],
+                    completed: [...prev.completed],
+                };
+                let obj = null;
+                for (const key of ['leads', 'invited', 'accepted', 'scheduled', 'completed']) {
+                    const idx = lists[key].findIndex((e) => e.id === expertId);
+                    if (idx >= 0) {
+                        obj = lists[key][idx];
+                        lists[key].splice(idx, 1);
+                        break;
+                    }
+                }
+                const targetKey = nextCategory === 'L' ? 'leads' : nextCategory === 'I' ? 'invited' : nextCategory === 'A' ? 'accepted' : nextCategory === 'S' ? 'scheduled' : 'completed';
+                if (!obj) {
+                    const sourceKey = currentCategory === 'L' ? 'leads' : currentCategory === 'I' ? 'invited' : currentCategory === 'A' ? 'accepted' : currentCategory === 'S' ? 'scheduled' : 'completed';
+                    const idx2 = lists[sourceKey].findIndex((e) => e.id === expertId);
+                    if (idx2 >= 0) {
+                        obj = lists[sourceKey][idx2];
+                        lists[sourceKey].splice(idx2, 1);
+                    }
+                }
+                if (obj) {
+                    lists[targetKey] = [obj, ...lists[targetKey]];
+                }
+                const counts = {
+                    L: lists.leads.length,
+                    I: lists.invited.length,
+                    A: lists.accepted.length,
+                    S: lists.scheduled.length,
+                    C: lists.completed.length,
+                };
+                return { leads: lists.leads, invited: lists.invited, accepted: lists.accepted, scheduled: lists.scheduled, completed: lists.completed, counts };
+            });
+        } catch (err) {
+            console.error('Failed to update expert category', err);
+            const msg = (err && err.data && err.data.error) ? err.data.error : 'Failed to update expert category';
+            alert(msg);
+        } finally {
+            setUpdatingId(null);
         }
     };
+
 
     return (
         <>
@@ -279,6 +345,20 @@ export default function ProjectsPage() {
                                 const leadsList = statusData.leads.filter(match);
                                 const invitedList = statusData.invited.filter(match);
                                 const acceptedList = statusData.accepted.filter(match);
+                                const scheduledList = (statusData.scheduled || []).filter(match);
+                                const completedList = (statusData.completed || []).filter(match);
+                                const scheduledCapReached = (() => {
+                                    const cap = activeProject?.scheduled_calls_count ?? 0;
+                                    const assigned = statusData?.counts?.S ?? 0;
+                                    if (cap === 0) return true;
+                                    return assigned >= cap;
+                                })();
+                                const completedCapReached = (() => {
+                                    const cap = activeProject?.completed_calls_count ?? 0;
+                                    const assigned = statusData?.counts?.C ?? 0;
+                                    if (cap === 0) return true;
+                                    return assigned >= cap;
+                                })();
                                 return (
                                     <>
                                         <div className="form-field" style={{ gridColumn: 'span 2' }}>
@@ -294,11 +374,20 @@ export default function ProjectsPage() {
                                                             <td>{e.email}</td>
                                                             <td>{e.title || '—'}</td>
                                                             <td>
-                                                                <select value="L" onChange={(ev) => changeExpertCategory(e.id, ev.target.value)}>
+                                                                <select value="L" onChange={(ev) => changeExpertCategory(e.id, ev.target.value, 'L')} disabled={updatingId === e.id}>
                                                                     <option value="L">Leads</option>
                                                                     <option value="I">Invited</option>
                                                                     <option value="A">Accepted</option>
+                                                                    <option value="S" disabled={scheduledCapReached}>Scheduled</option>
+                                                                    <option value="C" disabled={completedCapReached}>Completed</option>
                                                                 </select>
+                                                                {updatingId === e.id && (
+                                                                    <svg width="14" height="14" viewBox="0 0 50 50" style={{ marginLeft: 6 }}>
+                                                                        <circle cx="25" cy="25" r="20" stroke="#888" strokeWidth="5" fill="none" strokeDasharray="31.4 31.4">
+                                                                            <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+                                                                        </circle>
+                                                                    </svg>
+                                                                )}
                                                             </td>
                                                         </tr>
                                                     ))}
@@ -321,11 +410,20 @@ export default function ProjectsPage() {
                                                             <td>{e.email}</td>
                                                             <td>{e.title || '—'}</td>
                                                             <td>
-                                                                <select value="I" onChange={(ev) => changeExpertCategory(e.id, ev.target.value)}>
+                                                                <select value="I" onChange={(ev) => changeExpertCategory(e.id, ev.target.value, 'I')} disabled={updatingId === e.id}>
                                                                     <option value="L">Leads</option>
                                                                     <option value="I">Invited</option>
                                                                     <option value="A">Accepted</option>
+                                                                    <option value="S" disabled={scheduledCapReached}>Scheduled</option>
+                                                                    <option value="C" disabled={completedCapReached}>Completed</option>
                                                                 </select>
+                                                                {updatingId === e.id && (
+                                                                    <svg width="14" height="14" viewBox="0 0 50 50" style={{ marginLeft: 6 }}>
+                                                                        <circle cx="25" cy="25" r="20" stroke="#888" strokeWidth="5" fill="none" strokeDasharray="31.4 31.4">
+                                                                            <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+                                                                        </circle>
+                                                                    </svg>
+                                                                )}
                                                             </td>
                                                         </tr>
                                                     ))}
@@ -348,16 +446,97 @@ export default function ProjectsPage() {
                                                             <td>{e.email}</td>
                                                             <td>{e.title || '—'}</td>
                                                             <td>
-                                                                <select value="A" onChange={(ev) => changeExpertCategory(e.id, ev.target.value)}>
+                                                                <select value="A" onChange={(ev) => changeExpertCategory(e.id, ev.target.value, 'A')} disabled={updatingId === e.id}>
                                                                     <option value="L">Leads</option>
                                                                     <option value="I">Invited</option>
                                                                     <option value="A">Accepted</option>
+                                                                    <option value="S" disabled={scheduledCapReached}>Scheduled</option>
+                                                                    <option value="C" disabled={completedCapReached}>Completed</option>
                                                                 </select>
+                                                                {updatingId === e.id && (
+                                                                    <svg width="14" height="14" viewBox="0 0 50 50" style={{ marginLeft: 6 }}>
+                                                                        <circle cx="25" cy="25" r="20" stroke="#888" strokeWidth="5" fill="none" strokeDasharray="31.4 31.4">
+                                                                            <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+                                                                        </circle>
+                                                                    </svg>
+                                                                )}
                                                             </td>
                                                         </tr>
                                                     ))}
                                                     {acceptedList.length === 0 && (
                                                         <tr><td colSpan="4">No matching accepted experts</td></tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                            <label className="form-label">Scheduled (S)</label>
+                                            <table className="data-table">
+                                                <thead>
+                                                    <tr><th>Name</th><th>Email</th><th>Title</th><th>Category</th></tr>
+                                                </thead>
+                                                <tbody>
+                                                    {scheduledList.map((e) => (
+                                                        <tr key={`S-${e.id}`}>
+                                                            <td>{e.name}</td>
+                                                            <td>{e.email}</td>
+                                                            <td>{e.title || '—'}</td>
+                                                            <td>
+                                                                <select value="S" onChange={(ev) => changeExpertCategory(e.id, ev.target.value, 'S')} disabled={updatingId === e.id}>
+                                                                    <option value="L">Leads</option>
+                                                                    <option value="I">Invited</option>
+                                                                    <option value="A">Accepted</option>
+                                                                    <option value="S">Scheduled</option>
+                                                                    <option value="C" disabled={completedCapReached}>Completed</option>
+                                                                </select>
+                                                                {updatingId === e.id && (
+                                                                    <svg width="14" height="14" viewBox="0 0 50 50" style={{ marginLeft: 6 }}>
+                                                                        <circle cx="25" cy="25" r="20" stroke="#888" strokeWidth="5" fill="none" strokeDasharray="31.4 31.4">
+                                                                            <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+                                                                        </circle>
+                                                                    </svg>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {scheduledList.length === 0 && (
+                                                        <tr><td colSpan="4">No scheduled experts</td></tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                            <label className="form-label">Completed (C)</label>
+                                            <table className="data-table">
+                                                <thead>
+                                                    <tr><th>Name</th><th>Email</th><th>Title</th><th>Category</th></tr>
+                                                </thead>
+                                                <tbody>
+                                                    {completedList.map((e) => (
+                                                        <tr key={`C-${e.id}`}>
+                                                            <td>{e.name}</td>
+                                                            <td>{e.email}</td>
+                                                            <td>{e.title || '—'}</td>
+                                                            <td>
+                                                                <select value="C" onChange={(ev) => changeExpertCategory(e.id, ev.target.value, 'C')} disabled={updatingId === e.id}>
+                                                                    <option value="L">Leads</option>
+                                                                    <option value="I">Invited</option>
+                                                                    <option value="A">Accepted</option>
+                                                                    <option value="S" disabled={scheduledCapReached}>Scheduled</option>
+                                                                    <option value="C">Completed</option>
+                                                                </select>
+                                                                {updatingId === e.id && (
+                                                                    <svg width="14" height="14" viewBox="0 0 50 50" style={{ marginLeft: 6 }}>
+                                                                        <circle cx="25" cy="25" r="20" stroke="#888" strokeWidth="5" fill="none" strokeDasharray="31.4 31.4">
+                                                                            <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+                                                                        </circle>
+                                                                    </svg>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {completedList.length === 0 && (
+                                                        <tr><td colSpan="4">No completed experts</td></tr>
                                                     )}
                                                 </tbody>
                                             </table>
@@ -372,4 +551,3 @@ export default function ProjectsPage() {
         </>
     );
 }
-

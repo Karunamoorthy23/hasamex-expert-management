@@ -70,17 +70,17 @@ export default function ExpertDetails() {
   .tags { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
   .badge { display: inline-block; border: 1px solid #d0d0d0; border-radius: 3px; padding: 2px 6px; font-size: 0.72rem; font-weight: 700; color: #333; background: #efefef; }
   .body-split { display: grid; grid-template-columns: 1fr 260px; border-bottom: 1px solid #d0d0d0; }
-  .left-pane { padding: 12px 14px; border-right: 1px solid #d0d0d0; }
+  .left-pane { padding: 12px 14px; border-right: 1px solid #d0d0d0; color: #111111}
   .sec-title { font-size: 0.97rem; font-weight: 700; color: #111111; margin-bottom: 6px; }
-  .desc-text { font-size: 0.84rem; color: #333333; line-height: 1.65; margin-bottom: 6px; white-space: pre-wrap; }
+  .desc-text, .bullet-list li { font-size: 0.875rem; color: #333333; line-height: 1.65; margin-bottom: 6px; white-space: pre-wrap; }
   .bio-text { text-align: justify; text-justify: inter-word; }
   .divider { height: 1px; background: #e0e0e0; margin: 8px 0; }
-  .info-row { display: grid; grid-template-columns: 150px 1fr; gap: 8px; padding: 4px 0; font-size: 0.84rem; color: #333333; }
+  .info-row { display: grid; grid-template-columns: 150px 1fr; gap: 8px; padding: 4px 0; font-size: 0.875rem; color: #333333; }
   .info-key { font-weight: 700; color: #111111; }
   .right-pane { padding: 12px 12px; background: #fafafa; }
   .ideal-title { font-size: 0.97rem; font-weight: 700; color: #111111; margin-bottom: 8px; }
   .ideal-list { list-style: none; margin-bottom: 8px; display: flex; flex-direction: column; gap: 3px; }
-  .ideal-list li { display: flex; align-items: flex-start; gap: 7px; font-size: 0.83rem; color: #333333; }
+  .ideal-list li { display: flex; align-items: flex-start; gap: 7px; font-size: 0.875rem; color: #333333; }
   .bullet-list { list-style: disc; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
   @media (max-width: 700px) { .body-split { grid-template-columns: 1fr; } }
             `}</style>
