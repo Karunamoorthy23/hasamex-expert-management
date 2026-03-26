@@ -584,6 +584,7 @@ class Project(db.Model):
     project_created_by = db.Column(db.String(255))
     last_modified_time = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    engagement_ids = db.Column(JSONB, nullable=False, default=list)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     client_solution_owner_ids = db.Column(db.Text)
     sales_team_ids = db.Column(db.Text)

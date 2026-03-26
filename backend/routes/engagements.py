@@ -5,6 +5,7 @@ Engagements API Blueprint — /api/v1/engagements
 from flask import Blueprint, request, jsonify
 from datetime import datetime, date
 from sqlalchemy.orm import joinedload
+from sqlalchemy import text
 from extensions import db
 from models import Engagement, Project, Expert, Client, User, HasamexUser, LkEngagementMethod, LkCurrency, LkPostCallStatus, LkPaymentStatus
 
@@ -196,6 +197,8 @@ def get_engagements():
     search = request.args.get('search', '').strip()
     status = request.args.get('status', '').strip()
     month = request.args.get('month', '').strip() # Expected format: YYYY-MM
+    filter_client_id = request.args.get('client_id', type=int)
+    filter_project_id = request.args.get('project_id', type=int)
 
     if search:
         search_pattern = f"%{search}%"
@@ -208,6 +211,10 @@ def get_engagements():
                 Engagement.client_invoice_number.ilike(search_pattern)
             )
         )
+    if filter_client_id:
+        query = query.filter(Engagement.client_id == filter_client_id)
+    if filter_project_id:
+        query = query.filter(Engagement.project_id == filter_project_id)
 
     if status:
         query = query.join(Engagement.expert_payment_status).filter(LkPaymentStatus.name == status)
@@ -294,12 +301,31 @@ def create_engagement():
     except Exception:
         pass
     db.session.add(new_engagement)
+    db.session.flush()
+    if not new_engagement.engagement_code:
+        try:
+            next_val = db.session.execute(text("SELECT nextval('engagement_code_seq')")).scalar()
+            if next_val is not None:
+                code = f"EC-{str(int(next_val)).zfill(4)}"
+                new_engagement.engagement_code = code
+        except Exception:
+            pass
+    try:
+        proj = Project.query.get(new_engagement.project_id)
+        if proj is not None:
+            arr = list(proj.engagement_ids or [])
+            if new_engagement.id not in arr:
+                arr.append(new_engagement.id)
+                proj.engagement_ids = arr
+    except Exception:
+        pass
     db.session.commit()
     return jsonify(new_engagement.to_dict()), 201
 
 @engagements_bp.route('/<engagement_id>', methods=['PUT'])
 def update_engagement(engagement_id):
     engagement = Engagement.query.get_or_404(engagement_id)
+    old_project_id = engagement.project_id
     data = request.get_json() or {}
     payload = normalize_engagement_payload(data)
     for key, value in payload.items():
@@ -328,6 +354,24 @@ def update_engagement(engagement_id):
         engagement.gross_margin_percent = result['margin_percentage']
     except Exception:
         pass
+    try:
+        if old_project_id != engagement.project_id:
+            if old_project_id:
+                old_proj = Project.query.get(old_project_id)
+                if old_proj is not None:
+                    old_arr = list(old_proj.engagement_ids or [])
+                    if engagement.id in old_arr:
+                        old_arr = [x for x in old_arr if x != engagement.id]
+                        old_proj.engagement_ids = old_arr
+            if engagement.project_id:
+                new_proj = Project.query.get(engagement.project_id)
+                if new_proj is not None:
+                    new_arr = list(new_proj.engagement_ids or [])
+                    if engagement.id not in new_arr:
+                        new_arr.append(engagement.id)
+                        new_proj.engagement_ids = new_arr
+    except Exception:
+        pass
     db.session.commit()
     return jsonify(engagement.to_dict())
 
@@ -354,6 +398,14 @@ def compute_profit_api():
 @engagements_bp.route('/<engagement_id>', methods=['DELETE'])
 def delete_engagement(engagement_id):
     engagement = Engagement.query.get_or_404(engagement_id)
+    try:
+        proj = Project.query.get(engagement.project_id)
+        if proj is not None:
+            arr = list(proj.engagement_ids or [])
+            if engagement.id in arr:
+                proj.engagement_ids = [x for x in arr if x != engagement.id]
+    except Exception:
+        pass
     db.session.delete(engagement)
     db.session.commit()
     return '', 204

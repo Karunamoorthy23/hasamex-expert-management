@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
@@ -111,20 +111,24 @@ export default function EngagementEditPage() {
         }
         (async () => {
             try {
-                const res = await http(`/projects/${pid}/expert-status`);
+                const [statusRes, projectRes] = await Promise.all([
+                    http(`/projects/${pid}/expert-status`),
+                    http(`/projects/${pid}`),
+                ]);
                 if (cancelled) return;
-                const status = res?.data || {};
+                const status = statusRes?.data || {};
                 setProjectExperts(status);
-                const firstAccepted = (status.accepted && status.accepted[0]?.id) || null;
-                const firstInvited = (status.invited && status.invited[0]?.id) || null;
-                const firstLeads = (status.leads && status.leads[0]?.id) || null;
-                const autoId = firstAccepted || firstInvited || firstLeads || '';
+                const scheduledId = (status.scheduled && status.scheduled[0]?.id) || null;
+                const completedId = (status.completed && status.completed[0]?.id) || null;
+                const autoId = scheduledId || completedId || '';
+                const proj = projectRes?.data || {};
                 setForm(prev => {
                     if (!prev) return prev;
-                    if (!prev.expert_id || prev.project_id !== pid) {
-                        return { ...prev, expert_id: autoId };
-                    }
-                    return prev;
+                    const next = { ...prev };
+                    if (!prev.expert_id || prev.project_id !== pid) next.expert_id = autoId;
+                    if (proj.client_id) next.client_id = proj.client_id;
+                    if (proj.poc_user_id) next.poc_user_id = proj.poc_user_id;
+                    return next;
                 });
             } catch {
                 if (!cancelled) setProjectExperts(null);
@@ -157,8 +161,6 @@ export default function EngagementEditPage() {
         setForm(prev => ({ ...prev, [field]: value }));
     };
 
-    if (isLoading || !form) return <Loader rows={8} />;
-
     const findNameById = (list, id) => {
         if (!Array.isArray(list)) return '';
         const item = list.find((x) => String(x.id) === String(id));
@@ -185,6 +187,28 @@ export default function EngagementEditPage() {
         }
     };
 
+    const selectableExperts = useMemo(() => {
+        const s = (projectExperts?.scheduled || []);
+        const c = (projectExperts?.completed || []);
+        const seen = new Set();
+        const list = [];
+        for (const x of s) {
+            if (!seen.has(x.id)) {
+                seen.add(x.id);
+                list.push(x);
+            }
+        }
+        for (const x of c) {
+            if (!seen.has(x.id)) {
+                seen.add(x.id);
+                list.push(x);
+            }
+        }
+        return list;
+    }, [projectExperts]);
+
+    if (isLoading || !form) return <Loader rows={8} />;
+
     return (
         <>
             <div className="page-header">
@@ -203,6 +227,15 @@ export default function EngagementEditPage() {
                                     options={(lookups.projects || []).map((x) => x.name)}
                                     selected={findNameById(lookups.projects, form.project_id) ? [findNameById(lookups.projects, form.project_id)] : []}
                                     onChange={(next) => handleFormChange('project_id', findIdByName(lookups.projects, next[0] || ''))}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Expert</label>
+                                <FilterDropdown
+                                    label={findNameById(selectableExperts, form.expert_id) || 'Select expert'}
+                                    options={selectableExperts.map((x) => x.name)}
+                                    selected={findNameById(selectableExperts, form.expert_id) ? [findNameById(selectableExperts, form.expert_id)] : []}
+                                    onChange={(next) => handleFormChange('expert_id', findIdByName(selectableExperts, next[0] || ''))}
                                 />
                             </div>
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
@@ -240,6 +273,30 @@ export default function EngagementEditPage() {
                                                     {(projectExperts.leads || []).length
                                                         ? (projectExperts.leads || []).map((e) => (
                                                             <span key={`lead-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid #c8c8c8', borderRadius: 12, background: '#ffffff', fontSize: 12.5 }}>
+                                                                {e.name}
+                                                            </span>
+                                                        ))
+                                                        : <span>—</span>}
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 8, alignItems: 'flex-start' }}>
+                                                <div style={{ fontWeight: 700, color: 'var(--text-strong)' }}>Scheduled</div>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                                    {(projectExperts.scheduled || []).length
+                                                        ? (projectExperts.scheduled || []).map((e) => (
+                                                            <span key={`sched-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid #c8c8c8', borderRadius: 12, background: '#ffffff', fontSize: 12.5 }}>
+                                                                {e.name}
+                                                            </span>
+                                                        ))
+                                                        : <span>—</span>}
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 8, alignItems: 'flex-start' }}>
+                                                <div style={{ fontWeight: 700, color: 'var(--text-strong)' }}>Completed</div>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                                    {(projectExperts.completed || []).length
+                                                        ? (projectExperts.completed || []).map((e) => (
+                                                            <span key={`comp-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid #c8c8c8', borderRadius: 12, background: '#ffffff', fontSize: 12.5 }}>
                                                                 {e.name}
                                                             </span>
                                                         ))
