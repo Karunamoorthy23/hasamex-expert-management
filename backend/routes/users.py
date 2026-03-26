@@ -15,6 +15,7 @@ def list_users():
     limit = request.args.get('limit', 20, type=int)
     limit = min(limit, 100)
     search = request.args.get('search', '', type=str).strip()
+    filter_client_id = request.args.get('client_id', None, type=int)
 
     query = User.query.outerjoin(Client, User.client_id == Client.client_id)
 
@@ -40,6 +41,9 @@ def list_users():
                 Client.client_type.ilike(like),
             )
         )
+
+    if filter_client_id:
+        query = query.filter(User.client_id == filter_client_id)
 
     query = query.order_by(User.updated_at.desc().nulls_last())
 

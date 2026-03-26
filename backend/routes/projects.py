@@ -35,11 +35,14 @@ def get_projects():
     limit = min(limit, 100)
     search = request.args.get('search', '', type=str).strip()
     client_id = request.args.get('client_id', type=int)
+    poc_user_id = request.args.get('poc_user_id', type=int)
 
     query = Project.query.outerjoin(Client, Project.client_id == Client.client_id).outerjoin(User, Project.poc_user_id == User.user_id)
 
     if client_id:
         query = query.filter(Project.client_id == client_id)
+    if poc_user_id:
+        query = query.filter(Project.poc_user_id == poc_user_id)
 
     if search:
         like = f"%{search}%"

@@ -344,10 +344,16 @@ export default function ProjectDetails() {
   .status-select { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
   .p-filter-select { background: transparent; border: none; font-size: 0.75rem; font-weight: 600; color: #555; cursor: pointer; padding: 2px 4px; outline: none; }
   .p-filter-select:hover { color: #111; }
-  .s-scheduled { background: #fffbf0; border-color: #e0c060; color: #7a5500; }
-  .s-completed { background: #f0faf4; border-color: #70c090; color: #1a5c35; }
-  .s-pending { background: #f0f5ff; border-color: #80a0e0; color: #1a3070; }
-  .s-contacted { background: #f5f5f5; border-color: #b0b0b0; color: #444444; }
+  /* Leads — blue */
+  .s-pending { background: #e8f0ff; border-color: #80a0e0; color: #1a3070; }
+  /* Invited — yellow */
+  .s-contacted { background: #fef9c3; border-color: #f59e0b; color: #854d0e; }
+  /* Scheduled — light green */
+  .s-scheduled { background: #dcfce7; border-color: #86efac; color: #166534; }
+  /* Completed — green */
+  .s-completed { background: #bbf7d0; border-color: #34d399; color: #065f46; }
+  /* Accepted — leaf green */
+  .s-accepted { background: #e6f4ea; border-color: #34a853; color: #1f6f3d; }
   .bi { display: flex; flex-direction: column; gap: 5px; }
   .bi { display: flex; flex-direction: column; gap: 3px; }
   .bi-row { font-size: 0.81rem; color: #333333; display: flex; align-items: center; gap: 0; }
@@ -464,7 +470,7 @@ export default function ProjectDetails() {
                         let statusClass = 's-pending';
                         if (statusLabel === 'Leads') statusClass = 's-pending';
                         else if (statusLabel === 'Invited') statusClass = 's-contacted';
-                        else if (statusLabel === 'Accepted') statusClass = 's-completed';
+                        else if (statusLabel === 'Accepted') statusClass = 's-accepted';
                         else if (statusLabel === 'Scheduled') statusClass = 's-scheduled';
                         return (
                             <div className="p-row" key={`${expertId}-${idx}`}>

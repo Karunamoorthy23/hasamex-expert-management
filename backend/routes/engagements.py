@@ -199,6 +199,7 @@ def get_engagements():
     month = request.args.get('month', '').strip() # Expected format: YYYY-MM
     filter_client_id = request.args.get('client_id', type=int)
     filter_project_id = request.args.get('project_id', type=int)
+    filter_poc_user_id = request.args.get('poc_user_id', type=int)
 
     if search:
         search_pattern = f"%{search}%"
@@ -215,6 +216,8 @@ def get_engagements():
         query = query.filter(Engagement.client_id == filter_client_id)
     if filter_project_id:
         query = query.filter(Engagement.project_id == filter_project_id)
+    if filter_poc_user_id:
+        query = query.filter(Engagement.poc_user_id == filter_poc_user_id)
 
     if status:
         query = query.join(Engagement.expert_payment_status).filter(LkPaymentStatus.name == status)

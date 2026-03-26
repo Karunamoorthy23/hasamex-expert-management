@@ -672,7 +672,7 @@
 }
 
 .data-table th {
-    font-size: 14px;
+    font-size: inherit;
     font-weight: var(--font-bold);
     color: var(--color-grey-600);
     background: var(--color-grey-300);
@@ -702,6 +702,7 @@
 .col-id { width: 6.25rem; } /* 100px / 16 */
 .col-name { min-width: 12.5rem; } /* 200px / 16 */
 .col-title { min-width: 18.75rem; } /* 300px / 16 */
+.col-compact { min-width: 8rem; } /* 128px / 16 */
 .col-sector { min-width: 9.375rem; } /* 150px / 16 */
 .col-region { min-width: 7.5rem; } /* 120px / 16 */
 .col-solution { min-width: 9.375rem; } /* 150px / 16 */

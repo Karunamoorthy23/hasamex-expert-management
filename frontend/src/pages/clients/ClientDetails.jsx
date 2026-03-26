@@ -4,6 +4,7 @@ import { fetchClientById } from '../../api/clients';
 import Loader from '../../components/ui/Loader';
 import Modal from '../../components/ui/Modal';
 import EngagementAssignmentsTable from '../../components/engagements/EngagementAssignmentsTable';
+import ClientUsersBasicTable from '../../components/users/ClientUsersBasicTable';
 
 export default function ClientDetails() {
     const { id } = useParams();
@@ -130,6 +131,9 @@ export default function ClientDetails() {
                         <div className="divider"></div>
                         <div className="sec-title">Notes</div>
                         <div className="desc-text">{client.notes || '—'}</div>
+                        <div className="divider"></div>
+                        <div className="sec-title">Users</div>
+                        <ClientUsersBasicTable clientId={id} sticky={true} />
                         <div className="divider"></div>
                         <div className="sec-title">Engagements</div>
                         <EngagementAssignmentsTable clientId={id} sticky={true} />

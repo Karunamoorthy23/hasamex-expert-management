@@ -91,7 +91,7 @@ export default function EngagementAssignmentsTable({ clientId, projectId, sticky
 const th = {
     textAlign: 'left',
     padding: '10px 12px',
-    fontSize: '0.8rem',
+    fontSize: '0.84rem',
     fontWeight: 600,
     color: '#333',
     borderRight: '1px solid #c8c8c8',

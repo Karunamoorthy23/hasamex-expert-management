@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { cn } from '../../utils/cn';
 import { Link } from 'react-router-dom';
 import Checkbox from '../ui/Checkbox';
-import { EditIcon, TrashIcon } from '../icons/Icons';
+import { EditIcon, TrashIcon, LinkIcon } from '../icons/Icons';
+import { http } from '../../api/http';
 
 function statusBadgeClass(status) {
     if (!status) return 'badge badge-outline-theme';
@@ -34,18 +35,56 @@ export default function ClientsTable({
         });
     };
     const compactCellStyle = { padding: '6px 10px' };
+    const [engagementCounts, setEngagementCounts] = useState({});
+    useEffect(() => {
+        let cancelled = false;
+        const clientIds = (clients || []).map((c) => c.client_id).filter(Boolean);
+        const missing = clientIds.filter((cid) => engagementCounts[cid] == null);
+        if (!missing.length) return;
+        (async () => {
+            try {
+                const results = await Promise.all(
+                    missing.map(async (cid) => {
+                        try {
+                            const res = await http(`/engagements?client_id=${cid}`);
+                            return [cid, Array.isArray(res?.data) ? res.data.length : 0];
+                        } catch {
+                            return [cid, 0];
+                        }
+                    })
+                );
+                if (cancelled) return;
+                const upd = { ...engagementCounts };
+                for (const [cid, count] of results) {
+                    if (upd[cid] == null) upd[cid] = count;
+                }
+                setEngagementCounts(upd);
+            } catch {
+                if (!cancelled) setEngagementCounts((prev) => ({ ...prev }));
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [clients]);
+
     const rows = useMemo(() => {
         return clients.map((c) => {
             const primary = c.primary_contact_user_id ? usersById[c.primary_contact_user_id] : null;
             const projects = projectsByClientId[c.client_id] || [];
+            const engagementCount = projects.reduce((acc, p) => {
+                if (Array.isArray(p.engagement_ids)) return acc + p.engagement_ids.length;
+                if (typeof p.engagement_count === 'number') return acc + p.engagement_count;
+                return acc;
+            }, 0);
+            const displayEngagementCount = engagementCounts[c.client_id] != null ? engagementCounts[c.client_id] : engagementCount;
             return {
                 ...c,
                 primaryContactName: primary?.user_name || '—',
                 projectCount: projects.length,
                 projects,
+                engagementCount: displayEngagementCount,
             };
         });
-    }, [clients, usersById, projectsByClientId]);
+    }, [clients, usersById, projectsByClientId, engagementCounts]);
 
     return (
         <div className="table-container">
@@ -60,25 +99,21 @@ export default function ClientsTable({
                                 ariaLabel="Select all clients"
                             />
                         </th>
-                        <th>Client Name</th>
-                        <th>Client Type</th>
-                        <th>Country</th>
-                        <th>Office Locations</th>
-                        <th>Website</th>
-                        <th>LinkedIn</th>
-                        <th>Primary Contact</th>
-                        <th>Client Manager (Internal)</th>
-                        <th>Billing Currency</th>
-                        <th>Payment Terms</th>
-                        <th>Invoicing Email</th>
-                        <th>Client Status</th>
-                        <th>Engagement Start</th>
-                        <th>Users</th>
-                        <th>Research Analyst</th>
-                        <th>Account Manager</th>
-                        <th>Project Count</th>
-                        <th>Service Rules</th>
-                        <th>Actions</th>
+                        <th className="col-name">Client Name</th>
+                        <th className="col-compact">Client Type</th>
+                        <th className="col-region">Country</th>
+                        <th className="col-id">Website</th>
+                        <th className="col-id">LinkedIn</th>
+                        <th className="col-compact">Primary Contact</th>
+                        <th className="col-compact">Client Manager (Internal)</th>
+                        <th className="col-id">Billing Currency</th>
+                        <th className="col-status">Client Status</th>
+                        <th className="col-solution">Research Analyst</th>
+                        <th className="col-solution">Account Manager</th>
+                        <th className="col-id">Project Count</th>
+                        <th className="col-id">Engagements</th>
+                        <th className="col-id">Service Rules</th>
+                        <th className="col-actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -100,7 +135,7 @@ export default function ClientsTable({
                                     >
                                         <Checkbox checked={selectedIds?.has(row.client_id) || false} onChange={() => onSelectClient?.(row.client_id)} ariaLabel={`Select ${row.client_name}`} />
                                     </td>
-                                    <td>
+                                    <td className="col-name">
                                         <div className="client-name-cell">
                                             <i className={cn('fa-solid fa-chevron-right client-expand-icon', expanded && 'client-expand-icon--open')} aria-hidden="true" />
                                             <div>
@@ -110,19 +145,25 @@ export default function ClientsTable({
                                             </div>
                                         </div>
                                     </td>
-                                    <td>{row.client_type || row.type || '—'}</td>
-                                    <td>{row.country || row.location || '—'}</td>
-                                    <td>{row.office_locations || '—'}</td>
-                                    <td>
+                                    <td className="col-compact">{row.client_type || row.type || '—'}</td>
+                                    <td className="col-region">{row.country || row.location || '—'}</td>
+                                    <td className="col-id">
                                         {row.website ? (
-                                            <a href={row.website.startsWith('http') ? row.website : `https://${row.website}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-                                                {row.website}
+                                            <a
+                                                href={row.website.startsWith('http') ? row.website : `https://${row.website}`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="action-btn"
+                                                title="Website"
+                                            >
+                                                <LinkIcon /> Website
                                             </a>
                                         ) : (
                                             '—'
                                         )}
                                     </td>
-                                    <td>
+                                    <td className="col-id">
                                         {row.linkedin_url ? (
                                             <a href={row.linkedin_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
                                                 LinkedIn
@@ -131,38 +172,37 @@ export default function ClientsTable({
                                             '—'
                                         )}
                                     </td>
-                            <td>
+                            <td className="col-compact">
                                 {row.primary_contact_user_id ? (
                                     <Link to={`/users/${row.primary_contact_user_id}`}>{row.primaryContactName}</Link>
                                 ) : (
                                     row.primaryContactName
                                 )}
                             </td>
-                                    <td>{row.client_manager_internal || '—'}</td>
-                                    <td>{row.billing_currency || '—'}</td>
-                                    <td>{row.payment_terms || '—'}</td>
-                                    <td>{row.invoicing_email || '—'}</td>
-                                    <td>
+                                    <td className="col-compact">{row.client_manager_internal || '—'}</td>
+                                    <td className="col-id">{row.billing_currency || '—'}</td>
+                                    <td className="col-status">
                                         <span className={cn(statusBadgeClass(row.client_status || row.status))}>
                                             {row.client_status || row.status || '—'}
                                         </span>
                                     </td>
-                                    <td>{row.engagement_start_date ? new Date(row.engagement_start_date).toLocaleDateString() : '—'}</td>
-                                    <td>{row.users || '—'}</td>
-                                    <td>
+                                    <td className="col-solution">
                                         {Array.isArray(row.client_solution_owner_names) && row.client_solution_owner_names.length
                                             ? row.client_solution_owner_names.join(', ')
                                             : '—'}
                                     </td>
-                                    <td>
+                                    <td className="col-solution">
                                         {Array.isArray(row.sales_team_names) && row.sales_team_names.length
                                             ? row.sales_team_names.join(', ')
                                             : '—'}
                                     </td>
-                                    <td>
+                                    <td className="col-id">
                                         <span className="badge badge-outline-theme">{row.projectCount} projects</span>
                                     </td>
-                                    <td>
+                                    <td className="col-id">
+                                        <span className="badge badge-outline-theme">{row.engagementCount}</span>
+                                    </td>
+                                    <td className="col-id">
                                         {row.service_rules ? (
                                             <a
                                                 href="#"
@@ -178,7 +218,7 @@ export default function ClientsTable({
                                             '—'
                                         )}
                                     </td>
-                                    <td onClick={(e) => e.stopPropagation()}>
+                                    <td className="col-actions" onClick={(e) => e.stopPropagation()}>
                                         <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
                                             <Link to={`/clients/${row.client_id}/edit`} className="action-btn" title="Edit" onClick={(e) => e.stopPropagation()}>
                                                 <EditIcon />
@@ -202,7 +242,7 @@ export default function ClientsTable({
                                     className="client-nested-row"
                                     style={{ display: expanded ? undefined : 'none' }}
                                 >
-                                    <td colSpan={20} className="p-0">
+                                    <td colSpan={16} className="p-0">
                                         <div className="client-nested-wrapper" style={{ padding: '8px 12px' }}>
                                             <h4 className="client-nested-title" style={{ marginBottom: 8 }}>Users for {row.client_name}</h4>
                                             {clientUsers.length === 0 ? (
