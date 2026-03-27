@@ -116,6 +116,7 @@ export default function ProjectDetails() {
     const [project, setProject] = useState(null);
     const [participants, setParticipants] = useState([]);
     const [expandedExpertId, setExpandedExpertId] = useState(null);
+    const [expandedHistoryId, setExpandedHistoryId] = useState(null);
     const [statusFilter, setStatusFilter] = useState('All');
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [updatingId, setUpdatingId] = useState(null);
@@ -137,6 +138,9 @@ export default function ProjectDetails() {
             // Then Accepted, Invited, Leads if not already present
             for (const e of (status?.accepted || [])) {
                 if (!map.has(e.id)) map.set(e.id, { ...e, category: 'Accepted' });
+            }
+            for (const e of (status?.declined || [])) {
+                if (!map.has(e.id)) map.set(e.id, { ...e, category: 'Declined' });
             }
             for (const e of (status?.invited || [])) {
                 if (!map.has(e.id)) map.set(e.id, { ...e, category: 'Invited' });
@@ -172,7 +176,7 @@ export default function ProjectDetails() {
     }, [id]);
 
     const handleStatusChange = async (expertId, newCategory, currentCategory) => {
-        const catMap = { 'Leads': 'L', 'Invited': 'I', 'Accepted': 'A' };
+        const catMap = { 'Leads': 'L', 'Invited': 'I', 'Accepted': 'A', 'Declined': 'D' };
         const catCode = catMap[newCategory];
         if (!catCode) {
         // Handle Scheduled/Completed assignment
@@ -345,7 +349,7 @@ export default function ProjectDetails() {
   .p-filter-select { background: transparent; border: none; font-size: 0.75rem; font-weight: 600; color: #555; cursor: pointer; padding: 2px 4px; outline: none; }
   .p-filter-select:hover { color: #111; }
   /* Leads — blue */
-  .s-pending { background: #e8f0ff; border-color: #80a0e0; color: #1a3070; }
+  .s-pending { background: #16cb16; border-color: #16cb16; color: #1a3070; }
   /* Invited — yellow */
   .s-contacted { background: #fef9c3; border-color: #f59e0b; color: #854d0e; }
   /* Scheduled — light green */
@@ -354,6 +358,8 @@ export default function ProjectDetails() {
   .s-completed { background: #bbf7d0; border-color: #34d399; color: #065f46; }
   /* Accepted — leaf green */
   .s-accepted { background: #e6f4ea; border-color: #34a853; color: #1f6f3d; }
+  /* Declined — red */
+  .s-declined { background: #fee2e2; border-color: #fca5a5; color: #7f1d1d; }
   .bi { display: flex; flex-direction: column; gap: 5px; }
   .bi { display: flex; flex-direction: column; gap: 3px; }
   .bi-row { font-size: 0.81rem; color: #333333; display: flex; align-items: center; gap: 0; }
@@ -453,6 +459,7 @@ export default function ProjectDetails() {
                                 <option value="Leads">Leads</option>
                                 <option value="Invited">Invited</option>
                                 <option value="Accepted">Accepted</option>
+                                <option value="Declined">Declined</option>
                                 <option value="Scheduled">Scheduled</option>
                                 <option value="Completed">Completed</option>
                             </select>
@@ -467,10 +474,13 @@ export default function ProjectDetails() {
                         const linkedin = row.linkedin_url || null;
                         const statusLabel = row.category || '—';
                         const history = Array.isArray(row.employment_history) ? row.employment_history : [];
+                        const historyExpanded = expandedHistoryId === expertId;
+                        const visibleHistory = historyExpanded ? history : history.slice(0, 2);
                         let statusClass = 's-pending';
                         if (statusLabel === 'Leads') statusClass = 's-pending';
                         else if (statusLabel === 'Invited') statusClass = 's-contacted';
                         else if (statusLabel === 'Accepted') statusClass = 's-accepted';
+                        else if (statusLabel === 'Declined') statusClass = 's-declined';
                         else if (statusLabel === 'Scheduled') statusClass = 's-scheduled';
                         return (
                             <div className="p-row" key={`${expertId}-${idx}`}>
@@ -508,7 +518,8 @@ export default function ProjectDetails() {
                                 <div className="p-cell">
                                     <div className="p-history">
                                         {history.length > 0 ? (
-                                            history.map((exp, i) => (
+                                            <>
+                                            {visibleHistory.map((exp, i) => (
                                                 <div key={i} className="p-history-item">
                                                     <div className="p-history-role">{exp.role_title}</div>
                                                     <div className="p-history-company">{exp.company_name}</div>
@@ -516,7 +527,19 @@ export default function ProjectDetails() {
                                                         {exp.start_year || '??'} – {exp.end_year || 'Present'}
                                                     </div>
                                                 </div>
-                                            ))
+                                            ))}
+                                            {history.length > 2 && (
+                                                <span
+                                                    style={{ fontSize: '0.76rem', color: '#1a5ca8', fontWeight: 600, cursor: 'pointer' }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setExpandedHistoryId((prev) => (prev === expertId ? null : expertId));
+                                                    }}
+                                                >
+                                                    {historyExpanded ? ' less' : '... more'}
+                                                </span>
+                                            )}
+                                            </>
                                         ) : (
                                             <div style={{ color: '#999' }}>—</div>
                                         )}
@@ -535,6 +558,7 @@ export default function ProjectDetails() {
                                                 <option value="Leads">Leads</option>
                                                 <option value="Invited">Invited</option>
                                                 <option value="Accepted">Accepted</option>
+                                                <option value="Declined">Declined</option>
                                                 <option value="Scheduled">Scheduled</option>
                                                 <option value="Completed">Completed</option>
                                             </select>

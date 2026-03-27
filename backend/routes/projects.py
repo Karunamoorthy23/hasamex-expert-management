@@ -111,16 +111,19 @@ def set_expert_call_assignment(project_id):
             if len(completed_set) >= cap:
                 return jsonify({'error': 'Completed capacity reached'}), 400
             completed_set.add(expert_id)
-        # Move semantics: when assigning to S/C, remove from L/I/A lists
+        # Move semantics: when assigning to S/C, remove from L/I/A/D lists
         leads = set(project.leads_expert_ids or [])
         invited = set(project.invited_expert_ids or [])
         accepted = set(project.accepted_expert_ids or [])
+        declined = set(getattr(project, 'declined_expert_ids', []) or [])
         leads.discard(expert_id)
         invited.discard(expert_id)
         accepted.discard(expert_id)
+        declined.discard(expert_id)
         project.leads_expert_ids = list(leads)
         project.invited_expert_ids = list(invited)
         project.accepted_expert_ids = list(accepted)
+        project.declined_expert_ids = list(declined)
     project.expert_scheduled = list(scheduled_set)
     project.expert_call_completed = list(completed_set)
     db.session.commit()
@@ -426,6 +429,7 @@ def get_expert_status(project_id):
     leads = project.leads_expert_ids or []
     invited = project.invited_expert_ids or []
     accepted = project.accepted_expert_ids or []
+    declined = getattr(project, 'declined_expert_ids', []) or []
     scheduled_assigned = project.expert_scheduled or []
     completed_assigned = project.expert_call_completed or []
     return jsonify({
@@ -433,12 +437,14 @@ def get_expert_status(project_id):
             'leads': _fetch(leads),
             'invited': _fetch(invited),
             'accepted': _fetch(accepted),
+            'declined': _fetch(declined),
             'scheduled': _fetch(scheduled_assigned),
             'completed': _fetch(completed_assigned),
             'counts': {
                 'L': len(leads),
                 'I': len(invited),
                 'A': len(accepted),
+                'D': len(declined),
                 'S': len(scheduled_assigned),
                 'C': len(completed_assigned),
             }
@@ -451,22 +457,27 @@ def set_expert_status(project_id):
     data = request.get_json() or {}
     expert_id = (data.get('expert_id') or '').strip()
     category = (data.get('category') or '').strip().upper()
-    if not expert_id or category not in {'L', 'I', 'A'}:
+    if not expert_id or category not in {'L', 'I', 'A', 'D'}:
         return jsonify({'error': 'Invalid expert_id or category'}), 400
     leads = set(project.leads_expert_ids or [])
     invited = set(project.invited_expert_ids or [])
     accepted = set(project.accepted_expert_ids or [])
+    declined = set(getattr(project, 'declined_expert_ids', []) or [])
     leads.discard(expert_id)
     invited.discard(expert_id)
     accepted.discard(expert_id)
+    declined.discard(expert_id)
     if category == 'L':
         leads.add(expert_id)
     elif category == 'I':
         invited.add(expert_id)
     elif category == 'A':
         accepted.add(expert_id)
+    elif category == 'D':
+        declined.add(expert_id)
     project.leads_expert_ids = list(leads)
     project.invited_expert_ids = list(invited)
     project.accepted_expert_ids = list(accepted)
+    project.declined_expert_ids = list(declined)
     db.session.commit()
     return jsonify({'data': project.to_dict()})

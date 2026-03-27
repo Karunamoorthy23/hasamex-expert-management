@@ -6,6 +6,8 @@ import { fetchUserById, updateUser } from '../../api/users';
 import FilterDropdown from '../../components/experts/FilterDropdown';
 import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
+import LocationSelector from '../../components/location/LocationSelector';
+import { resolveTimezoneLabel } from '../../components/location/TimezoneResolver';
 
 export default function UserEditPage() {
     const { id } = useParams();
@@ -37,6 +39,8 @@ export default function UserEditPage() {
                 linkedin_url: u?.linkedin_url || '',
                 client_id: u?.client_id ? String(u.client_id) : null,
                 location: u?.location || '',
+                location_id: u?.location_id || null,
+                location_display_name: u?.location_display_name || '',
                 preferred_contact_method: u?.preferred_contact_method || '',
                 time_zone: u?.time_zone || '',
                 avg_calls_per_month: u?.avg_calls_per_month ?? '',
@@ -78,6 +82,7 @@ export default function UserEditPage() {
             await updateUser(id, {
                 ...form,
                 client_id: form.client_id ? Number(form.client_id) : null,
+                location_id: form.location_id ? Number(form.location_id) : null,
                 avg_calls_per_month: form.avg_calls_per_month ? Number(form.avg_calls_per_month) : null,
             });
             navigate('/users');
@@ -153,7 +158,26 @@ export default function UserEditPage() {
                         <div className="form-grid">
                             <div className="form-field">
                                 <label className="form-label">Location</label>
-                                <input className="form-input" value={form.location} onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))} />
+                                <LocationSelector
+                                    value={{ display_name: form.location_display_name || form.location }}
+                                    onChange={async (sel) => {
+                                        let label = sel.timezone || '';
+                                        try {
+                                            label = await resolveTimezoneLabel({
+                                                timezoneName: sel.timezone,
+                                                latitude: sel.latitude,
+                                                longitude: sel.longitude,
+                                            });
+                                        } catch {}
+                                        setForm((p) => ({
+                                            ...p,
+                                            location_id: sel.location_id,
+                                            location: sel.display_name,
+                                            location_display_name: sel.display_name,
+                                            time_zone: label || p.time_zone,
+                                        }));
+                                    }}
+                                />
                             </div>
                             <div className="form-field">
                                 <label className="form-label">Preferred Contact Method</label>

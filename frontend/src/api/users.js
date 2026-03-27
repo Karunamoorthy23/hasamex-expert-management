@@ -1,11 +1,20 @@
 import { http } from './http';
 
-export async function fetchUsers({ page = 1, limit = 20, search = '' } = {}) {
+export async function fetchUsers({ page = 1, limit = 20, search = '', filters = {} } = {}) {
     const query = new URLSearchParams({
         page: String(page),
         limit: String(limit),
         search,
     });
+    const appendCsv = (key, arr) => {
+        if (Array.isArray(arr) && arr.length) {
+            query.append(key, arr.join(','));
+        }
+    };
+    appendCsv('client_id', filters.client_id);
+    appendCsv('client_type', filters.client_type);
+    appendCsv('seniority', filters.seniority);
+    appendCsv('location', filters.location);
 
     try {
         const result = await http(`/users?${query.toString()}`);

@@ -90,6 +90,7 @@ def create_user():
         linkedin_url=data.get('linkedin_url'),
         client_id=data.get('client_id'),
         location=data.get('location'),
+        location_id=data.get('location_id'),
         preferred_contact_method=data.get('preferred_contact_method'),
         time_zone=data.get('time_zone'),
         avg_calls_per_month=data.get('avg_calls_per_month'),

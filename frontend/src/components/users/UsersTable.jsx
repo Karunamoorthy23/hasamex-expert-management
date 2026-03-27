@@ -70,24 +70,24 @@ export default function UsersTable({
                                 ariaLabel="Select all users"
                             />
                         </th>
-                        <th>User</th>
-                        <th>Client Name</th>
-                        <th>Client Type</th>
-                        <th>Designation / Title</th>
-                        <th>Email</th>
-                        <th>Phone</th>
-                        <th>Seniority</th>
-                        <th>LinkedIn</th>
-                        <th>Location</th>
-                        <th>Preferred Contact</th>
-                        <th>Time Zone</th>
-                        <th>Avg Calls / Month</th>
-                        <th>Status</th>
-                        <th>Project Count</th>
-                        <th>Engagements</th>
-                        <th>Research Analyst</th>
-                        <th>Account Manager</th>
-                        <th>Actions</th>
+                        <th className="col-name">User</th>
+                        <th className="col-name">Client Name</th>
+                        <th className="col-compact">Client Type</th>
+                        <th className="col-title">Designation / Title</th>
+                        <th className="col-compact">Email</th>
+                        <th className="col-id">Phone</th>
+                        <th className="col-compact">Seniority</th>
+                        <th className="col-id">LinkedIn</th>
+                        <th className="col-sector">Location</th>
+                        <th className="col-compact">Preferred Contact</th>
+                        <th className="col-id">Time Zone</th>
+                        <th className="col-id">Avg Calls / Month</th>
+                        <th className="col-status">Status</th>
+                        <th className="col-id">Project Count</th>
+                        <th className="col-id">Engagements</th>
+                        <th className="col-solution">Research Analyst</th>
+                        <th className="col-solution">Account Manager</th>
+                        <th className="col-actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -104,7 +104,7 @@ export default function UsersTable({
                                 >
                                     <Checkbox checked={selectedIds?.has(u.user_id) || false} onChange={() => onSelectUser?.(u.user_id)} />
                                 </td>
-                                <td>
+                                <td className="col-name">
                                     <div className="user-name-cell">
                                         <div>
                                             <div className="user-name">
@@ -116,19 +116,19 @@ export default function UsersTable({
                                         </div>
                                     </div>
                                 </td>
-                                <td>
+                                <td className="col-name">
                                     {u.client_id ? (
                                         <Link to={`/clients/${u.client_id}`}>{u.client_name || '—'}</Link>
                                     ) : (
                                         u.client_name || '—'
                                     )}
                                 </td>
-                                <td>{u.client_type || '—'}</td>
-                                <td>{u.designation_title || '—'}</td>
-                                <td>{u.email || '—'}</td>
-                                <td>{u.phone || '—'}</td>
-                                <td>{u.seniority || '—'}</td>
-                                <td>
+                                <td className="col-compact">{u.client_type || '—'}</td>
+                                <td className="col-title">{u.designation_title || '—'}</td>
+                                <td className="col-compact">{u.email || '—'}</td>
+                                <td className="col-id">{u.phone || '—'}</td>
+                                <td className="col-compact">{u.seniority || '—'}</td>
+                                <td className="col-id">
                                     {u.linkedin_url ? (
                                         <a href={u.linkedin_url} target="_blank" rel="noreferrer">
                                             LinkedIn
@@ -137,26 +137,26 @@ export default function UsersTable({
                                         '—'
                                     )}
                                 </td>
-                                <td>{u.location || '—'}</td>
-                                <td>{u.preferred_contact_method || '—'}</td>
-                                <td>{u.time_zone || '—'}</td>
-                                <td>{u.avg_calls_per_month ?? '—'}</td>
-                                <td>
+                                <td className="col-sector">{u.location || '—'}</td>
+                                <td className="col-compact">{u.preferred_contact_method || '—'}</td>
+                                <td className="col-id">{u.time_zone || '—'}</td>
+                                <td className="col-id">{u.avg_calls_per_month ?? '—'}</td>
+                                <td className="col-status">
                                     <span className={cn(statusBadgeClass(u.status))}>{u.status || '—'}</span>
                                 </td>
-                                <td><span className="badge badge-outline-theme">{c.proj}</span></td>
-                                <td><span className="badge badge-outline-theme">{c.eng}</span></td>
-                                <td>
+                                <td className="col-id"><span className="badge badge-outline-theme">{c.proj}</span></td>
+                                <td className="col-id"><span className="badge badge-outline-theme">{c.eng}</span></td>
+                                <td className="col-solution">
                                     {Array.isArray(u.client_solution_owner_names) && u.client_solution_owner_names.length
                                         ? u.client_solution_owner_names.join(', ')
                                         : '—'}
                                 </td>
-                                <td>
+                                <td className="col-solution">
                                     {Array.isArray(u.sales_team_names) && u.sales_team_names.length
                                         ? u.sales_team_names.join(', ')
                                         : '—'}
                                 </td>
-                                <td onClick={(e) => e.stopPropagation()}>
+                                <td className="col-actions" onClick={(e) => e.stopPropagation()}>
                                     <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
                                         <Link to={`/users/${u.user_id}/edit`} className="action-btn" title="Edit">
                                             <EditIcon />

@@ -293,6 +293,7 @@ class User(db.Model):
     location = db.Column(db.String(255))
     preferred_contact_method = db.Column(db.String(100))
     time_zone = db.Column(db.String(100))
+    location_id = db.Column(db.Integer, db.ForeignKey('lk_location.id', ondelete='SET NULL'), nullable=True)
     avg_calls_per_month = db.Column(db.Integer)
     status = db.Column(db.String(50))
     notes = db.Column(db.Text)
@@ -305,6 +306,7 @@ class User(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     client = db.relationship('Client', foreign_keys=[client_id])
+    rel_location = db.relationship('LkLocation', foreign_keys=[location_id], lazy='joined')
 
     def to_dict(self):
         full_name = " ".join([p for p in [self.first_name, self.last_name] if p]).strip() or None
@@ -341,6 +343,8 @@ class User(db.Model):
             'client_name': self.client.client_name if self.client else None,
             'client_type': self.client.client_type if self.client else None,
             'location': self.location,
+            'location_id': self.location_id,
+            'location_display_name': self.rel_location.display_name if self.rel_location else None,
             'preferred_contact_method': self.preferred_contact_method,
             'time_zone': self.time_zone,
             'avg_calls_per_month': self.avg_calls_per_month,
@@ -355,6 +359,19 @@ class User(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+class LkLocation(db.Model):
+    __tablename__ = 'lk_location'
+    id = db.Column(db.Integer, primary_key=True)
+    city = db.Column(db.String(100))
+    state = db.Column(db.String(100))
+    country = db.Column(db.String(100))
+    display_name = db.Column(db.Text)
+    latitude = db.Column(db.Float)
+    longitude = db.Column(db.Float)
+    timezone = db.Column(db.String(50))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class HasamexUser(db.Model):
@@ -591,6 +608,7 @@ class Project(db.Model):
     leads_expert_ids = db.Column(JSONB, nullable=False, default=list)
     invited_expert_ids = db.Column(JSONB, nullable=False, default=list)
     accepted_expert_ids = db.Column(JSONB, nullable=False, default=list)
+    declined_expert_ids = db.Column(JSONB, nullable=False, default=list)
     expert_scheduled = db.Column(JSONB, nullable=False, default=list)
     expert_call_completed = db.Column(JSONB, nullable=False, default=list)
     scheduled_calls_count = db.Column(db.Integer, default=0)
@@ -629,6 +647,7 @@ class Project(db.Model):
         leads = self.leads_expert_ids or []
         invited = self.invited_expert_ids or []
         accepted = self.accepted_expert_ids or []
+        declined = getattr(self, 'declined_expert_ids', []) or []
         scheduled_assigned = self.expert_scheduled or []
         completed_assigned = self.expert_call_completed or []
         s_count = self.scheduled_calls_count or 0
@@ -675,6 +694,7 @@ class Project(db.Model):
             'leads_count': len(leads),
             'invited_count': len(invited),
             'accepted_count': len(accepted),
+            'declined_count': len(declined),
             'scheduled_calls_count': s_count,
             'completed_calls_count': c_count,
             'expert_scheduled_count': len(scheduled_assigned),
@@ -684,6 +704,7 @@ class Project(db.Model):
             'leads_expert_ids': leads,
             'invited_expert_ids': invited,
             'accepted_expert_ids': accepted,
+            'declined_expert_ids': declined,
             'expert_scheduled': scheduled_assigned,
             'expert_call_completed': completed_assigned,
         }

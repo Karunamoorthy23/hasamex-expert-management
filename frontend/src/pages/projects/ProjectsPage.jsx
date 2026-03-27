@@ -127,7 +127,7 @@ export default function ProjectsPage() {
     const [statusOpen, setStatusOpen] = useState(false);
     const [statusLoading, setStatusLoading] = useState(false);
     const [activeProject, setActiveProject] = useState(null);
-    const [statusData, setStatusData] = useState({ leads: [], invited: [], accepted: [], scheduled: [], completed: [], counts: { L: 0, I: 0, A: 0, S: 0, C: 0 } });
+    const [statusData, setStatusData] = useState({ leads: [], invited: [], accepted: [], declined: [], scheduled: [], completed: [], counts: { L: 0, I: 0, A: 0, D: 0, S: 0, C: 0 } });
     const [statusSearch, setStatusSearch] = useState('');
     const [updatingId, setUpdatingId] = useState(null);
 
@@ -183,11 +183,12 @@ export default function ProjectsPage() {
                     leads: [...prev.leads],
                     invited: [...prev.invited],
                     accepted: [...prev.accepted],
+                    declined: [...prev.declined],
                     scheduled: [...prev.scheduled],
                     completed: [...prev.completed],
                 };
                 let obj = null;
-                for (const key of ['leads', 'invited', 'accepted', 'scheduled', 'completed']) {
+                for (const key of ['leads', 'invited', 'accepted', 'declined', 'scheduled', 'completed']) {
                     const idx = lists[key].findIndex((e) => e.id === expertId);
                     if (idx >= 0) {
                         obj = lists[key][idx];
@@ -195,9 +196,9 @@ export default function ProjectsPage() {
                         break;
                     }
                 }
-                const targetKey = nextCategory === 'L' ? 'leads' : nextCategory === 'I' ? 'invited' : nextCategory === 'A' ? 'accepted' : nextCategory === 'S' ? 'scheduled' : 'completed';
+                const targetKey = nextCategory === 'L' ? 'leads' : nextCategory === 'I' ? 'invited' : nextCategory === 'A' ? 'accepted' : nextCategory === 'D' ? 'declined' : nextCategory === 'S' ? 'scheduled' : 'completed';
                 if (!obj) {
-                    const sourceKey = currentCategory === 'L' ? 'leads' : currentCategory === 'I' ? 'invited' : currentCategory === 'A' ? 'accepted' : currentCategory === 'S' ? 'scheduled' : 'completed';
+                    const sourceKey = currentCategory === 'L' ? 'leads' : currentCategory === 'I' ? 'invited' : currentCategory === 'A' ? 'accepted' : currentCategory === 'D' ? 'declined' : currentCategory === 'S' ? 'scheduled' : 'completed';
                     const idx2 = lists[sourceKey].findIndex((e) => e.id === expertId);
                     if (idx2 >= 0) {
                         obj = lists[sourceKey][idx2];
@@ -211,10 +212,11 @@ export default function ProjectsPage() {
                     L: lists.leads.length,
                     I: lists.invited.length,
                     A: lists.accepted.length,
+                    D: lists.declined.length,
                     S: lists.scheduled.length,
                     C: lists.completed.length,
                 };
-                return { leads: lists.leads, invited: lists.invited, accepted: lists.accepted, scheduled: lists.scheduled, completed: lists.completed, counts };
+                return { leads: lists.leads, invited: lists.invited, accepted: lists.accepted, declined: lists.declined, scheduled: lists.scheduled, completed: lists.completed, counts };
             });
         } catch (err) {
             console.error('Failed to update expert category', err);
@@ -345,6 +347,7 @@ export default function ProjectsPage() {
                                 const leadsList = statusData.leads.filter(match);
                                 const invitedList = statusData.invited.filter(match);
                                 const acceptedList = statusData.accepted.filter(match);
+                                const declinedList = (statusData.declined || []).filter(match);
                                 const scheduledList = (statusData.scheduled || []).filter(match);
                                 const completedList = (statusData.completed || []).filter(match);
                                 const scheduledCapReached = (() => {
@@ -378,6 +381,7 @@ export default function ProjectsPage() {
                                                                     <option value="L">Leads</option>
                                                                     <option value="I">Invited</option>
                                                                     <option value="A">Accepted</option>
+                                                                    <option value="D">Declined</option>
                                                                     <option value="S" disabled={scheduledCapReached}>Scheduled</option>
                                                                     <option value="C" disabled={completedCapReached}>Completed</option>
                                                                 </select>
@@ -414,6 +418,7 @@ export default function ProjectsPage() {
                                                                     <option value="L">Leads</option>
                                                                     <option value="I">Invited</option>
                                                                     <option value="A">Accepted</option>
+                                                                    <option value="D">Declined</option>
                                                                     <option value="S" disabled={scheduledCapReached}>Scheduled</option>
                                                                     <option value="C" disabled={completedCapReached}>Completed</option>
                                                                 </select>
@@ -450,6 +455,7 @@ export default function ProjectsPage() {
                                                                     <option value="L">Leads</option>
                                                                     <option value="I">Invited</option>
                                                                     <option value="A">Accepted</option>
+                                                                    <option value="D">Declined</option>
                                                                     <option value="S" disabled={scheduledCapReached}>Scheduled</option>
                                                                     <option value="C" disabled={completedCapReached}>Completed</option>
                                                                 </select>
@@ -537,6 +543,43 @@ export default function ProjectsPage() {
                                                     ))}
                                                     {completedList.length === 0 && (
                                                         <tr><td colSpan="4">No completed experts</td></tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                            <label className="form-label">Declined (D)</label>
+                                            <table className="data-table">
+                                                <thead>
+                                                    <tr><th>Name</th><th>Email</th><th>Title</th><th>Category</th></tr>
+                                                </thead>
+                                                <tbody>
+                                                    {declinedList.map((e) => (
+                                                        <tr key={`D-${e.id}`}>
+                                                            <td>{e.name}</td>
+                                                            <td>{e.email}</td>
+                                                            <td>{e.title || '—'}</td>
+                                                            <td>
+                                                                <select value="D" onChange={(ev) => changeExpertCategory(e.id, ev.target.value, 'D')} disabled={updatingId === e.id}>
+                                                                    <option value="L">Leads</option>
+                                                                    <option value="I">Invited</option>
+                                                                    <option value="A">Accepted</option>
+                                                                    <option value="D">Declined</option>
+                                                                    <option value="S" disabled={scheduledCapReached}>Scheduled</option>
+                                                                    <option value="C" disabled={completedCapReached}>Completed</option>
+                                                                </select>
+                                                                {updatingId === e.id && (
+                                                                    <svg width="14" height="14" viewBox="0 0 50 50" style={{ marginLeft: 6 }}>
+                                                                        <circle cx="25" cy="25" r="20" stroke="#888" strokeWidth="5" fill="none" strokeDasharray="31.4 31.4">
+                                                                            <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+                                                                        </circle>
+                                                                    </svg>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {declinedList.length === 0 && (
+                                                        <tr><td colSpan="4">No declined experts</td></tr>
                                                     )}
                                                 </tbody>
                                             </table>

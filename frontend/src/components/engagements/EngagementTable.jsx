@@ -60,7 +60,7 @@ export default function EngagementTable({
                 <thead>
                     <tr>
                         {renderHeader('Engagement ID', 'engagement_id', 'col-id')}
-                        {renderHeader('Project', 'project_name', 'col-project')}
+                        {renderHeader('Project', 'project_name', 'col-title')}
                         {renderHeader('Call Date', 'call_date', 'col-date')}
                         {renderHeader('Duration', 'actual_call_duration_mins', 'col-duration')}
                         {renderHeader('Client Rate', 'client_rate', 'col-rate')}
@@ -77,7 +77,7 @@ export default function EngagementTable({
                             <td className="col-id">
                                 <span className="badge badge-outline-theme">{eng.engagement_id || '—'}</span>
                             </td>
-                            <td className="col-project">
+                            <td className="col-title">
                                 <div className="project-cell">
                                     <span className="project-name">{eng.project_name}</span>
                                     <span className="project-id">{eng.project_id}</span>

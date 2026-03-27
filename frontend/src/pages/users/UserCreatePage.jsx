@@ -5,6 +5,8 @@ import { fetchLookups } from '../../api/lookups';
 import { createUser } from '../../api/users';
 import FilterDropdown from '../../components/experts/FilterDropdown';
 import Button from '../../components/ui/Button';
+import LocationSelector from '../../components/location/LocationSelector';
+import { resolveTimezoneLabel } from '../../components/location/TimezoneResolver';
 
 export default function UserCreatePage() {
     const navigate = useNavigate();
@@ -32,6 +34,8 @@ export default function UserCreatePage() {
         ai_generated_bio: '',
         client_solution_owner_ids: [],
         sales_team_ids: [],
+        location_id: null,
+        location_display_name: '',
     });
 
     useEffect(() => {
@@ -62,6 +66,7 @@ export default function UserCreatePage() {
             await createUser({
                 ...form,
                 client_id: form.client_id ? Number(form.client_id) : null,
+                location_id: form.location_id ? Number(form.location_id) : null,
                 avg_calls_per_month: form.avg_calls_per_month ? Number(form.avg_calls_per_month) : null,
             });
             navigate('/users');
@@ -165,7 +170,26 @@ export default function UserCreatePage() {
                         <div className="form-grid">
                             <div className="form-field">
                                 <label className="form-label">Location</label>
-                                <input className="form-input" value={form.location} onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))} />
+                                <LocationSelector
+                                    value={{ display_name: form.location_display_name || form.location }}
+                                    onChange={async (sel) => {
+                                        let label = sel.timezone || '';
+                                        try {
+                                            label = await resolveTimezoneLabel({
+                                                timezoneName: sel.timezone,
+                                                latitude: sel.latitude,
+                                                longitude: sel.longitude,
+                                            });
+                                        } catch {}
+                                        setForm((p) => ({
+                                            ...p,
+                                            location_id: sel.location_id,
+                                            location: sel.display_name,
+                                            location_display_name: sel.display_name,
+                                            time_zone: label || p.time_zone,
+                                        }));
+                                    }}
+                                />
                             </div>
                             <div className="form-field">
                                 <label className="form-label">Preferred Contact Method</label>
