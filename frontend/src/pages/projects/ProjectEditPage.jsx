@@ -167,8 +167,7 @@ export default function ProjectEditPage() {
     return (
         <>
             <div className="page-header">
-                <h1 className="page-title">Edit Project</h1>
-                <p className="page-subtitle">Update project details</p>
+                <h1 className="page-title">Edit project details</h1>
             </div>
 
             <div className="card">

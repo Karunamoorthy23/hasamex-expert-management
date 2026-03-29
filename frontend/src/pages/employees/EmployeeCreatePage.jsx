@@ -55,9 +55,7 @@ export default function EmployeeCreatePage() {
     return (
         <>
             <div className="page-header">
-                <h1 className="page-title">Add Employee</h1>
-                <p className="page-subtitle">Create a new employee record</p>
-            </div>
+                <h1 className="page-title">Create a new employee record</h1>            </div>
             <div className="card">
                 <form className="expert-form" onSubmit={handleSubmit}>
                     <div className="form-section">

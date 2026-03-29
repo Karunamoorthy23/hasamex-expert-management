@@ -122,7 +122,7 @@ export default function EngagementModal({ isOpen, onClose, onSave, engagement, l
         <div className="modal-overlay">
             <div className="modal-content large">
                 <div className="modal-header">
-                    <h2>{engagement ? 'Edit Engagement' : 'Add New Engagement'}</h2>
+                    <h2>{engagement ? 'Edit Engagement' : 'Create New Engagement'}</h2>
                     <button className="modal-close" onClick={onClose}>&times;</button>
                 </div>
                 

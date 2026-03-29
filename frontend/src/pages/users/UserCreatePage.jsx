@@ -7,6 +7,7 @@ import FilterDropdown from '../../components/experts/FilterDropdown';
 import Button from '../../components/ui/Button';
 import LocationSelector from '../../components/location/LocationSelector';
 import { resolveTimezoneLabel } from '../../components/location/TimezoneResolver';
+import { http } from '../../api/http';
 
 export default function UserCreatePage() {
     const navigate = useNavigate();
@@ -63,10 +64,22 @@ export default function UserCreatePage() {
         e.preventDefault();
         setIsSaving(true);
         try {
+            let locId = form.location_id || null;
+            if (form.location_city && form.location_country) {
+                const payload = {
+                    city: form.location_city,
+                    country: form.location_country,
+                    lat: form.location_latitude,
+                    lng: form.location_longitude,
+                    display_name: form.location_display_name || form.location,
+                };
+                const res = await http('/location/save', { method: 'POST', body: JSON.stringify(payload) });
+                locId = res?.location_id || null;
+            }
             await createUser({
                 ...form,
                 client_id: form.client_id ? Number(form.client_id) : null,
-                location_id: form.location_id ? Number(form.location_id) : null,
+                location_id: locId ? Number(locId) : null,
                 avg_calls_per_month: form.avg_calls_per_month ? Number(form.avg_calls_per_month) : null,
             });
             navigate('/users');
@@ -78,8 +91,7 @@ export default function UserCreatePage() {
     return (
         <>
             <div className="page-header">
-                <h1 className="page-title">Add User</h1>
-                <p className="page-subtitle">Create a new client user</p>
+                <h1 className="page-title">Create a new client user</h1>
             </div>
 
             <div className="card">
@@ -173,7 +185,7 @@ export default function UserCreatePage() {
                                 <LocationSelector
                                     value={{ display_name: form.location_display_name || form.location }}
                                     onChange={async (sel) => {
-                                        let label = sel.timezone || '';
+                                        let label = '';
                                         try {
                                             label = await resolveTimezoneLabel({
                                                 timezoneName: sel.timezone,
@@ -183,9 +195,12 @@ export default function UserCreatePage() {
                                         } catch {}
                                         setForm((p) => ({
                                             ...p,
-                                            location_id: sel.location_id,
                                             location: sel.display_name,
                                             location_display_name: sel.display_name,
+                                            location_city: sel.city,
+                                            location_country: sel.country,
+                                            location_latitude: sel.latitude,
+                                            location_longitude: sel.longitude,
                                             time_zone: label || p.time_zone,
                                         }));
                                     }}

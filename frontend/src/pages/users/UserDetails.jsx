@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { fetchUserById } from '../../api/users';
-import { fetchProjectsPaged } from '../../api/projects';
 import Loader from '../../components/ui/Loader';
+import EngagementAssignmentsTable from '../../components/engagements/EngagementAssignmentsTable';
 
 export default function UserDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
     const [user, setUser] = useState(null);
-    const [assignedProjects, setAssignedProjects] = useState([]);
 
     useEffect(() => {
         let cancelled = false;
@@ -24,40 +23,10 @@ export default function UserDetails() {
         };
     }, [id]);
 
-    useEffect(() => {
-        let cancelled = false;
-        const uname = user?.user_name || null;
-        if (!uname) {
-            setAssignedProjects([]);
-            return;
-        }
-        fetchProjectsPaged({ search: uname, limit: 100 }).then((res) => {
-            if (cancelled) return;
-            setAssignedProjects(res?.data || []);
-        });
-        return () => {
-            cancelled = true;
-        };
-    }, [user?.user_name]);
-
     const nameDisplay = useMemo(() => {
         if (!user) return 'User';
         return user.full_name || user.user_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'User';
     }, [user]);
-
-    const assignedProjectsDisplay = useMemo(() => {
-        const rows = Array.isArray(assignedProjects) ? assignedProjects : [];
-        if (!rows.length) return '—';
-        return (
-            <ul className="proj-list">
-                {rows.map((p) => (
-                    <li key={p.project_id}>
-                        <Link to={`/projects/${p.project_id}`}>{p.project_title || p.title || `Project #${p.project_id}`}</Link>
-                    </li>
-                ))}
-            </ul>
-        );
-    }, [assignedProjects]);
 
     if (isLoading || !user) return <Loader rows={8} />;
 
@@ -140,8 +109,8 @@ export default function UserDetails() {
                         <div className="info-row"><div className="info-key">Time Zone</div><div>{user.time_zone || '—'}</div></div>
                         <div className="info-row"><div className="info-key">Avg Calls / Month</div><div>{user.avg_calls_per_month ?? '—'}</div></div>
                         <div className="divider"></div>
-                        <div className="sec-title">Assigned Projects</div>
-                        <div>{assignedProjectsDisplay}</div>
+                        <div className="sec-title">Engagements</div>
+                        <EngagementAssignmentsTable pocUserId={id} sticky={true} />
                         <div className="divider"></div>
                         <div className="sec-title">Notes</div>
                         <div className="desc-text">{user.notes || '—'}</div>

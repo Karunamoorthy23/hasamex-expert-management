@@ -93,8 +93,7 @@ export default function ClientCreatePage() {
     return (
         <>
             <div className="page-header">
-                <h1 className="page-title">Add Client</h1>
-                <p className="page-subtitle">Create a new client account</p>
+                <h1 className="page-title">Create a new client account</h1>
             </div>
 
             <div className="card">

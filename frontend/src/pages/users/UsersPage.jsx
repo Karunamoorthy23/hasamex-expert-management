@@ -170,7 +170,6 @@ export default function UsersPage() {
         <>
             <div className="page-header">
                 <h1 className="page-title">User Management</h1>
-                <p className="page-subtitle">Search and manage client users</p>
             </div>
 
             <div className={`card${filtersPanelOpen ? ' card--overflow-visible' : ''}`}>
@@ -219,7 +218,7 @@ export default function UsersPage() {
                     <div className="action-bar__actions">
                         <span className="badge badge-outline-theme">Users: {stats.totalUsers}</span>
                         <Button variant="primary" onClick={() => navigate('/users/new')}>
-                            + Add User
+                            + Create User
                         </Button>
                     </div>
                 </div>

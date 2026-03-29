@@ -65,7 +65,8 @@ export default function LocationSelector({ value, onChange }) {
             if (!s && parts.length > 1) s = parts[1];
             if (!country && parts.length) country = parts[parts.length - 1];
         }
-        const pieces = [c, s, country].filter(Boolean);
+        if (!c && s) c = s;
+        const pieces = [c, country].filter(Boolean);
         return pieces.join(', ');
     };
 
@@ -81,31 +82,16 @@ export default function LocationSelector({ value, onChange }) {
             if (!state && parts.length > 1) state = parts[1];
             if (!country && parts.length) country = parts[parts.length - 1];
         }
-        const payload = {
+        setQuery(compact);
+        setResults([]);
+        setOpen(false);
+        onChange?.({
+            display_name: compact,
             city,
-            state,
             country,
-            lat: item.lat,
-            lng: item.lon,
-            display_name: item.display_name,
-        };
-        try {
-            const res = await http('/location/save', { method: 'POST', body: JSON.stringify(payload) });
-            const location_id = res?.location_id || null;
-            const tz = res?.timezone || '';
-            setQuery(compact);
-            setResults([]);
-            setOpen(false);
-            onChange?.({
-                location_id,
-                display_name: compact,
-                timezone: tz,
-                latitude: typeof item.lat === 'string' ? parseFloat(item.lat) : item.lat,
-                longitude: typeof item.lon === 'string' ? parseFloat(item.lon) : item.lon,
-            });
-        } catch {
-            setOpen(false);
-        }
+            latitude: typeof item.lat === 'string' ? parseFloat(item.lat) : item.lat,
+            longitude: typeof item.lon === 'string' ? parseFloat(item.lon) : item.lon,
+        });
     };
 
     const list = useMemo(() => results.slice(0, 15), [results]);

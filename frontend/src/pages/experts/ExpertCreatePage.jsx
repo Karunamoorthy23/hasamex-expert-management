@@ -521,8 +521,7 @@ export default function ExpertCreatePage() {
             {/* Page Header */}
             <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                    <h1 className="page-title">Add New Expert</h1>
-                    <p className="page-subtitle">Fill in the details to create a new expert profile</p>
+                    <h1 className="page-title">Create New Expert</h1>
                 </div>
                 <Link to="/" className="btn btn--secondary btn--sm">
                     ← Back to List

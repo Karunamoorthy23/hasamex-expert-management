@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { http } from '../../api/http';
 
-export default function EngagementAssignmentsTable({ clientId, projectId, sticky = true, maxHeight = 420 }) {
+export default function EngagementAssignmentsTable({ clientId, projectId, pocUserId, sticky = true, maxHeight = 420 }) {
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -13,6 +13,7 @@ export default function EngagementAssignmentsTable({ clientId, projectId, sticky
         params.set('limit', '1000');
         if (clientId) params.set('client_id', String(clientId));
         if (projectId) params.set('project_id', String(projectId));
+        if (pocUserId) params.set('poc_user_id', String(pocUserId));
         http(`/engagements?${params.toString()}`).then((res) => {
             if (cancelled) return;
             setRows(Array.isArray(res?.data) ? res.data : []);
@@ -24,7 +25,7 @@ export default function EngagementAssignmentsTable({ clientId, projectId, sticky
             }
         });
         return () => { cancelled = true; };
-    }, [clientId, projectId]);
+    }, [clientId, projectId, pocUserId]);
 
     const items = useMemo(() => rows.map((e) => ({
         id: e.id,

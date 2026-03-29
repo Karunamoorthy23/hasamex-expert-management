@@ -147,8 +147,7 @@ export default function ProjectCreatePage() {
     return (
         <>
             <div className="page-header">
-                <h1 className="page-title">Add Project</h1>
-                <p className="page-subtitle">Create a new project record</p>
+                <h1 className="page-title">Create a new project record</h1>
             </div>
 
             <div className="card">

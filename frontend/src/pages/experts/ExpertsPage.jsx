@@ -276,7 +276,6 @@ export default function ExpertsPage() {
             {/* Page Title */}
             <div className="page-header">
                 <h1 className="page-title">Expert Management</h1>
-                <p className="page-subtitle">Search, filter, and manage expert profiles</p>
             </div>
 
             {/* Card wrapper */}

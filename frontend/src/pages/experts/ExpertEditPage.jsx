@@ -544,7 +544,6 @@ export default function ExpertEditPage() {
             <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
                     <h1 className="page-title">Edit Expert Details</h1>
-                    <p className="page-subtitle">Update information for expert {formData.expert_id}</p>
                 </div>
                 <Link to="/" className="btn btn--secondary btn--sm">
                     ← Back to List

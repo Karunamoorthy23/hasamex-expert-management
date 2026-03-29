@@ -89,10 +89,8 @@ def create_user():
         seniority=data.get('seniority'),
         linkedin_url=data.get('linkedin_url'),
         client_id=data.get('client_id'),
-        location=data.get('location'),
         location_id=data.get('location_id'),
         preferred_contact_method=data.get('preferred_contact_method'),
-        time_zone=data.get('time_zone'),
         avg_calls_per_month=data.get('avg_calls_per_month'),
         status=data.get('status'),
         notes=data.get('notes'),
@@ -112,7 +110,9 @@ def update_user(user_id):
         return jsonify({'error': 'No data provided'}), 400
 
     for key, value in data.items():
-        if hasattr(user, key) and key not in ['user_id', 'created_at', 'updated_at']:
+        if key in ['user_id', 'created_at', 'updated_at', 'location', 'time_zone']:
+            continue
+        if hasattr(user, key):
             setattr(user, key, value)
 
     # keep legacy user_name in sync if first/last updated and user_name not explicitly provided

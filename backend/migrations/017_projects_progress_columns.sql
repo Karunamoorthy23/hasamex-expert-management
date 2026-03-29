@@ -1,3 +1,4 @@
+-- also update the users table 009
 ALTER TABLE projects
   ADD COLUMN IF NOT EXISTS leads_expert_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS invited_expert_ids JSONB NOT NULL DEFAULT '[]'::jsonb,

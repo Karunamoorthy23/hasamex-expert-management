@@ -79,9 +79,6 @@ export default function UsersTable({
                         <th className="col-compact">Seniority</th>
                         <th className="col-id">LinkedIn</th>
                         <th className="col-sector">Location</th>
-                        <th className="col-compact">Preferred Contact</th>
-                        <th className="col-id">Time Zone</th>
-                        <th className="col-id">Avg Calls / Month</th>
                         <th className="col-status">Status</th>
                         <th className="col-id">Project Count</th>
                         <th className="col-id">Engagements</th>
@@ -138,9 +135,6 @@ export default function UsersTable({
                                     )}
                                 </td>
                                 <td className="col-sector">{u.location || '—'}</td>
-                                <td className="col-compact">{u.preferred_contact_method || '—'}</td>
-                                <td className="col-id">{u.time_zone || '—'}</td>
-                                <td className="col-id">{u.avg_calls_per_month ?? '—'}</td>
                                 <td className="col-status">
                                     <span className={cn(statusBadgeClass(u.status))}>{u.status || '—'}</span>
                                 </td>

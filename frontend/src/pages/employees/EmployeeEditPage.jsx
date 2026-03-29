@@ -65,8 +65,7 @@ export default function EmployeeEditPage() {
     return (
         <>
             <div className="page-header">
-                <h1 className="page-title">Edit Employee</h1>
-                <p className="page-subtitle">Update employee details</p>
+                <h1 className="page-title">Edit employee details</h1>
             </div>
             <div className="card">
                 <form className="expert-form" onSubmit={handleSubmit}>

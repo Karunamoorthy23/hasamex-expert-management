@@ -150,7 +150,6 @@ export default function ClientsPage() {
         <>
             <div className="page-header">
                 <h1 className="page-title">Client Management</h1>
-                <p className="page-subtitle">Search and manage client accounts</p>
             </div>
 
             <div className="card">
@@ -176,7 +175,7 @@ export default function ClientsPage() {
                         <span className="badge badge-outline-theme">Clients: {stats.totalClients}</span>
                         <span className="badge badge-outline-theme">Projects: {stats.totalProjects}</span>
                         <Button variant="primary" onClick={() => navigate('/clients/new')}>
-                            + Add Client
+                            + Create Client
                         </Button>
                     </div>
                 </div>

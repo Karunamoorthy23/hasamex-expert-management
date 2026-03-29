@@ -290,9 +290,7 @@ class User(db.Model):
     # FK to clients table (do NOT show in frontend table)
     client_id = db.Column(db.Integer, db.ForeignKey('clients.client_id', ondelete='SET NULL'), nullable=True)
 
-    location = db.Column(db.String(255))
     preferred_contact_method = db.Column(db.String(100))
-    time_zone = db.Column(db.String(100))
     location_id = db.Column(db.Integer, db.ForeignKey('lk_location.id', ondelete='SET NULL'), nullable=True)
     avg_calls_per_month = db.Column(db.Integer)
     status = db.Column(db.String(50))
@@ -342,11 +340,11 @@ class User(db.Model):
             'client_id': self.client_id,
             'client_name': self.client.client_name if self.client else None,
             'client_type': self.client.client_type if self.client else None,
-            'location': self.location,
+            'location': self.rel_location.display_name if self.rel_location else None,
             'location_id': self.location_id,
             'location_display_name': self.rel_location.display_name if self.rel_location else None,
             'preferred_contact_method': self.preferred_contact_method,
-            'time_zone': self.time_zone,
+            'time_zone': self.rel_location.timezone if self.rel_location else None,
             'avg_calls_per_month': self.avg_calls_per_month,
             'status': self.status,
             'notes': self.notes,
@@ -365,7 +363,6 @@ class LkLocation(db.Model):
     __tablename__ = 'lk_location'
     id = db.Column(db.Integer, primary_key=True)
     city = db.Column(db.String(100))
-    state = db.Column(db.String(100))
     country = db.Column(db.String(100))
     display_name = db.Column(db.Text)
     latitude = db.Column(db.Float)

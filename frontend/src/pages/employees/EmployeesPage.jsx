@@ -30,8 +30,7 @@ export default function EmployeesPage() {
     return (
         <>
             <div className="page-header">
-                <h1 className="page-title">Employees</h1>
-                <p className="page-subtitle">Internal team directory</p>
+                <h1 className="page-title">Employees / Internal team directory</h1>
             </div>
 
             <div className="card">
@@ -52,7 +51,7 @@ export default function EmployeesPage() {
                     <div className="action-bar__divider" aria-hidden="true" />
                     <div className="action-bar__actions">
                         <Button variant="primary" onClick={() => navigate('/employees/new')}>
-                            + Add Employee
+                            + Create Employee
                         </Button>
                         <Button variant="ghost" onClick={() => setRefreshKey((k) => k + 1)}>
                             Refresh

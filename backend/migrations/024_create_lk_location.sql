@@ -1,7 +1,6 @@
 CREATE TABLE IF NOT EXISTS lk_location (
     id SERIAL PRIMARY KEY,
     city VARCHAR(100),
-    state VARCHAR(100),
     country VARCHAR(100),
     display_name TEXT,
     latitude DOUBLE PRECISION,
@@ -10,6 +9,7 @@ CREATE TABLE IF NOT EXISTS lk_location (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_location_unique ON lk_location (city, state, country);
+-- Unique by city and country (state removed)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_location_unique_city_country ON lk_location (city, country);
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS location_id INT REFERENCES lk_location(id);

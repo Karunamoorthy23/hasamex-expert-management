@@ -112,8 +112,7 @@ export default function ClientEditPage() {
     return (
         <>
             <div className="page-header">
-                <h1 className="page-title">Edit Client</h1>
-                <p className="page-subtitle">Update client details</p>
+                <h1 className="page-title">Edit client details</h1>
             </div>
 
             <div className="card">
