@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { fetchProjectById, fetchProjectExperts } from '../../api/projects';
+import { useEffect, useMemo, useState, useRef, useLayoutEffect } from 'react';
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import { fetchProjectById, fetchProjectExpertStatus, setProjectExpertStatus, setProjectCallAssignment } from '../../api/projects';
 import { fetchClientById } from '../../api/clients';
-import { fetchExpertById } from '../../api/experts';
+import Modal from '../../components/ui/Modal';
+import { updateExpert } from '../../api/experts';
 import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
+import Checkbox from '../../components/ui/Checkbox';
 
 function DetailItem({ label, value, full }) {
     return (
@@ -15,13 +17,143 @@ function DetailItem({ label, value, full }) {
     );
 }
 
+function ExpandableBio({ bio, title, isExpanded, onToggle }) {
+    const bioRef = useRef(null);
+    const [hasMore, setHasMore] = useState(false);
+
+    useLayoutEffect(() => {
+        if (bioRef.current && bio) {
+            const lineHeight = 1.62 * 13.5; // 1.62 line-height * 13.5px font-size
+            const maxHeight = lineHeight * 3;
+            // Briefly remove clamp to measure full height
+            const currentClamp = bioRef.current.style.webkitLineClamp;
+            const currentDisplay = bioRef.current.style.display;
+            
+            bioRef.current.style.webkitLineClamp = 'initial';
+            bioRef.current.style.display = 'block';
+            
+            const fullHeight = bioRef.current.scrollHeight;
+            
+            // Restore
+            bioRef.current.style.webkitLineClamp = currentClamp;
+            bioRef.current.style.display = currentDisplay;
+
+            setHasMore(fullHeight > maxHeight + 5); // 5px buffer
+        }
+    }, [bio]);
+
+    if (!bio && !title) return <div className="p-bio">—</div>;
+
+    return (
+        <div className="p-bio-wrap">
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#111', marginBottom: 4 }}>{title || 'Expert'}</div>
+            {bio ? (
+                <div style={{ position: 'relative' }}>
+                    <div 
+                        ref={bioRef}
+                        className={`p-bio ${isExpanded ? 'expanded' : ''}`}
+                    >
+                        {bio}
+                    </div>
+                    {hasMore && (
+                        <span 
+                            className={`p-bio-more ${isExpanded ? 'expanded' : ''}`} 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onToggle();
+                            }}
+                        >
+                            {isExpanded ? ' less' : '... more'}
+                        </span>
+                    )}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
+function StarRating({ rating, onRate }) {
+    const [hover, setHover] = useState(0);
+    const stars = [1, 2, 3];
+
+    return (
+        <div 
+            className="star-rating-container" 
+            style={{ 
+                display: 'flex', 
+                gap: '0.25rem',
+                alignItems: 'center'
+            }}
+        >
+            {stars.map((star) => (
+                <svg
+                    key={star}
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill={(hover || rating) >= star ? "#FFD700" : "none"}
+                    stroke={(hover || rating) >= star ? "#FFD700" : "#999"}
+                    strokeWidth="2"
+                    onMouseEnter={() => setHover(star)}
+                    onMouseLeave={() => setHover(0)}
+                    onClick={() => {
+                        onRate(rating === star ? 0 : star);
+                    }}
+                    style={{ cursor: 'pointer', transition: 'transform 0.1s ease' }}
+                    className="star-svg"
+                >
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+            ))}
+        </div>
+    );
+}
+
 export default function ProjectDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
     const [project, setProject] = useState(null);
     const [participants, setParticipants] = useState([]);
-    const [expertDetails, setExpertDetails] = useState({});
+    const [expandedExpertId, setExpandedExpertId] = useState(null);
+    const [expandedHistoryId, setExpandedHistoryId] = useState(null);
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+    const [updatingId, setUpdatingId] = useState(null);
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [serviceOpen, setServiceOpen] = useState(false);
+    const [clientData, setClientData] = useState(null);
+
+    const loadParticipants = async () => {
+        try {
+            const status = await fetchProjectExpertStatus(id);
+            const map = new Map();
+            // Scheduled and Completed take precedence
+            for (const e of (status?.scheduled || [])) {
+                map.set(e.id, { ...e, category: 'Scheduled' });
+            }
+            for (const e of (status?.completed || [])) {
+                map.set(e.id, { ...e, category: 'Completed' });
+            }
+            // Then Accepted, Invited, Leads if not already present
+            for (const e of (status?.accepted || [])) {
+                if (!map.has(e.id)) map.set(e.id, { ...e, category: 'Accepted' });
+            }
+            for (const e of (status?.declined || [])) {
+                if (!map.has(e.id)) map.set(e.id, { ...e, category: 'Declined' });
+            }
+            for (const e of (status?.invited || [])) {
+                if (!map.has(e.id)) map.set(e.id, { ...e, category: 'Invited' });
+            }
+            for (const e of (status?.leads || [])) {
+                if (!map.has(e.id)) map.set(e.id, { ...e, category: 'Leads' });
+            }
+            setParticipants(Array.from(map.values()));
+        } catch (err) {
+            console.error('Failed to load participants', err);
+            setParticipants([]);
+        }
+    };
 
     useEffect(() => {
         let cancelled = false;
@@ -30,67 +162,110 @@ export default function ProjectDetails() {
             if (cancelled) return;
             setProject(p || null);
             setIsLoading(false);
-        });
-        (async () => {
-            try {
-                const rows = await fetchProjectExperts(id);
-                if (cancelled) return;
-                const baseRows = Array.isArray(rows) ? rows : [];
-                // augment with experts mapped on the client
-                let extraRows = [];
-                const proj = await fetchProjectById(id);
-                if (!cancelled && proj?.client_id) {
-                    const client = await fetchClientById(proj.client_id);
-                    const existingIds = new Set(baseRows.map((r) => r.expert_id));
-                    const clientExpertIds = Array.isArray(client?.expert_ids) ? client.expert_ids : [];
-                    extraRows = clientExpertIds
-                        .filter((eid) => !existingIds.has(eid))
-                        .map((eid) => ({ expert_id: eid, stage: 'Linked', call_completed: false, call_date: null, expert_rate: null }));
-                }
-                const finalRows = [...baseRows, ...extraRows];
-                setParticipants(finalRows);
-                // fetch expert details for richer info (email, linkedin)
-                const uniqueIds = Array.from(new Set(finalRows.map((r) => r.expert_id)));
-                const detailsEntries = await Promise.all(
-                    uniqueIds.map(async (eid) => {
-                        const det = await fetchExpertById(eid);
-                        return [eid, det];
-                    })
-                );
-                const map = {};
-                for (const [eid, det] of detailsEntries) {
-                    if (det) map[eid] = det;
-                }
-                setExpertDetails(map);
-            } catch (err) {
-                if (cancelled) return;
-                // fallback: try only client experts if project experts endpoint unavailable
-                const proj = await fetchProjectById(id);
-                if (proj?.client_id) {
-                    const client = await fetchClientById(proj.client_id);
-                    const clientExpertIds = Array.isArray(client?.expert_ids) ? client.expert_ids : [];
-                    const finalRows = clientExpertIds.map((eid) => ({ expert_id: eid, stage: 'Linked', call_completed: false, call_date: null, expert_rate: null }));
-                    setParticipants(finalRows);
-                    const detailsEntries = await Promise.all(
-                        clientExpertIds.map(async (eid) => {
-                            const det = await fetchExpertById(eid);
-                            return [eid, det];
-                        })
-                    );
-                    const map = {};
-                    for (const [eid, det] of detailsEntries) {
-                        if (det) map[eid] = det;
-                    }
-                    setExpertDetails(map);
-                } else {
-                    setParticipants([]);
-                }
+            const cid = p?.client_id;
+            if (cid) {
+                fetchClientById(cid).then((c) => {
+                    if (!cancelled) setClientData(c || null);
+                }).catch(() => {});
             }
-        })();
+        });
+        loadParticipants();
         return () => {
             cancelled = true;
         };
     }, [id]);
+
+    const handleStatusChange = async (expertId, newCategory, currentCategory) => {
+        const catMap = { 'Leads': 'L', 'Invited': 'I', 'Accepted': 'A', 'Declined': 'D' };
+        const catCode = catMap[newCategory];
+        if (!catCode) {
+        // Handle Scheduled/Completed assignment
+            if (newCategory === 'Scheduled' || newCategory === 'Completed') {
+                setIsUpdatingStatus(true);
+                setUpdatingId(expertId);
+                try {
+                    // switching to S/C — if currently S/C and different, remove previous
+                    if (currentCategory === 'Scheduled' || currentCategory === 'Completed') {
+                        const prevCode = currentCategory === 'Scheduled' ? 'S' : 'C';
+                        const nextCode = newCategory === 'Scheduled' ? 'S' : 'C';
+                        if (prevCode !== nextCode) {
+                            await setProjectCallAssignment(id, { expert_id: expertId, category: prevCode, action: 'REMOVE' });
+                        }
+                        await setProjectCallAssignment(id, { expert_id: expertId, category: nextCode, action: 'ADD' });
+                    } else {
+                        const code = newCategory === 'Scheduled' ? 'S' : 'C';
+                        await setProjectCallAssignment(id, { expert_id: expertId, category: code, action: 'ADD' });
+                    }
+                    await loadParticipants();
+                } catch (err) {
+                    console.error('Failed to update status:', err);
+                    alert('Failed to update status');
+                } finally {
+                    setUpdatingId(null);
+                    setIsUpdatingStatus(false);
+                }
+            }
+            return;
+        }
+
+        setIsUpdatingStatus(true);
+        setUpdatingId(expertId);
+        try {
+            // leaving S/C -> remove assignment before setting L/I/A
+            if (currentCategory === 'Scheduled' || currentCategory === 'Completed') {
+                const prevCode = currentCategory === 'Scheduled' ? 'S' : 'C';
+                await setProjectCallAssignment(id, { expert_id: expertId, category: prevCode, action: 'REMOVE' });
+            }
+            await setProjectExpertStatus(id, { expert_id: expertId, category: catCode });
+            await loadParticipants();
+        } catch (err) {
+            console.error('Failed to update status:', err);
+            alert('Failed to update status');
+        } finally {
+            setUpdatingId(null);
+            setIsUpdatingStatus(false);
+        }
+    };
+
+    const filteredParticipants = useMemo(() => {
+         let list = participants;
+         if (statusFilter !== 'All') {
+             list = participants.filter(p => p.category === statusFilter);
+         }
+         // Sort by rating descending (highest first)
+         return [...list].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+     }, [participants, statusFilter]);
+
+    const handleRateExpert = async (expertId, newRating) => {
+        try {
+            await updateExpert(expertId, { rating: newRating });
+            // Update local state to reflect the change immediately
+            setParticipants(prev => prev.map(p => 
+                (p.id === expertId || p.expert_id === expertId) ? { ...p, rating: newRating } : p
+            ));
+        } catch (err) {
+            console.error('Failed to update rating:', err);
+            alert('Failed to update rating');
+        }
+    };
+
+    const handleSelect = (expertId) => {
+        const newSelectedIds = new Set(selectedIds);
+        if (newSelectedIds.has(expertId)) {
+            newSelectedIds.delete(expertId);
+        } else {
+            newSelectedIds.add(expertId);
+        }
+        setSelectedIds(newSelectedIds);
+    };
+
+    const handleSelectAll = () => {
+        if (selectedIds.size === filteredParticipants.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(filteredParticipants.map(p => p.id || p.expert_id)));
+        }
+    };
 
     const receivedDate = useMemo(
         () => (project?.received_date ? new Date(project.received_date).toLocaleDateString() : '—'),
@@ -100,10 +275,7 @@ export default function ProjectDetails() {
         () => (project?.project_deadline ? new Date(project.project_deadline).toLocaleDateString() : '—'),
         [project?.project_deadline]
     );
-    const lastModified = useMemo(
-        () => (project?.last_modified_time ? new Date(project.last_modified_time).toLocaleString() : '—'),
-        [project?.last_modified_time]
-    );
+    // Removed unused lastModified calculation
 
     if (isLoading || !project) return <Loader rows={8} />;
 
@@ -113,7 +285,7 @@ export default function ProjectDetails() {
   *, *::before, *::after { box-sizing: border-box; padding: 0; }
   body { font-family: 'Inter', system-ui, sans-serif; background: #f0f0f0; color: #1a1a1a; font-size: 13.5px; line-height: 1.5; }
   a { color: #1a1a1a; text-decoration: none; }
-  .page { margin: 12px auto; background: #ffffff; border: 1px solid #c8c8c8; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.10); }
+  .page { margin: 12px auto; background: #ffffff; border: 1px solid #c8c8c8; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.10); }
   .hdr { background: #ffffff; border-bottom: 1px solid #d0d0d0; padding: 10px 14px 0 14px; position: relative; }
   .hdr-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 4px; }
   .hdr-title { font-size: 1.25rem; font-weight: 700; color: #111111; letter-spacing: -0.01em; }
@@ -144,26 +316,50 @@ export default function ProjectDetails() {
   .ideal-list { list-style: none; margin-bottom: 8px; display: flex; flex-direction: column; gap: 3px; }
   .ideal-list li { display: flex; align-items: flex-start; gap: 7px; font-size: 0.83rem; color: #333333; }
   .ideal-list li::before { content: '•'; color: #555555; flex-shrink: 0; font-size: 1rem; }
-  .participants-wrap { background: #ffffff; }
-  .p-bar { display: grid; grid-template-columns: 320px 160px 1fr; background: #ebebeb; border-bottom: 1px solid #c8c8c8; align-items: center; }
-  .p-bar-col { padding: 8px 12px; font-size: 0.8rem; font-weight: 600; color: #333333; display: flex; align-items: center; gap: 6px; }
+  .participants-wrap { background: #ffffff; width: 100%; }
+  .p-bar { display: grid; grid-template-columns: 3rem 6.5rem 1.5fr 2fr 0.8fr 1.5fr; background: #ebebeb; border-bottom: 1px solid #c8c8c8; align-items: center; position: sticky; top: 0; z-index: 10; }
+  .p-bar-col { padding: 0.75rem 1rem; font-size: 0.8rem; font-weight: 600; color: #333333; display: flex; align-items: center; gap: 0.5rem; }
   .p-bar-col:not(:last-child) { border-right: 1px solid #c8c8c8; }
-  .p-row { display: grid; grid-template-columns: 320px 160px 1fr; border-bottom: 1px solid #e4e4e4; align-items: stretch; }
+  .p-row { display: grid; grid-template-columns: 3rem 6.5rem 1.5fr 2fr 0.8fr 1.5fr; border-bottom: 1px solid #e4e4e4; align-items: stretch; }
   .p-row:last-child { border-bottom: none; }
-  .p-cell { padding: 10px 12px; vertical-align: top; }
+  .p-cell { padding: 10px 12px; vertical-align: top; overflow: hidden; }
   .p-cell:not(:last-child) { border-right: 1px solid #e4e4e4; }
   .p-name-row { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
   .p-name { font-size: 0.88rem; font-weight: 600; color: #111111; }
   .li-badge { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; background: #0a66c2; border-radius: 3px; }
   .li-badge svg { width: 20px; height: 20px; fill: white; }
-  .p-bio { font-size: 0.80rem; color: #444444; line-height: 1.62; }
-  .status-wrap { display: flex; align-items: flex-start; padding-top: 0; }
-  .s-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 0.76rem; font-weight: 500; padding: 4px 10px 4px 8px; border: 1px solid #c0c0c0; border-radius: 3px; background: #f7f7f7; color: #333333; white-space: nowrap; }
+  .id-badge { display: inline-flex; align-items: center; justify-content: center; padding: 2px 6px; font-size: 0.72rem; font-weight: 700; color: #333; background: #efefef; border: 1px solid #d0d0d0; border-radius: 3px; }
+  .p-history { font-size: 0.80rem; color: #444444; line-height: 1.5; }
+  .p-history-item { margin-bottom: 4px; }
+  .p-history-role { font-weight: 600; color: #111; }
+  .p-history-company { color: #555; }
+  .p-history-years { font-size: 0.72rem; color: #888; }
+  .p-bio-wrap { margin-top: 4px; position: relative; }
+  .p-bio { font-size: 0.80rem; color: #444444; line-height: 1.62; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; white-space: pre-wrap; padding-right: 0; }
+  .p-bio.expanded { -webkit-line-clamp: initial; display: block; padding-bottom: 20px; }
+  .p-bio-more { font-size: 0.76rem; color: #1a5ca8; font-weight: 600; cursor: pointer; background: #ffffff; padding-left: 4px; }
+  .p-bio-more:not(.expanded) { position: absolute; bottom: 0; right: 0; box-shadow: -10px 0 10px #ffffff; }
+  .p-bio-more.expanded { position: absolute; bottom: 0; right: 0; }
+  .p-bio-more:hover { text-decoration: underline; }
+  .status-wrap { display: flex; align-items: flex-start; padding-top: 0; position: relative; }
+  .s-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 0.76rem; font-weight: 500; padding: 4px 10px 4px 8px; border: 1px solid #c0c0c0; border-radius: 3px; background: #f7f7f7; color: #333333; white-space: nowrap; cursor: pointer; }
+  .s-chip:hover { border-color: #888; }
   .s-chip .arrow { font-size: 0.65rem; color: #888; }
-  .s-scheduled { background: #fffbf0; border-color: #e0c060; color: #7a5500; }
-  .s-completed { background: #f0faf4; border-color: #70c090; color: #1a5c35; }
-  .s-pending { background: #f0f5ff; border-color: #80a0e0; color: #1a3070; }
-  .s-contacted { background: #f5f5f5; border-color: #b0b0b0; color: #444444; }
+  .status-select { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+  .p-filter-select { background: transparent; border: none; font-size: 0.75rem; font-weight: 600; color: #555; cursor: pointer; padding: 2px 4px; outline: none; }
+  .p-filter-select:hover { color: #111; }
+  /* Leads — blue */
+  .s-pending { background: #16cb16; border-color: #16cb16; color: #1a3070; }
+  /* Invited — yellow */
+  .s-contacted { background: #fef9c3; border-color: #f59e0b; color: #854d0e; }
+  /* Scheduled — light green */
+  .s-scheduled { background: #dcfce7; border-color: #86efac; color: #166534; }
+  /* Completed — green */
+  .s-completed { background: #bbf7d0; border-color: #34d399; color: #065f46; }
+  /* Accepted — leaf green */
+  .s-accepted { background: #e6f4ea; border-color: #34a853; color: #1f6f3d; }
+  /* Declined — red */
+  .s-declined { background: #fee2e2; border-color: #fca5a5; color: #7f1d1d; }
   .bi { display: flex; flex-direction: column; gap: 5px; }
   .bi { display: flex; flex-direction: column; gap: 3px; }
   .bi-row { font-size: 0.81rem; color: #333333; display: flex; align-items: center; gap: 0; }
@@ -178,7 +374,7 @@ export default function ProjectDetails() {
                         <button className="btn-edit" onClick={() => navigate(`/projects/${project.project_id}/edit`)}>Edit Project</button>
                     </div>
                     <div className="hdr-subtitle">
-                        Client: <strong>{project.client_id ? <a href={`/clients/${project.client_id}`}>{project.client_name || `#${project.client_id}`}</a> : (project.client_name || `#${project.client_id}`)}</strong> • PoC: <strong>{project.poc_user_id ? <a href={`/users/${project.poc_user_id}`}>{project.poc_user_name || '—'}</a> : (project.poc_user_name || '—')}</strong> • Status: <strong>{project.status || '—'}</strong>
+                        Client: <strong>{project.client_id ? <a href={`/clients/${project.client_id}`}>{project.client_name || `#${project.client_id}`}</a> : (project.client_name || `#${project.client_id}`)}</strong> • PoC: <strong>{project.poc_user_id ? <a href={`/users/${project.poc_user_id}`}>{project.poc_user_name || '—'}</a> : (project.poc_user_name || '—')}</strong> • Status: <strong>{project.status || '—'}</strong> • <a href="#" onClick={(e) => { e.preventDefault(); setServiceOpen(true); }}>Service Rules</a>
                     </div>
                     <div className="team-row">
                         <div className="team-member">
@@ -197,6 +393,17 @@ export default function ProjectDetails() {
                         </div>
                     </div>
                 </div>
+                {serviceOpen && (
+                    <Modal
+                        open={serviceOpen}
+                        onClose={() => setServiceOpen(false)}
+                        title="Service Rules"
+                    >
+                        <div className="desc-text" style={{ whiteSpace: 'pre-wrap' }}>
+                            {clientData?.service_rules || '—'}
+                        </div>
+                    </Modal>
+                )}
                 <div className="body-split">
                     <div className="left-pane">
                         <div className="sec-title">Project Description</div>
@@ -230,45 +437,148 @@ export default function ProjectDetails() {
                 </div>
                 <div className="participants-wrap">
                     <div className="p-bar">
-                        <div className="p-bar-col">Participants</div>
-                        <div className="p-bar-col">Status</div>
+                        <div className="p-bar-col">
+                            <Checkbox 
+                                id="select-all-participants"
+                                checked={selectedIds.size === filteredParticipants.length && filteredParticipants.length > 0}
+                                onChange={handleSelectAll}
+                                ariaLabel="Select all participants"
+                            />
+                        </div>
+                        <div className="p-bar-col" title="Favorite">Fav</div>
+                        <div className="p-bar-col">Participants ({filteredParticipants.length})</div>
+                        <div className="p-bar-col">Employment History</div>
+                        <div className="p-bar-col">
+                            Status
+                            <select 
+                                className="p-filter-select"
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                            >
+                                <option value="All">All</option>
+                                <option value="Leads">Leads</option>
+                                <option value="Invited">Invited</option>
+                                <option value="Accepted">Accepted</option>
+                                <option value="Declined">Declined</option>
+                                <option value="Scheduled">Scheduled</option>
+                                <option value="Completed">Completed</option>
+                            </select>
+                        </div>
                         <div className="p-bar-col">Basic Info</div>
                     </div>
-                    {(participants || []).map((row, idx) => {
-                        const det = expertDetails[row.expert_id] || null;
-                        const name = det ? `${det.first_name || ''} ${det.last_name || ''}`.trim() || det.title_headline || 'Expert' : 'Expert';
-                        const linkedin = det?.linkedin_url || null;
-                        const email = det?.primary_email || det?.secondary_email || '—';
-                        const phone = det?.primary_phone || det?.secondary_phone || '—';
-                        const rate = typeof row.expert_rate === 'number' ? row.expert_rate : det?.hourly_rate;
+                    {filteredParticipants.map((row, idx) => {
+                        const expertId = row.id || row.expert_id;
+                        const name = row.name || 'Expert';
+                        const email = row.email || '—';
+                        const phone = row.phone || '—';
+                        const linkedin = row.linkedin_url || null;
+                        const statusLabel = row.category || '—';
+                        const history = Array.isArray(row.employment_history) ? row.employment_history : [];
+                        const historyExpanded = expandedHistoryId === expertId;
+                        const visibleHistory = historyExpanded ? history : history.slice(0, 2);
                         let statusClass = 's-pending';
-                        let statusLabel = 'Pending';
-                        if (row.call_completed) { statusClass = 's-completed'; statusLabel = 'Completed'; }
-                        else if (row.call_date) { statusClass = 's-scheduled'; statusLabel = 'Scheduled'; }
-                        else if ((row.stage || '').toLowerCase().includes('contact')) { statusClass = 's-contacted'; statusLabel = 'Contacted'; }
+                        if (statusLabel === 'Leads') statusClass = 's-pending';
+                        else if (statusLabel === 'Invited') statusClass = 's-contacted';
+                        else if (statusLabel === 'Accepted') statusClass = 's-accepted';
+                        else if (statusLabel === 'Declined') statusClass = 's-declined';
+                        else if (statusLabel === 'Scheduled') statusClass = 's-scheduled';
                         return (
-                            <div className="p-row" key={`${row.expert_id}-${idx}`}>
+                            <div className="p-row" key={`${expertId}-${idx}`}>
+                                <div className="p-cell">
+                                    <Checkbox 
+                                        id={`select-expert-${expertId}`}
+                                        checked={selectedIds.has(expertId)}
+                                        onChange={() => handleSelect(expertId)}
+                                        ariaLabel={`Select ${name}`}
+                                    />
+                                </div>
+                                <div className="p-cell">
+                                    <StarRating 
+                                        rating={row.rating || 0} 
+                                        onRate={(newRating) => handleRateExpert(expertId, newRating)} 
+                                    />
+                                </div>
                                 <div className="p-cell">
                                     <div className="p-name-row">
                                         <div className="p-name">{name}</div>
+                                        {row.expert_code ? <span className="id-badge" title="Expert Number">{row.expert_code}</span> : null}
                                         {linkedin ? (
                                             <a className="li-badge" href={linkedin} target="_blank" rel="noreferrer" title="LinkedIn">
                                                 <svg viewBox="0 0 72 72"><path d="M16.5,29.5h7.1V56H16.5V29.5z M20.1,16.5c2.3,0,3.9,1.6,3.9,3.6c0,2-1.6,3.6-3.9,3.6h0c-2.3,0-3.9-1.6-3.9-3.6 C16.2,18.1,17.8,16.5,20.1,16.5z M29.5,29.5h6.8v3.6h0.1c0.9-1.7,3.2-3.5,6.6-3.5c7,0,8.3,4.6,8.3,10.6V56h-7.1V42.6 c0-3.2-0.1-7.3-4.5-7.3c-4.5,0-5.2,3.5-5.2,7.1V56h-7.1V29.5z" fill="white"></path></svg>
                                             </a>
                                         ) : null}
                                     </div>
-                                    <div className="p-bio">{det?.title_headline || det?.bio || '—'}</div>
+                                    <ExpandableBio 
+                                        bio={row.bio} 
+                                        title={row.title} 
+                                        isExpanded={expandedExpertId === expertId}
+                                        onToggle={() => setExpandedExpertId(expandedExpertId === expertId ? null : expertId)}
+                                    />
+                                </div>
+                                <div className="p-cell">
+                                    <div className="p-history">
+                                        {history.length > 0 ? (
+                                            <>
+                                            {visibleHistory.map((exp, i) => (
+                                                <div key={i} className="p-history-item">
+                                                    <div className="p-history-role">{exp.role_title}</div>
+                                                    <div className="p-history-company">{exp.company_name}</div>
+                                                    <div className="p-history-years">
+                                                        {exp.start_year || '??'} – {exp.end_year || 'Present'}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {history.length > 2 && (
+                                                <span
+                                                    style={{ fontSize: '0.76rem', color: '#1a5ca8', fontWeight: 600, cursor: 'pointer' }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setExpandedHistoryId((prev) => (prev === expertId ? null : expertId));
+                                                    }}
+                                                >
+                                                    {historyExpanded ? ' less' : '... more'}
+                                                </span>
+                                            )}
+                                            </>
+                                        ) : (
+                                            <div style={{ color: '#999' }}>—</div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="p-cell">
                                     <div className="status-wrap">
-                                        <span className={`s-chip ${statusClass}`}><span className="arrow">▶</span>{statusLabel}</span>
+                                        <div className={`s-chip ${statusClass}`}>
+                                            <span className="arrow">▶</span>{statusLabel}
+                                            <select 
+                                                className="status-select"
+                                                value={statusLabel}
+                                                disabled={isUpdatingStatus || updatingId === expertId}
+                                                onChange={(e) => handleStatusChange(expertId, e.target.value, statusLabel)}
+                                            >
+                                                <option value="Leads">Leads</option>
+                                                <option value="Invited">Invited</option>
+                                                <option value="Accepted">Accepted</option>
+                                                <option value="Declined">Declined</option>
+                                                <option value="Scheduled">Scheduled</option>
+                                                <option value="Completed">Completed</option>
+                                            </select>
+                                            {updatingId === expertId && (
+                                                <svg width="14" height="14" viewBox="0 0 50 50" style={{ marginLeft: 6 }}>
+                                                    <circle cx="25" cy="25" r="20" stroke="#888" strokeWidth="5" fill="none" strokeDasharray="31.4 31.4">
+                                                        <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+                                                    </circle>
+                                                </svg>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="p-cell">
                                     <div className="bi">
                                         <div className="bi-row email">{email}</div>
                                         <div className="bi-row">{phone}</div>
-                                        <div className="bi-row">Fee: <span className="bi-fee">{rate ? `$${Number(rate).toFixed(2)}` : '—'}</span></div>
+                                        <div className="bi-row">Loc: {row.location || '—'} ({row.timezone || '—'})</div>
+                                        <div className="bi-row">Research Analysts: {row.client_solution_owner_name || '—'}</div>
+                                        <div className="bi-row">Fee: <span className="bi-fee">—</span></div>
                                     </div>
                                 </div>
                             </div>

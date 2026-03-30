@@ -61,7 +61,7 @@ def get_all_lookups():
         'experts_owner_map': experts_owner_map,
         'clients': [{'id': item.client_id, 'name': item.client_name} for item in Client.query.order_by(Client.client_name).all()],
         'users': [{'id': item.user_id, 'name': item.user_name} for item in User.query.order_by(User.user_name).all()],
-        'hasamex_users': [{'id': item.id, 'name': item.username} for item in HasamexUser.query.filter_by(is_active=True).all()],
+        'hasamex_users': [{'id': item.id, 'name': (" ".join([p for p in [item.first_name, item.last_name] if p]).strip() or item.username)} for item in HasamexUser.query.filter_by(is_active=True).all()],
         'currencies': [{'id': item.id, 'name': item.name} for item in LkCurrency.query.order_by(LkCurrency.id).all()],
     }
 

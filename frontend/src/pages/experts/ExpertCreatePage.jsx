@@ -63,7 +63,7 @@ const FORM_SECTIONS = [
             { name: 'hcms_classification', label: 'HCMS Classification', type: 'select', lookupCategory: 'hcms_classification', gridSpan: 1 },
             { name: 'total_calls_completed', label: 'Total Calls Completed', type: 'number', gridSpan: 1 },
             { name: 'project_id_added_to', label: 'Project ID Added To', type: 'text', gridSpan: 1 },
-            { name: 'client_solution_owner_id', label: 'Client Solution', type: 'select_hx_user', lookupCategory: 'hasamex_users', gridSpan: 1 },
+            { name: 'client_solution_owner_id', label: 'Research Analyst', type: 'select_hx_user', lookupCategory: 'hasamex_users', gridSpan: 1 },
         ],
     },
     {
@@ -521,8 +521,7 @@ export default function ExpertCreatePage() {
             {/* Page Header */}
             <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                    <h1 className="page-title">Add New Expert</h1>
-                    <p className="page-subtitle">Fill in the details to create a new expert profile</p>
+                    <h1 className="page-title">Create New Expert</h1>
                 </div>
                 <Link to="/" className="btn btn--secondary btn--sm">
                     ← Back to List

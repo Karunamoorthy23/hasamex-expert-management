@@ -5,7 +5,7 @@ SQLAlchemy models for Hasamex Expert Database.
 import uuid
 from datetime import datetime
 from extensions import db
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 
 class LkRegion(db.Model):
@@ -171,6 +171,7 @@ class Expert(db.Model):
     payment_details = db.Column(db.Text)
     events_invited_to = db.Column(db.Text)
     profile_pdf_url = db.Column(db.String(500))
+    rating = db.Column(db.Integer, default=0)
     last_modified = db.Column(db.DateTime)
     total_calls_completed = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -203,6 +204,8 @@ class Expert(db.Model):
     def hcms_classification(self): return self.rel_hcms_classification.name if self.rel_hcms_classification else None
     @property
     def expert_status(self): return self.rel_expert_status.name if self.rel_expert_status else None
+    @property
+    def client_solution_owner_name(self): return self.rel_client_solution_owner.username if self.rel_client_solution_owner else None
 
     @property
     def strength_topics(self):
@@ -247,6 +250,7 @@ class Expert(db.Model):
             'hourly_rate': float(self.hourly_rate) if self.hourly_rate else None,
             'hcms_classification': self.hcms_classification,
             'expert_status': self.expert_status,
+            'rating': self.rating,
             'notes': self.notes,
             'payment_details': self.payment_details,
             'events_invited_to': self.events_invited_to,
@@ -286,12 +290,11 @@ class User(db.Model):
     # FK to clients table (do NOT show in frontend table)
     client_id = db.Column(db.Integer, db.ForeignKey('clients.client_id', ondelete='SET NULL'), nullable=True)
 
-    location = db.Column(db.String(255))
     preferred_contact_method = db.Column(db.String(100))
-    time_zone = db.Column(db.String(100))
+    location_id = db.Column(db.Integer, db.ForeignKey('lk_location.id', ondelete='SET NULL'), nullable=True)
     avg_calls_per_month = db.Column(db.Integer)
     status = db.Column(db.String(50))
-    notes = db.Column(db.Text)
+    notes = db.Column(JSONB)
     user_manager = db.Column(db.String(255))
     ai_generated_bio = db.Column(db.Text)
     client_solution_owner_ids = db.Column(db.Text)
@@ -301,6 +304,7 @@ class User(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     client = db.relationship('Client', foreign_keys=[client_id])
+    rel_location = db.relationship('LkLocation', foreign_keys=[location_id], lazy='joined')
 
     def to_dict(self):
         full_name = " ".join([p for p in [self.first_name, self.last_name] if p]).strip() or None
@@ -336,9 +340,11 @@ class User(db.Model):
             'client_id': self.client_id,
             'client_name': self.client.client_name if self.client else None,
             'client_type': self.client.client_type if self.client else None,
-            'location': self.location,
+            'location': self.rel_location.display_name if self.rel_location else None,
+            'location_id': self.location_id,
+            'location_display_name': self.rel_location.display_name if self.rel_location else None,
             'preferred_contact_method': self.preferred_contact_method,
-            'time_zone': self.time_zone,
+            'time_zone': self.rel_location.timezone if self.rel_location else None,
             'avg_calls_per_month': self.avg_calls_per_month,
             'status': self.status,
             'notes': self.notes,
@@ -353,16 +359,38 @@ class User(db.Model):
         }
 
 
+class LkLocation(db.Model):
+    __tablename__ = 'lk_location'
+    id = db.Column(db.Integer, primary_key=True)
+    city = db.Column(db.String(100))
+    country = db.Column(db.String(100))
+    display_name = db.Column(db.Text)
+    latitude = db.Column(db.Float)
+    longitude = db.Column(db.Float)
+    timezone = db.Column(db.String(50))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 class HasamexUser(db.Model):
     __tablename__ = 'hasamex_users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(120), nullable=False)
+    first_name = db.Column(db.String(120))
+    last_name = db.Column(db.String(120))
+    title = db.Column(db.String(255))
+    pan_number = db.Column(db.String(20))
+    aadhar_number = db.Column(db.String(20))
+    date_of_joining = db.Column(db.Date)
+    linkedin_url = db.Column(db.String(500))
+    mobile = db.Column(db.String(50))
+    reporting_manager_id = db.Column(db.Integer, db.ForeignKey('hasamex_users.id', ondelete='SET NULL'))
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.Text, nullable=False)
     role = db.Column(db.String(50))
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    manager = db.relationship('HasamexUser', remote_side=[id], lazy='joined')
 
     def to_auth_dict(self):
         return {
@@ -371,6 +399,29 @@ class HasamexUser(db.Model):
             'role': self.role,
             'username': self.username,
             'is_active': self.is_active,
+        }
+    
+    def to_dict(self):
+        display_name = " ".join([p for p in [self.first_name, self.last_name] if p]).strip() or self.username
+        return {
+            'id': self.id,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'email': self.email,
+            'title': self.title,
+            'role': self.role,
+            'pan_number': self.pan_number,
+            'aadhar_number': self.aadhar_number,
+            'date_of_joining': self.date_of_joining.isoformat() if self.date_of_joining else None,
+            'linkedin_url': self.linkedin_url,
+            'mobile': self.mobile,
+            'reporting_manager_id': self.reporting_manager_id,
+            'reporting_manager_name': (" ".join([p for p in [self.manager.first_name, self.manager.last_name] if p]).strip()) if self.manager else None,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'username': self.username,
+            'display_name': display_name,
         }
 
 
@@ -428,6 +479,7 @@ class Client(db.Model):
     users = db.Column(db.Text)  # free-text list of client users
     number_of_users = db.Column(db.Integer)
     msa = db.Column(db.Text)
+    service_rules = db.Column(db.Text)
 
     # New: client solution owners (Hasamex users), sales team (Hasamex users), and linked experts
     client_solution_owner_ids = db.Column(db.Text)  # comma-separated hasamex_user ids
@@ -501,6 +553,7 @@ class Client(db.Model):
             'users': self.users,
             'number_of_users': self.number_of_users,
             'msa': self.msa,
+            'service_rules': self.service_rules,
             # new fields
             'client_solution_owner_ids': sol_ids,
             'client_solution_owner_names': [u.username for u in sol_users],
@@ -545,9 +598,19 @@ class Project(db.Model):
     project_created_by = db.Column(db.String(255))
     last_modified_time = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    engagement_ids = db.Column(JSONB, nullable=False, default=list)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     client_solution_owner_ids = db.Column(db.Text)
     sales_team_ids = db.Column(db.Text)
+    leads_expert_ids = db.Column(JSONB, nullable=False, default=list)
+    invited_expert_ids = db.Column(JSONB, nullable=False, default=list)
+    accepted_expert_ids = db.Column(JSONB, nullable=False, default=list)
+    declined_expert_ids = db.Column(JSONB, nullable=False, default=list)
+    expert_scheduled = db.Column(JSONB, nullable=False, default=list)
+    expert_call_completed = db.Column(JSONB, nullable=False, default=list)
+    scheduled_calls_count = db.Column(db.Integer, default=0)
+    completed_calls_count = db.Column(db.Integer, default=0)
+    goal_calls_count = db.Column(db.Integer, default=0)
 
     allocations = db.relationship('ProjectExpert', backref='project', lazy=True, cascade='all, delete-orphan')
     calls = db.relationship('Call', backref='project', lazy=True, cascade='all, delete-orphan')
@@ -578,6 +641,21 @@ class Project(db.Model):
         sales_ids = _to_int_list(self.sales_team_ids)
         sol_users = HasamexUser.query.filter(HasamexUser.id.in_(sol_ids)).all() if sol_ids else []
         sales_users = HasamexUser.query.filter(HasamexUser.id.in_(sales_ids)).all() if sales_ids else []
+        leads = self.leads_expert_ids or []
+        invited = self.invited_expert_ids or []
+        accepted = self.accepted_expert_ids or []
+        declined = getattr(self, 'declined_expert_ids', []) or []
+        scheduled_assigned = self.expert_scheduled or []
+        completed_assigned = self.expert_call_completed or []
+        s_count = self.scheduled_calls_count or 0
+        c_count = self.completed_calls_count or 0
+        g_count = self.goal_calls_count or 0
+        progress = 0.0
+        if g_count and g_count > 0:
+            try:
+                progress = round((c_count / g_count) * 100, 2)
+            except Exception:
+                progress = 0.0
         return {
             'project_id': self.project_id,
             'client_id': self.client_id,
@@ -610,6 +688,22 @@ class Project(db.Model):
             'last_modified_time': self.last_modified_time.isoformat() if self.last_modified_time else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'leads_count': len(leads),
+            'invited_count': len(invited),
+            'accepted_count': len(accepted),
+            'declined_count': len(declined),
+            'scheduled_calls_count': s_count,
+            'completed_calls_count': c_count,
+            'expert_scheduled_count': len(scheduled_assigned),
+            'expert_call_completed_count': len(completed_assigned),
+            'goal_calls_count': g_count,
+            'progress_percent': progress,
+            'leads_expert_ids': leads,
+            'invited_expert_ids': invited,
+            'accepted_expert_ids': accepted,
+            'declined_expert_ids': declined,
+            'expert_scheduled': scheduled_assigned,
+            'expert_call_completed': completed_assigned,
         }
 
 class ProjectTargetGeography(db.Model):
@@ -668,6 +762,7 @@ class Call(db.Model):
 class Engagement(db.Model):
     __tablename__ = 'engagements'
     id = db.Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    engagement_code = db.Column(db.String(32), unique=True)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.project_id'), nullable=False)
     expert_id = db.Column(UUID(as_uuid=False), db.ForeignKey('experts.id'), nullable=False)
     client_id = db.Column(db.Integer, db.ForeignKey('clients.client_id'), nullable=False)
@@ -715,6 +810,7 @@ class Engagement(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'engagement_id': self.engagement_code,
             'project_id': self.project_id,
             'project_name': self.project.title if self.project else None,
             'expert_id': self.expert_id,
@@ -758,6 +854,97 @@ class Engagement(db.Model):
             'client_invoice_date': self.client_invoice_date.isoformat() if self.client_invoice_date else None,
             'client_payment_received_date': self.client_payment_received_date.isoformat() if self.client_payment_received_date else None,
             'client_payment_received_account': self.client_payment_received_account,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+class LeadClient(db.Model):
+    __tablename__ = 'leadclients'
+    id = db.Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    first_name = db.Column(db.String(100), nullable=False)
+    last_name = db.Column(db.String(100), nullable=False)
+    company_name = db.Column(db.String(255), nullable=False)
+    current_role = db.Column('role_title', db.String(255), nullable=False)
+    business_email = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    received_date = db.Column(db.Date)
+    status = db.Column(db.String(32), default='Backlog')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'company_name': self.company_name,
+            'current_role': self.current_role,
+            'business_email': self.business_email,
+            'description': self.description,
+            'received_date': self.received_date.isoformat() if self.received_date else None,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+class LeadExpert(db.Model):
+    __tablename__ = 'leadexperts'
+    id = db.Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    first_name = db.Column(db.String(100), nullable=False)
+    last_name = db.Column(db.String(100), nullable=False)
+    city = db.Column(db.String(150), nullable=False)
+    email = db.Column(db.String(255), nullable=False)
+    phone_number = db.Column(db.String(50), nullable=False)
+    linkedin_url = db.Column(db.String(500), nullable=False)
+    description = db.Column(db.Text)
+    received_date = db.Column(db.Date)
+    status = db.Column(db.String(32), default='Backlog')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'city': self.city,
+            'email': self.email,
+            'phone_number': self.phone_number,
+            'linkedin_url': self.linkedin_url,
+            'description': self.description,
+            'received_date': self.received_date.isoformat() if self.received_date else None,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+class LeadCandidate(db.Model):
+    __tablename__ = 'leadcandidates'
+    id = db.Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    first_name = db.Column(db.String(100), nullable=False)
+    last_name = db.Column(db.String(100), nullable=False)
+    city = db.Column(db.String(150), nullable=False)
+    email = db.Column(db.String(255), nullable=False)
+    phone_number = db.Column(db.String(50), nullable=False)
+    linkedin_url = db.Column(db.String(500), nullable=False)
+    resume_url = db.Column(db.String(1000), nullable=False)
+    received_date = db.Column(db.Date)
+    status = db.Column(db.String(32), default='Backlog')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'city': self.city,
+            'email': self.email,
+            'phone_number': self.phone_number,
+            'linkedin_url': self.linkedin_url,
+            'resume_url': self.resume_url,
+            'received_date': self.received_date.isoformat() if self.received_date else None,
+            'status': self.status,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createClient, fetchClientUsers } from '../../api/clients';
 import { http } from '../../api/http';
+import { fetchUsers } from '../../api/users';
 import FilterDropdown from '../../components/experts/FilterDropdown';
 import Button from '../../components/ui/Button';
 
@@ -9,6 +10,7 @@ export default function ClientCreatePage() {
     const navigate = useNavigate();
     const [users, setUsers] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
+    const [allUsersData, setAllUsersData] = useState({ data: [] });
 
     const [form, setForm] = useState({
         client_name: '',
@@ -31,13 +33,14 @@ export default function ClientCreatePage() {
         agreed_pricing: '',
         users: '',
         msa: '',
-        expert_ids: [],
+        service_rules: '',
         client_solution_owner_ids: [],
         sales_team_ids: [],
     });
 
     useEffect(() => {
         fetchClientUsers().then(setUsers);
+        fetchUsers({ page: 1, limit: 1000, search: '' }).then((r) => setAllUsersData(r || { data: [] }));
     }, []);
     const [lookups, setLookups] = useState({});
     useEffect(() => {
@@ -49,21 +52,6 @@ export default function ClientCreatePage() {
         () => users.find((u) => String(u.user_id) === String(form.primary_contact_user_id))?.user_name,
         [users, form.primary_contact_user_id]
     );
-    const expertLabelById = useMemo(() => {
-        const map = {};
-        (lookups.experts_codes || []).forEach((e) => {
-            map[e.id] = `${e.code} — ${e.name}`;
-        });
-        return map;
-    }, [lookups.experts_codes]);
-    const expertIdByLabel = useMemo(() => {
-        const map = {};
-        (lookups.experts_codes || []).forEach((e) => {
-            const label = `${e.code} — ${e.name}`;
-            map[label] = e.id;
-        });
-        return map;
-    }, [lookups.experts_codes]);
     const hasamexIdByName = useMemo(() => {
         const map = {};
         (lookups.hasamex_users || []).forEach((u) => (map[u.name] = u.id));
@@ -74,17 +62,22 @@ export default function ClientCreatePage() {
         (lookups.hasamex_users || []).forEach((u) => (map[u.id] = u.name));
         return map;
     }, [lookups.hasamex_users]);
+    const sanitize = (s) => String(s || '').trim().toLowerCase();
+    const userOptionsByClient = useMemo(() => {
+        const target = sanitize(form.client_name);
+        if (!target) return [];
+        return (allUsersData.data || [])
+            .filter((u) => sanitize(u.client_name) === target)
+            .map((u) => u.user_name)
+            .filter(Boolean);
+    }, [allUsersData, form.client_name]);
+    const selectedUserNames = useMemo(() => {
+        return String(form.users || '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+    }, [form.users]);
 
-    useEffect(() => {
-        if (!lookups.experts_owner_map) return;
-        const ownerIds = new Set(form.client_solution_owner_ids || []);
-        for (const x of lookups.experts_owner_map) {
-            if (form.expert_ids.includes(x.id) && x.owner_id) {
-                ownerIds.add(x.owner_id);
-            }
-        }
-        setForm((prev) => ({ ...prev, client_solution_owner_ids: Array.from(ownerIds) }));
-    }, [form.expert_ids, lookups.experts_owner_map]);
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -100,8 +93,7 @@ export default function ClientCreatePage() {
     return (
         <>
             <div className="page-header">
-                <h1 className="page-title">Add Client</h1>
-                <p className="page-subtitle">Create a new client account</p>
+                <h1 className="page-title">Create a new client account</h1>
             </div>
 
             <div className="card">
@@ -156,18 +148,6 @@ export default function ClientCreatePage() {
                 <div className="form-section">
                     <h2 className="form-section__title">Solution & Team</h2>
                     <div className="form-grid">
-                        <div className="form-field">
-                            <label className="form-label">Experts (IDs)</label>
-                            <FilterDropdown
-                                label="Select experts"
-                                options={(lookups.experts_codes || []).map((e) => `${e.code} — ${e.name}`)}
-                                selected={(form.expert_ids || []).map((id) => expertLabelById[id]).filter(Boolean)}
-                                onChange={(labels) => {
-                                    const ids = labels.map((lbl) => expertIdByLabel[lbl]).filter(Boolean);
-                                    setForm((p) => ({ ...p, expert_ids: ids }));
-                                }}
-                            />
-                        </div>
                         <div className="form-field">
                             <label className="form-label">Client Solution</label>
                             <FilterDropdown
@@ -253,8 +233,20 @@ export default function ClientCreatePage() {
                                 <textarea className="form-textarea" rows={3} value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
                             </div>
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                <label className="form-label">Service Rules</label>
+                                <textarea className="form-textarea" rows={4} value={form.service_rules} onChange={(e) => setForm((p) => ({ ...p, service_rules: e.target.value }))} />
+                            </div>
+                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
                                 <label className="form-label">Users</label>
-                                <input className="form-input" value={form.users} onChange={(e) => setForm((p) => ({ ...p, users: e.target.value }))} />
+                                <FilterDropdown
+                                    label="Select users"
+                                    options={userOptionsByClient}
+                                    selected={selectedUserNames}
+                                    onChange={(names) => {
+                                        const value = (names || []).join(', ');
+                                        setForm((p) => ({ ...p, users: value }));
+                                    }}
+                                />
                             </div>
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
                                 <label className="form-label">MSA</label>
@@ -276,4 +268,3 @@ export default function ClientCreatePage() {
         </>
     );
 }
-

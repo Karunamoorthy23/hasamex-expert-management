@@ -136,6 +136,9 @@ def create_app():
     from routes.users import users_bp
     from routes.auth import auth_bp
     from routes.engagements import engagements_bp
+    from routes.employees import employees_bp
+    from routes.locations import locations_bp
+    from routes.leads import leads_bp
 
     app.register_blueprint(experts_bp)
     app.register_blueprint(lookups_bp)
@@ -145,6 +148,9 @@ def create_app():
     app.register_blueprint(users_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(engagements_bp)
+    app.register_blueprint(employees_bp)
+    app.register_blueprint(locations_bp)
+    app.register_blueprint(leads_bp)
 
     # Configure and create uploads folder for expert PDFs
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'expert_pdf')
@@ -155,6 +161,14 @@ def create_app():
     @app.route('/expert_pdf/<path:filename>')
     def serve_expert_pdf(filename):
         return send_from_directory(UPLOAD_FOLDER, filename)
+
+    CANDIDATE_UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'candidate_files')
+    if not os.path.exists(CANDIDATE_UPLOAD_FOLDER):
+        os.makedirs(CANDIDATE_UPLOAD_FOLDER)
+
+    @app.route('/candidate_files/<path:filename>')
+    def serve_candidate_file(filename):
+        return send_from_directory(CANDIDATE_UPLOAD_FOLDER, filename)
 
     @app.route('/', methods=['GET'])
     def index():

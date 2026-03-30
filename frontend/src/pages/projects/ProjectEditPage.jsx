@@ -43,6 +43,9 @@ export default function ProjectEditPage() {
                 target_functions_titles: p?.target_functions_titles || '',
                 current_former_both: p?.current_former_both || 'Both',
                 number_of_calls: p?.number_of_calls ?? '',
+                scheduled_calls_count: p?.scheduled_calls_count ?? 0,
+                completed_calls_count: p?.completed_calls_count ?? 0,
+                goal_calls_count: p?.goal_calls_count ?? 0,
                 profile_question_1: p?.profile_question_1 || '',
                 profile_question_2: p?.profile_question_2 || '',
                 profile_question_3: p?.profile_question_3 || '',
@@ -51,6 +54,7 @@ export default function ProjectEditPage() {
                 project_created_by: p?.project_created_by || '',
                 client_solution_owner_ids: Array.isArray(p?.client_solution_owner_ids) ? p.client_solution_owner_ids : [],
                 sales_team_ids: Array.isArray(p?.sales_team_ids) ? p.sales_team_ids : [],
+                invited_expert_ids: Array.isArray(p?.invited_expert_ids) ? p.invited_expert_ids : [],
             });
             setIsLoading(false);
         });
@@ -60,7 +64,11 @@ export default function ProjectEditPage() {
     }, [id]);
 
     const clientOptions = useMemo(() => (clients || []).map((c) => c.client_name), [clients]);
-    const userOptions = useMemo(() => (users || []).map((u) => u.user_name), [users]);
+    const filteredUsers = useMemo(() => {
+        if (!form?.client_id) return users || [];
+        return (users || []).filter((u) => String(u.client_id) === String(form.client_id));
+    }, [users, form?.client_id]);
+    const userOptions = useMemo(() => (filteredUsers || []).map((u) => u.user_name), [filteredUsers]);
     const hasamexIdByName = useMemo(() => {
         const map = {};
         (lookups.hasamex_users || []).forEach((u) => (map[u.name] = u.id));
@@ -71,8 +79,33 @@ export default function ProjectEditPage() {
         (lookups.hasamex_users || []).forEach((u) => (map[u.id] = u.name));
         return map;
     }, [lookups.hasamex_users]);
+    const expertLabelById = useMemo(() => {
+        const map = {};
+        (lookups.experts_codes || []).forEach((e) => {
+            map[e.id] = `${e.code} — ${e.name}`;
+        });
+        return map;
+    }, [lookups.experts_codes]);
+    const expertIdByLabel = useMemo(() => {
+        const map = {};
+        (lookups.experts_codes || []).forEach((e) => {
+            const label = `${e.code} — ${e.name}`;
+            map[label] = e.id;
+        });
+        return map;
+    }, [lookups.experts_codes]);
     const selectedClientName = useMemo(() => clients.find((c) => String(c.client_id) === String(form?.client_id))?.client_name, [clients, form?.client_id]);
     const selectedUserName = useMemo(() => users.find((u) => String(u.user_id) === String(form?.poc_user_id))?.user_name, [users, form?.poc_user_id]);
+
+    const clientId = form?.client_id;
+    const pocUserId = form?.poc_user_id;
+    useEffect(() => {
+        if (!clientId && !pocUserId) return;
+        const currentUser = (users || []).find((u) => String(u.user_id) === String(pocUserId));
+        if (clientId && currentUser && String(currentUser.client_id) !== String(clientId)) {
+            setForm((p) => ({ ...p, poc_user_id: '' }));
+        }
+    }, [clientId, pocUserId, users]);
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -96,7 +129,6 @@ export default function ProjectEditPage() {
                 'profile_question_3',
                 'compliance_question_1',
                 'project_deadline',
-                'project_created_by',
             ];
             const requiredArrays = ['target_geographies', 'client_solution_owner_ids', 'sales_team_ids'];
             const missing = [];
@@ -116,6 +148,10 @@ export default function ProjectEditPage() {
                 client_id: form.client_id ? Number(form.client_id) : null,
                 poc_user_id: form.poc_user_id ? Number(form.poc_user_id) : null,
                 number_of_calls: form.number_of_calls ? Number(form.number_of_calls) : null,
+                scheduled_calls_count: form.scheduled_calls_count ? Number(form.scheduled_calls_count) : 0,
+                completed_calls_count: form.completed_calls_count ? Number(form.completed_calls_count) : 0,
+                goal_calls_count: form.goal_calls_count ? Number(form.goal_calls_count) : 0,
+                invited_expert_ids: form.invited_expert_ids || [],
             };
             await updateProject(id, payload);
             navigate('/projects');
@@ -131,8 +167,7 @@ export default function ProjectEditPage() {
     return (
         <>
             <div className="page-header">
-                <h1 className="page-title">Edit Project</h1>
-                <p className="page-subtitle">Update project details</p>
+                <h1 className="page-title">Edit project details</h1>
             </div>
 
             <div className="card">
@@ -249,6 +284,18 @@ export default function ProjectEditPage() {
                                     }}
                                 />
                             </div>
+                        <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                            <label className="form-label">Invited Experts (IDs)</label>
+                            <FilterDropdown
+                                label="Select experts"
+                                options={(lookups.experts_codes || []).map((e) => `${e.code} — ${e.name}`)}
+                                selected={(form.invited_expert_ids || []).map((id) => expertLabelById[id]).filter(Boolean)}
+                                onChange={(labels) => {
+                                    const ids = labels.map((lbl) => expertIdByLabel[lbl]).filter(Boolean);
+                                    setForm((p) => ({ ...p, invited_expert_ids: ids }));
+                                }}
+                            />
+                        </div>
                         </div>
                     </div>
 
@@ -327,6 +374,33 @@ export default function ProjectEditPage() {
                                     onChange={(e) => setForm((p) => ({ ...p, number_of_calls: e.target.value }))}
                                 />
                             </div>
+                            <div className="form-field">
+                                <label className="form-label">Calls Scheduled (S)</label>
+                                <input
+                                    className="form-input"
+                                    type="number"
+                                    value={form.scheduled_calls_count}
+                                    onChange={(e) => setForm((p) => ({ ...p, scheduled_calls_count: e.target.value }))}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Calls Completed (C)</label>
+                                <input
+                                    className="form-input"
+                                    type="number"
+                                    value={form.completed_calls_count}
+                                    onChange={(e) => setForm((p) => ({ ...p, completed_calls_count: e.target.value }))}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Goal Calls (G)</label>
+                                <input
+                                    className="form-input"
+                                    type="number"
+                                    value={form.goal_calls_count}
+                                    onChange={(e) => setForm((p) => ({ ...p, goal_calls_count: e.target.value }))}
+                                />
+                            </div>
 
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
                                 <label className="form-label">Profile Question 1</label>
@@ -385,4 +459,3 @@ export default function ProjectEditPage() {
         </>
     );
 }
-

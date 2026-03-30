@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { http } from '../../api/http';
 
 /**
  * EngagementModal — Form for adding or editing an engagement.
@@ -21,6 +22,7 @@ export default function EngagementModal({ isOpen, onClose, onSave, engagement, l
         expert_payment_status_id: '',
         expert_post_call_status_id: '',
     });
+    const [projectExperts, setProjectExperts] = useState(null);
 
     useEffect(() => {
         if (engagement) {
@@ -63,6 +65,47 @@ export default function EngagementModal({ isOpen, onClose, onSave, engagement, l
         }
     }, [engagement, isOpen]);
 
+    useEffect(() => {
+        let cancelled = false;
+        const pid = formData?.project_id || '';
+        if (!pid) {
+            setProjectExperts(null);
+            return;
+        }
+        (async () => {
+            try {
+                const [statusRes, projectRes] = await Promise.all([
+                    http(`/projects/${pid}/expert-status`),
+                    http(`/projects/${pid}`),
+                ]);
+                if (cancelled) return;
+                const status = statusRes?.data || {};
+                setProjectExperts(status);
+                const scheduledId = (status.scheduled && status.scheduled[0]?.id) || null;
+                const completedId = (status.completed && status.completed[0]?.id) || null;
+                const autoId = scheduledId || completedId || '';
+                const proj = projectRes?.data || {};
+                setFormData(prev => {
+                    const next = { ...prev };
+                    if (!prev.expert_id || prev.project_id !== pid) next.expert_id = autoId || '';
+                    if (proj.client_id) next.client_id = proj.client_id;
+                    if (proj.poc_user_id) next.poc_user_id = proj.poc_user_id;
+                    return next;
+                });
+            } catch {
+                if (!cancelled) setProjectExperts(null);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [formData?.project_id]);
+
+    const expertOptions = projectExperts
+        ? [
+            ...(projectExperts.scheduled || []),
+            ...(projectExperts.completed || []),
+        ]
+        : [];
+
     if (!isOpen) return null;
 
     const handleChange = (e) => {
@@ -79,7 +122,7 @@ export default function EngagementModal({ isOpen, onClose, onSave, engagement, l
         <div className="modal-overlay">
             <div className="modal-content large">
                 <div className="modal-header">
-                    <h2>{engagement ? 'Edit Engagement' : 'Add New Engagement'}</h2>
+                    <h2>{engagement ? 'Edit Engagement' : 'Create New Engagement'}</h2>
                     <button className="modal-close" onClick={onClose}>&times;</button>
                 </div>
                 
@@ -97,8 +140,78 @@ export default function EngagementModal({ isOpen, onClose, onSave, engagement, l
                             <label>Expert *</label>
                             <select name="expert_id" value={formData.expert_id} onChange={handleChange} required>
                                 <option value="">Select Expert</option>
-                                {lookups.experts?.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                                {expertOptions?.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                             </select>
+                        </div>
+
+                        <div className="form-group full-width">
+                            <label>Project Experts</label>
+                            <div style={{ fontSize: 13.5, border: '1px solid #e0e0e0', borderRadius: 4, padding: 10, background: '#fafafa' }}>
+                                {projectExperts ? (
+                                    <div style={{ display: 'grid', gap: 8 }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 8, alignItems: 'flex-start' }}>
+                                            <div style={{ fontWeight: 700, color: 'var(--text-strong)' }}>Leads</div>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                                {(projectExperts.leads || []).length
+                                                    ? (projectExperts.leads || []).map((e) => (
+                                                        <span key={`lead-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid #c8c8c8', borderRadius: 12, background: '#ffffff', fontSize: 12.5 }}>
+                                                            {e.name}
+                                                        </span>
+                                                    ))
+                                                    : <span>—</span>}
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 8, alignItems: 'flex-start' }}>
+                                            <div style={{ fontWeight: 700, color: 'var(--text-strong)' }}>Invited</div>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                                {(projectExperts.invited || []).length
+                                                    ? (projectExperts.invited || []).map((e) => (
+                                                        <span key={`inv-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid #c8c8c8', borderRadius: 12, background: '#ffffff', fontSize: 12.5 }}>
+                                                            {e.name}
+                                                        </span>
+                                                    ))
+                                                    : <span>—</span>}
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 8, alignItems: 'flex-start' }}>
+                                            <div style={{ fontWeight: 700, color: 'var(--text-strong)' }}>Accepted</div>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                                {(projectExperts.accepted || []).length
+                                                    ? (projectExperts.accepted || []).map((e) => (
+                                                        <span key={`acc-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid #c8c8c8', borderRadius: 12, background: '#ffffff', fontSize: 12.5 }}>
+                                                            {e.name}
+                                                        </span>
+                                                    ))
+                                                    : <span>—</span>}
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 8, alignItems: 'flex-start' }}>
+                                            <div style={{ fontWeight: 700, color: 'var(--text-strong)' }}>Scheduled</div>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                                {(projectExperts.scheduled || []).length
+                                                    ? (projectExperts.scheduled || []).map((e) => (
+                                                        <span key={`sched-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid #c8c8c8', borderRadius: 12, background: '#ffffff', fontSize: 12.5 }}>
+                                                            {e.name}
+                                                        </span>
+                                                    ))
+                                                    : <span>—</span>}
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 8, alignItems: 'flex-start' }}>
+                                            <div style={{ fontWeight: 700, color: 'var(--text-strong)' }}>Completed</div>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                                {(projectExperts.completed || []).length
+                                                    ? (projectExperts.completed || []).map((e) => (
+                                                        <span key={`comp-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid #c8c8c8', borderRadius: 12, background: '#ffffff', fontSize: 12.5 }}>
+                                                            {e.name}
+                                                        </span>
+                                                    ))
+                                                    : <span>—</span>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : '—'}
+                            </div>
                         </div>
 
                         <div className="form-group">

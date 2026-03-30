@@ -6,6 +6,9 @@ import { fetchUserById, updateUser } from '../../api/users';
 import FilterDropdown from '../../components/experts/FilterDropdown';
 import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
+import LocationSelector from '../../components/location/LocationSelector';
+import { resolveTimezoneLabel } from '../../components/location/TimezoneResolver';
+import { http } from '../../api/http';
 
 export default function UserEditPage() {
     const { id } = useParams();
@@ -15,6 +18,7 @@ export default function UserEditPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [form, setForm] = useState(null);
+    const [isLocLoading, setIsLocLoading] = useState(false);
 
     useEffect(() => {
         fetchClients({ page: 1, limit: 1000, search: '' }).then((r) => setClients(r.data || []));
@@ -37,11 +41,13 @@ export default function UserEditPage() {
                 linkedin_url: u?.linkedin_url || '',
                 client_id: u?.client_id ? String(u.client_id) : null,
                 location: u?.location || '',
+                location_id: u?.location_id || null,
+                location_display_name: u?.location_display_name || '',
                 preferred_contact_method: u?.preferred_contact_method || '',
                 time_zone: u?.time_zone || '',
                 avg_calls_per_month: u?.avg_calls_per_month ?? '',
                 status: u?.status || '',
-                notes: u?.notes || '',
+                notes: Array.isArray(u?.notes) ? u.notes : [],
                 user_manager: u?.user_manager || '',
                 ai_generated_bio: u?.ai_generated_bio || '',
                 client_solution_owner_ids: Array.isArray(u?.client_solution_owner_ids) ? u.client_solution_owner_ids : [],
@@ -75,9 +81,22 @@ export default function UserEditPage() {
         if (!form) return;
         setIsSaving(true);
         try {
+            let locId = form.location_id || null;
+            if (form.location_city && form.location_country) {
+                const payload = {
+                    city: form.location_city,
+                    country: form.location_country,
+                    lat: form.location_latitude,
+                    lng: form.location_longitude,
+                    display_name: form.location_display_name || form.location,
+                };
+                const res = await http('/location/save', { method: 'POST', body: JSON.stringify(payload) });
+                locId = res?.location_id || null;
+            }
             await updateUser(id, {
                 ...form,
                 client_id: form.client_id ? Number(form.client_id) : null,
+                location_id: locId ? Number(locId) : null,
                 avg_calls_per_month: form.avg_calls_per_month ? Number(form.avg_calls_per_month) : null,
             });
             navigate('/users');
@@ -92,7 +111,6 @@ export default function UserEditPage() {
         <>
             <div className="page-header">
                 <h1 className="page-title">Edit User</h1>
-                <p className="page-subtitle">Update user details</p>
             </div>
 
             <div className="card">
@@ -110,7 +128,7 @@ export default function UserEditPage() {
                             </div>
                             <div className="form-field">
                                 <label className="form-label">User ID</label>
-                                <input className="form-input" value={form.user_code} onChange={(e) => setForm((p) => ({ ...p, user_code: e.target.value }))} />
+                                <input className="form-input" value={form.user_code} disabled readOnly />
                             </div>
                             <div className="form-field">
                                 <label className="form-label">Client Name</label>
@@ -153,7 +171,44 @@ export default function UserEditPage() {
                         <div className="form-grid">
                             <div className="form-field">
                                 <label className="form-label">Location</label>
-                                <input className="form-input" value={form.location} onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))} />
+                                <LocationSelector
+                                    value={{ display_name: form.location_display_name || form.location }}
+                                    onChange={async (sel) => {
+                                        setIsLocLoading(true);
+                                        let label = '';
+                                        try {
+                                            label = await resolveTimezoneLabel({
+                                                timezoneName: sel.timezone,
+                                                latitude: sel.latitude,
+                                                longitude: sel.longitude,
+                                            });
+                                        } catch {
+                                            label = '';
+                                        } finally {
+                                            setIsLocLoading(false);
+                                        }
+                                        setForm((p) => ({
+                                            ...p,
+                                            location: sel.display_name,
+                                            location_display_name: sel.display_name,
+                                            location_city: sel.city,
+                                            location_country: sel.country,
+                                            location_latitude: sel.latitude,
+                                            location_longitude: sel.longitude,
+                                            time_zone: label || p.time_zone,
+                                        }));
+                                    }}
+                                />
+                                {isLocLoading ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, color: '#666', fontSize: 12 }}>
+                                        <svg width="14" height="14" viewBox="0 0 50 50" aria-hidden="true">
+                                            <circle cx="25" cy="25" r="20" stroke="#999" strokeWidth="5" fill="none" strokeDasharray="31.415,31.415" strokeLinecap="round">
+                                                <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+                                            </circle>
+                                        </svg>
+                                        <span>Resolving timezone…</span>
+                                    </div>
+                                ) : null}
                             </div>
                             <div className="form-field">
                                 <label className="form-label">Preferred Contact Method</label>
@@ -209,12 +264,106 @@ export default function UserEditPage() {
                     </div>
 
                     <div className="form-section">
-                        <h2 className="form-section__title">Notes</h2>
-                        <div className="form-grid">
-                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
-                                <label className="form-label">Notes</label>
-                                <textarea className="form-textarea" rows={3} value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
-                            </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <h2 className="form-section__title" style={{ marginBottom: 0 }}>Notes</h2>
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => setForm(p => ({
+                                    ...p,
+                                    notes: [...(p.notes || []), { id: Date.now(), date: '', type: 'Whatsapp', title: '', description: '' }]
+                                }))}
+                            >
+                                + Add Note
+                            </Button>
+                        </div>
+                        <div className="notes-list">
+                            {(!form.notes || form.notes.length === 0) ? (
+                                <div style={{ padding: '20px', border: '1px dashed #ccc', borderRadius: '4px', textAlign: 'center', color: '#666' }}>
+                                    No notes added. Click "+ Add Note" to create one.
+                                </div>
+                            ) : (
+                                form.notes.map((note, index) => (
+                                    <div key={note.id || index} className="note-item" style={{ border: '1px solid #eee', padding: '15px', borderRadius: '4px', marginBottom: '15px', position: 'relative' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                            <h4 style={{ margin: 0 }}>Note #{index + 1}</h4>
+                                            <Button
+                                                type="button"
+                                                variant="danger"
+                                                size="sm"
+                                                onClick={() => setForm(p => ({
+                                                    ...p,
+                                                    notes: p.notes.filter((_, i) => i !== index)
+                                                }))}
+                                            >
+                                                Remove
+                                            </Button>
+                                        </div>
+                                        <div className="form-grid">
+                                            <div className="form-field">
+                                                <label className="form-label">Date</label>
+                                                <input
+                                                    type="date"
+                                                    className="form-input"
+                                                    value={note.date}
+                                                    onChange={(e) => {
+                                                        const newNotes = [...form.notes];
+                                                        newNotes[index].date = e.target.value;
+                                                        setForm(p => ({ ...p, notes: newNotes }));
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="form-field">
+                                                <label className="form-label">Type</label>
+                                                <select
+                                                    className="form-input"
+                                                    value={note.type || 'Whatsapp'}
+                                                    onChange={(e) => {
+                                                        const newNotes = [...form.notes];
+                                                        newNotes[index].type = e.target.value;
+                                                        setForm(p => ({ ...p, notes: newNotes }));
+                                                    }}
+                                                >
+                                                    <option value="Whatsapp">Whatsapp</option>
+                                                    <option value="Phone call">Phone call</option>
+                                                    <option value="Meeting">Meeting</option>
+                                                    <option value="LinkedIn">LinkedIn</option>
+                                                    <option value="Email">Email</option>
+                                                    <option value="Others">Others</option>
+                                                </select>
+                                            </div>
+                                            <div className="form-field">
+                                                <label className="form-label">Title</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={note.title}
+                                                    onChange={(e) => {
+                                                        const newNotes = [...form.notes];
+                                                        newNotes[index].title = e.target.value;
+                                                        setForm(p => ({ ...p, notes: newNotes }));
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                                <label className="form-label">Description</label>
+                                                <textarea
+                                                    className="form-textarea"
+                                                    rows={2}
+                                                    value={note.description}
+                                                    onChange={(e) => {
+                                                        const newNotes = [...form.notes];
+                                                        newNotes[index].description = e.target.value;
+                                                        setForm(p => ({ ...p, notes: newNotes }));
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                        <div className="form-grid" style={{ marginTop: '20px' }}>
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
                                 <label className="form-label">AI-Generated BIO</label>
                                 <textarea className="form-textarea" rows={3} value={form.ai_generated_bio} onChange={(e) => setForm((p) => ({ ...p, ai_generated_bio: e.target.value }))} />

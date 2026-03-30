@@ -25,9 +25,10 @@ export default function App() {
             to: '/',
         },
         { id: 'engagements', label: 'Engagements', iconClass: 'fa-solid fa-phone-volume', to: '/engagements' },
-        { id: 'employees', label: 'Employees', iconClass: 'fa-regular fa-circle-user' },
+        { id: 'leads', label: 'Leads', iconClass: 'fa-solid fa-crosshairs', to: '/leads' },
         // { id: 'leads', label: 'Leads', iconClass: 'fa-solid fa-crosshairs' },
         // { id: 'candidates', label: 'Candidates', iconClass: 'fa-solid fa-user-plus' },
+
     ];
 
     return (
@@ -77,14 +78,17 @@ export default function App() {
                 .main-content {
                     background: var(--bg-dark);
                     color: var(--text-light);
+                    display: flex;
+                    flex-direction: column;
                 }
                 .main-content .container {
-                    background: black;
-                    // color: #ffffff;
+                    background: transparent;
                     color: black;
-                    // border: 1px solid #d8d8d8;
-                    // border-radius: 8px;
-                    padding: 16px;
+                    // padding: 1.5rem; /* 24px / 16 */
+                    width: 100%;
+                    max-width: var(--container-max);
+                    margin: 0 auto;
+                    flex: 1;
                 }
                 .footer {
                     background: var(--bg-dark);
@@ -98,7 +102,7 @@ export default function App() {
             <aside className={cn('sidebar', collapsed && 'collapsed')}>
                 <div className="brand">
                     <h2 className="brand-logo">
-                        <img src={logo} alt="Hasamex" height={26} />
+                        <img src={logo} alt="Hasamex" height={20} />
                     </h2>
                     <button
                         type="button"

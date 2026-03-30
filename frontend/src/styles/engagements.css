@@ -76,7 +76,7 @@
     background: var(--color-grey-50);
     padding: var(--space-4);
     text-align: left;
-    font-size: var(--text-xs);
+    font-size: var(--text-sm);
     font-weight: var(--font-bold);
     color: var(--color-grey-500);
     text-transform: uppercase;

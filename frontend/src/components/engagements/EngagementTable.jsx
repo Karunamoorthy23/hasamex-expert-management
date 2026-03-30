@@ -16,6 +16,7 @@ export default function EngagementTable({
     engagements,
     onEdit,
     onDelete,
+    onRowClick,
     sortBy,
     sortOrder,
     onSort,
@@ -58,8 +59,8 @@ export default function EngagementTable({
             <table className="data-table">
                 <thead>
                     <tr>
-                        {renderHeader('Project', 'project_name', 'col-project')}
-                        {renderHeader('Expert', 'expert_name', 'col-expert')}
+                        {renderHeader('Engagement ID', 'engagement_id', 'col-id')}
+                        {renderHeader('Project', 'project_name', 'col-title')}
                         {renderHeader('Call Date', 'call_date', 'col-date')}
                         {renderHeader('Duration', 'actual_call_duration_mins', 'col-duration')}
                         {renderHeader('Client Rate', 'client_rate', 'col-rate')}
@@ -72,16 +73,14 @@ export default function EngagementTable({
                 </thead>
                 <tbody>
                     {engagements.map((eng) => (
-                        <tr key={eng.id}>
-                            <td className="col-project">
+                        <tr key={eng.id} onClick={() => onRowClick && onRowClick(eng.id)} style={{ cursor: 'pointer' }}>
+                            <td className="col-id">
+                                <span className="badge badge-outline-theme">{eng.engagement_id || '—'}</span>
+                            </td>
+                            <td className="col-title">
                                 <div className="project-cell">
                                     <span className="project-name">{eng.project_name}</span>
                                     <span className="project-id">{eng.project_id}</span>
-                                </div>
-                            </td>
-                            <td className="col-expert">
-                                <div className="expert-cell">
-                                    <span className="expert-name">{eng.expert_name}</span>
                                 </div>
                             </td>
                             <td className="col-date">{formatDate(eng.call_date)}</td>
@@ -97,7 +96,7 @@ export default function EngagementTable({
                                     {eng.expert_payment_status || 'Pending'}
                                 </span>
                             </td>
-                            <td className="col-actions">
+                            <td className="col-actions" onClick={(e) => e.stopPropagation()}>
                                 <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
                                     <button type="button" className="action-btn" title="Edit" onClick={() => onEdit(eng.id)}>
                                         <EditIcon />

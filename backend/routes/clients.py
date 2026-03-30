@@ -137,6 +137,7 @@ def create_client():
         users=data.get('users'),
         number_of_users=_safe_int(data.get('number_of_users')),
         msa=data.get('msa'),
+        service_rules=data.get('service_rules'),
         # new fields
         expert_ids=_csv_from_list(expert_ids_list),
         client_solution_owner_ids=_csv_from_list(owner_ids_union),

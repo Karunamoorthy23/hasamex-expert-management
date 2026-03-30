@@ -76,7 +76,7 @@ export default function ExpertsActionBar({
             <div className="action-bar__actions">
                 <Button id="btnAddExpert" variant="primary" size="sm" onClick={onAdd}>
                     <PlusIcon />
-                    Add Expert
+                    Create Expert
                 </Button>
                 <Button id="btnImport" variant="secondary" size="sm" onClick={onImport}>
                     <UploadIcon />

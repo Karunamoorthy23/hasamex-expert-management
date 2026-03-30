@@ -1,7 +1,8 @@
 from flask import Blueprint, request, jsonify
 from extensions import db
 from models import User, Client
-from sqlalchemy import or_
+from sqlalchemy import or_, text
+from sqlalchemy.exc import IntegrityError
 
 users_bp = Blueprint('users', __name__, url_prefix='/api/v1/users')
 
@@ -15,6 +16,7 @@ def list_users():
     limit = request.args.get('limit', 20, type=int)
     limit = min(limit, 100)
     search = request.args.get('search', '', type=str).strip()
+    filter_client_id = request.args.get('client_id', None, type=int)
 
     query = User.query.outerjoin(Client, User.client_id == Client.client_id)
 
@@ -40,6 +42,9 @@ def list_users():
                 Client.client_type.ilike(like),
             )
         )
+
+    if filter_client_id:
+        query = query.filter(User.client_id == filter_client_id)
 
     query = query.order_by(User.updated_at.desc().nulls_last())
 
@@ -73,10 +78,21 @@ def create_user():
     data = request.get_json()
     if not data:
         return jsonify({'error': 'No data provided'}), 400
+    email = (data.get('email') or '').strip()
+    if email:
+        exists = User.query.filter(User.email.ilike(email)).first()
+        if exists:
+            return jsonify({'error': 'Email already exists', 'field': 'email'}), 409
+    uc = (data.get('user_code') or '').strip()
+    if not uc:
+        res = db.session.execute(text("SELECT COALESCE(MAX(CAST(SUBSTRING(user_code FROM '\\\\d+$') AS INTEGER)), 0) FROM users WHERE user_code ~ '^US-\\\\d+$'"))
+        max_num = res.scalar() or 0
+        next_num = max_num + 1
+        uc = f"US-{next_num:04d}" if next_num < 10000 else f"US-{next_num}"
 
     new_user = User(
         user_name=data.get('user_name') or f"{data.get('first_name','')} {data.get('last_name','')}".strip() or 'User',
-        user_code=data.get('user_code'),
+        user_code=uc,
         first_name=data.get('first_name'),
         last_name=data.get('last_name'),
         designation_title=data.get('designation_title'),
@@ -85,9 +101,8 @@ def create_user():
         seniority=data.get('seniority'),
         linkedin_url=data.get('linkedin_url'),
         client_id=data.get('client_id'),
-        location=data.get('location'),
+        location_id=data.get('location_id'),
         preferred_contact_method=data.get('preferred_contact_method'),
-        time_zone=data.get('time_zone'),
         avg_calls_per_month=data.get('avg_calls_per_month'),
         status=data.get('status'),
         notes=data.get('notes'),
@@ -95,7 +110,11 @@ def create_user():
         ai_generated_bio=data.get('ai_generated_bio'),
     )
     db.session.add(new_user)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError as e:
+        db.session.rollback()
+        return jsonify({'error': 'Email already exists', 'field': 'email'}), 409
     return jsonify({'data': new_user.to_dict()}), 201
 
 
@@ -107,7 +126,9 @@ def update_user(user_id):
         return jsonify({'error': 'No data provided'}), 400
 
     for key, value in data.items():
-        if hasattr(user, key) and key not in ['user_id', 'created_at', 'updated_at']:
+        if key in ['user_id', 'created_at', 'updated_at', 'location', 'time_zone']:
+            continue
+        if hasattr(user, key):
             setattr(user, key, value)
 
     # keep legacy user_name in sync if first/last updated and user_name not explicitly provided

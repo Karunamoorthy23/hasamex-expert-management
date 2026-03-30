@@ -90,7 +90,6 @@ export default function EngagementDashboardPage() {
         <>
             <div className="page-header">
                 <h1 className="page-title">Engagement Management</h1>
-                <p className="page-subtitle">Search and manage client calls</p>
             </div>
 
             <div className={`card${filtersPanelOpen ? ' card--overflow-visible' : ''}`}>
@@ -138,7 +137,7 @@ export default function EngagementDashboardPage() {
                     <div className="action-bar__actions">
                         <span className="badge badge-outline-theme">Engagements: {stats.totalEngagements}</span>
                         <Button variant="primary" onClick={() => navigate('/engagements/new')}>
-                            + Add Engagement
+                            + Create Engagement
                         </Button>
                     </div>
                 </div>
@@ -160,6 +159,7 @@ export default function EngagementDashboardPage() {
                                 engagements={engagements}
                                 onEdit={(id) => navigate(`/engagements/${id}/edit`)}
                                 onDelete={handleDelete}
+                                onRowClick={(id) => navigate(`/engagements/${id}`)}
                                 sortBy={sort.field}
                                 sortOrder={sort.order}
                                 onSort={handleSort}

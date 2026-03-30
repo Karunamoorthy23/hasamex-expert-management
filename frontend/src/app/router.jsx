@@ -4,6 +4,7 @@ import App from './App';
 import ExpertsPage from '../pages/experts/ExpertsPage';
 import ExpertCreatePage from '../pages/experts/ExpertCreatePage';
 import ExpertEditPage from '../pages/experts/ExpertEditPage';
+import ExpertDetails from '../pages/experts/ExpertDetails';
 import ClientsPage from '../pages/clients/ClientsPage';
 import UsersPage from '../pages/users/UsersPage';
 import ProjectsPage from '../pages/projects/ProjectsPage';
@@ -18,9 +19,23 @@ import UserEditPage from '../pages/users/UserEditPage';
 import UserDetails from '../pages/users/UserDetails';
 import EngagementDashboardPage from '../pages/EngagementDashboardPage';
 import EngagementEditPage from '../pages/engagements/EngagementEditPage';
+import EngagementDetails from '../pages/engagements/EngagementDetails';
 import LoginPage from '../pages/auth/LoginPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from '../pages/auth/ResetPasswordPage';
+import EmployeesPage from '../pages/employees/EmployeesPage';
+import EmployeeCreatePage from '../pages/employees/EmployeeCreatePage';
+import EmployeeEditPage from '../pages/employees/EmployeeEditPage';
+import LeadsPage from '../pages/leads/LeadsPage';
+import LeadClientsPage from '../pages/leads/LeadClientsPage';
+import LeadClientCreate from '../pages/leads/LeadClientCreate';
+import LeadClientEdit from '../pages/leads/LeadClientEdit';
+import LeadExpertsPage from '../pages/leads/LeadExpertsPage';
+import LeadExpertCreate from '../pages/leads/LeadExpertCreate';
+import LeadExpertEdit from '../pages/leads/LeadExpertEdit';
+import LeadCandidatesPage from '../pages/leads/LeadCandidatesPage';
+import LeadCandidateCreate from '../pages/leads/LeadCandidateCreate';
+import LeadCandidateEdit from '../pages/leads/LeadCandidateEdit';
 
 /**
  * Application router configuration.
@@ -115,6 +130,10 @@ const router = createBrowserRouter([
                 element: <EngagementDashboardPage />,
             },
             {
+                path: 'engagements/:id',
+                element: <EngagementDetails />,
+            },
+            {
                 path: 'engagements/new',
                 element: <EngagementEditPage />,
             },
@@ -127,8 +146,40 @@ const router = createBrowserRouter([
                 element: <ExpertCreatePage />,
             },
             {
+                path: 'experts/:id',
+                element: <ExpertDetails />
+            },
+            {
                 path: 'experts/:id/edit',
                 element: <ExpertEditPage />
+            },
+            {
+                path: 'employees',
+                element: <EmployeesPage />,
+            },
+            {
+                path: 'employees/new',
+                element: <EmployeeCreatePage />,
+            },
+            {
+                path: 'employees/:id/edit',
+                element: <EmployeeEditPage />,
+            },
+            {
+                path: 'leads',
+                element: <LeadsPage />,
+                children: [
+                    { index: true, element: <LeadClientsPage /> },
+                    { path: 'clients', element: <LeadClientsPage /> },
+                    { path: 'clients/new', element: <LeadClientCreate /> },
+                    { path: 'clients/:id/edit', element: <LeadClientEdit /> },
+                    { path: 'experts', element: <LeadExpertsPage /> },
+                    { path: 'experts/new', element: <LeadExpertCreate /> },
+                    { path: 'experts/:id/edit', element: <LeadExpertEdit /> },
+                    { path: 'candidates', element: <LeadCandidatesPage /> },
+                    { path: 'candidates/new', element: <LeadCandidateCreate /> },
+                    { path: 'candidates/:id/edit', element: <LeadCandidateEdit /> },
+                ]
             },
         ],
     },

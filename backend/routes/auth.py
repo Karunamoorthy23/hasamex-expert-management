@@ -6,10 +6,10 @@ from threading import Thread
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from flask import Blueprint, jsonify, request, render_template, current_app
-from flask_mail import Message
+from services.mailer import send_email
 
 from auth import create_access_token, require_auth
-from extensions import db, mail
+from extensions import db
 from models import HasamexPasswordResetToken, HasamexUser, HasamexOTP
 
 
@@ -22,12 +22,11 @@ def _now_utc():
     return datetime.utcnow()
 
 
-def _send_otp_email_async(app, message):
-    with app.app_context():
-        try:
-            mail.send(message)
-        except Exception as e:
-            print(f"Async mail send failed: {e}")
+def _send_otp_email_async(to, subject, html):
+    try:
+        send_email(to, subject, html)
+    except Exception as e:
+        print(f"Async mail send failed: {e}")
 
 
 @auth_bp.route('/login', methods=['POST'])
@@ -125,14 +124,9 @@ def request_otp():
         db.session.add(new_otp)
         db.session.commit()
 
-        msg = Message(
-            subject="Hasamex - Your Password Reset OTP",
-            recipients=[email],
-            html=render_template('otp_email.html', otp=otp)
-        )
-
-        app = current_app._get_current_object()
-        Thread(target=_send_otp_email_async, args=(app, msg), daemon=True).start()
+        subject = "Hasamex - Your Password Reset OTP"
+        html = render_template('otp_email.html', otp=otp)
+        Thread(target=_send_otp_email_async, args=(email, subject, html), daemon=True).start()
         return jsonify({'message': 'If this email exists, an OTP will be sent.'})
     except Exception as e:
         print(f"Error handling OTP request: {e}")
@@ -217,4 +211,3 @@ def reset_password():
     db.session.commit()
 
     return jsonify({'message': 'Password reset successful'})
-

@@ -42,7 +42,7 @@
 
 .project-details-list {
   margin: 0;
-  padding-left: 18px;
+  padding-left: 1.125rem; /* 18px / 16 */
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-4) var(--space-8);
@@ -57,7 +57,7 @@
 }
 
 .project-details-item__label {
-  font-size: 11px;
+  font-size: 0.6875rem; /* 11px / 16 */
   font-weight: var(--font-semibold);
   color: var(--color-grey-600);
   text-transform: uppercase;
@@ -65,7 +65,7 @@
 }
 
 .project-details-item__value {
-  margin-top: 4px;
+  margin-top: 0.25rem; /* 4px / 16 */
   font-size: var(--text-sm);
   color: var(--color-grey-800);
   word-break: break-word;
