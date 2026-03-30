@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { bulkDeleteClients, deleteClient, fetchClients, fetchClientUsers, fetchProjects } from '../../api/clients';
+import { bulkDeleteClients, deleteClient, fetchClientsSummary } from '../../api/clients';
 import ClientsTable from '../../components/clients/ClientsTable';
 import Loader from '../../components/ui/Loader';
 import Pagination from '../../components/experts/Pagination';
@@ -16,8 +16,6 @@ export default function ClientsPage() {
     const LIMIT = 20;
     const navigate = useNavigate();
     const [clients, setClients] = useState([]);
-    const [users, setUsers] = useState([]);
-    const [projects, setProjects] = useState([]);
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
     const [meta, setMeta] = useState({ total_records: 0, current_page: 1, total_pages: 1, limit: LIMIT });
@@ -36,17 +34,12 @@ export default function ClientsPage() {
         let cancelled = false;
         setIsLoading(true);
 
-        Promise.all([
-            fetchClients({ page, limit: LIMIT, search }),
-            fetchClientUsers(),
-            fetchProjects(),
-        ])
-            .then(([clientsResult, usersData, projectsData]) => {
+        // Single optimized API call — replaces 3 + N calls
+        fetchClientsSummary({ page, limit: LIMIT, search })
+            .then((result) => {
                 if (cancelled) return;
-                setClients(clientsResult.data);
-                setMeta(clientsResult.meta);
-                setUsers(usersData);
-                setProjects(projectsData);
+                setClients(result.data);
+                setMeta(result.meta);
             })
             .finally(() => {
                 if (!cancelled) setIsLoading(false);
@@ -56,32 +49,6 @@ export default function ClientsPage() {
             cancelled = true;
         };
     }, [page, search, refreshKey]);
-
-    const usersById = useMemo(() => {
-        const map = {};
-        for (const u of users) map[u.user_id] = u;
-        return map;
-    }, [users]);
-
-    const projectsByClientId = useMemo(() => {
-        const map = {};
-        for (const p of projects) {
-            const key = p.client_id;
-            if (!map[key]) map[key] = [];
-            map[key].push(p);
-        }
-        return map;
-    }, [projects]);
-    
-    const usersByClientId = useMemo(() => {
-        const map = {};
-        for (const u of users) {
-            const key = u.client_id;
-            if (!map[key]) map[key] = [];
-            map[key].push(u);
-        }
-        return map;
-    }, [users]);
 
     // Search is handled server-side for pagination correctness.
     const filteredClients = clients;
@@ -142,9 +109,9 @@ export default function ClientsPage() {
 
     const stats = useMemo(() => {
         const totalClients = clients.length;
-        const totalProjects = projects.length;
+        const totalProjects = clients.reduce((acc, c) => acc + (c.project_count || 0), 0);
         return { totalClients, totalProjects };
-    }, [clients, projects]);
+    }, [clients]);
 
     return (
         <>
@@ -218,9 +185,6 @@ export default function ClientsPage() {
                             />
                             <ClientsTable
                                 clients={filteredClients}
-                                usersById={usersById}
-                                projectsByClientId={projectsByClientId}
-                                usersByClientId={usersByClientId}
                                 selectedIds={selectedIds}
                                 onSelectClient={onSelectClient}
                                 onSelectAll={onSelectAll}
@@ -248,8 +212,6 @@ export default function ClientsPage() {
                     ) : (
                         <ClientsCardGrid
                             clients={filteredClients}
-                            projectsByClientId={projectsByClientId}
-                            usersByClientId={usersByClientId}
                             selectedIds={selectedIds}
                             onSelectClient={onSelectClient}
                             onViewClient={(id) => navigate(`/clients/${id}`)}
@@ -289,4 +251,3 @@ export default function ClientsPage() {
         </>
     );
 }
-

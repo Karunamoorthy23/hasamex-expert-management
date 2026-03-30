@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify
 from extensions import db
-from models import Client, User, Expert, HasamexUser
+from models import Client, User, Expert, HasamexUser, Engagement, Project
 from datetime import datetime
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 
 clients_bp = Blueprint('clients', __name__, url_prefix='/api/v1/clients')
 
@@ -233,6 +233,116 @@ def bulk_delete_clients():
     deleted = Client.query.filter(Client.client_id.in_(ids)).delete(synchronize_session=False)
     db.session.commit()
     return jsonify({'deleted': deleted})
+
+
+@clients_bp.route('/summary', methods=['GET'])
+def get_clients_summary():
+    """
+    GET /api/v1/clients/summary?page=1&limit=20&search=...
+    Returns paginated clients with pre-computed project_count,
+    engagement_count, and user_count — eliminates N+1 frontend calls.
+    """
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 20, type=int)
+    limit = min(limit, 100)
+    search = request.args.get('search', '', type=str).strip()
+
+    query = Client.query
+
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            or_(
+                Client.client_name.ilike(like),
+                Client.client_code.ilike(like),
+                Client.client_type.ilike(like),
+                Client.office_locations.ilike(like),
+                Client.country.ilike(like),
+                Client.website.ilike(like),
+                Client.linkedin_url.ilike(like),
+                Client.client_manager_internal.ilike(like),
+                Client.billing_currency.ilike(like),
+                Client.client_status.ilike(like),
+                Client.location.ilike(like),
+                Client.status.ilike(like),
+                Client.company.ilike(like),
+                Client.type.ilike(like),
+            )
+        )
+
+    query = query.order_by(Client.updated_at.desc().nulls_last())
+
+    total_records = query.count()
+    total_pages = max(1, -(-total_records // limit))
+    page = min(page, total_pages)
+
+    clients = query.offset((page - 1) * limit).limit(limit).all()
+
+    # Collect client IDs on this page for batch count queries
+    client_ids = [c.client_id for c in clients]
+
+    # Batch-compute counts using GROUP BY (avoids N+1)
+    project_counts = {}
+    engagement_counts = {}
+    user_counts = {}
+
+    if client_ids:
+        for cid, cnt in db.session.query(
+            Project.client_id, func.count(Project.project_id)
+        ).filter(Project.client_id.in_(client_ids)).group_by(Project.client_id).all():
+            project_counts[cid] = cnt
+
+        for cid, cnt in db.session.query(
+            Engagement.client_id, func.count(Engagement.id)
+        ).filter(Engagement.client_id.in_(client_ids)).group_by(Engagement.client_id).all():
+            engagement_counts[cid] = cnt
+
+        for cid, cnt in db.session.query(
+            User.client_id, func.count(User.user_id)
+        ).filter(User.client_id.in_(client_ids)).group_by(User.client_id).all():
+            user_counts[cid] = cnt
+
+    data = []
+    for c in clients:
+        d = c.to_dict()
+        d['project_count'] = project_counts.get(c.client_id, 0)
+        d['engagement_count'] = engagement_counts.get(c.client_id, 0)
+        d['user_count'] = user_counts.get(c.client_id, 0)
+        data.append(d)
+
+    return jsonify({
+        'data': data,
+        'meta': {
+            'total_records': total_records,
+            'current_page': page,
+            'total_pages': total_pages,
+            'limit': limit,
+            'has_next': page < total_pages,
+            'has_prev': page > 1,
+        }
+    })
+
+
+@clients_bp.route('/form-lookups', methods=['GET'])
+def get_client_form_lookups():
+    """
+    GET /api/v1/clients/form-lookups
+    Returns all data needed by ClientEditPage and ClientCreatePage
+    in a single request — replaces 3 separate API calls.
+    """
+    # Client users (same as /clients/users)
+    users = User.query.all()
+    client_users = [u.to_dict() for u in users]
+
+    # Hasamex internal users (same subset from /lookups)
+    hasamex_users = [{'id': h.id, 'name': h.username} for h in HasamexUser.query.all()]
+
+    return jsonify({
+        'data': {
+            'client_users': client_users,
+            'hasamex_users': hasamex_users,
+        }
+    })
 
 # Users endpoints for basic management
 @clients_bp.route('/users', methods=['GET'])

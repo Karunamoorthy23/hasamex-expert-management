@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { cn } from '../../utils/cn';
 import { Link } from 'react-router-dom';
 import Checkbox from '../ui/Checkbox';
 import { EditIcon, TrashIcon, LinkIcon } from '../icons/Icons';
-import { http } from '../../api/http';
 
 function statusBadgeClass(status) {
     if (!status) return 'badge badge-outline-theme';
@@ -15,9 +14,6 @@ function statusBadgeClass(status) {
 
 export default function ClientsTable({
     clients = [],
-    usersById = {},
-    projectsByClientId = {},
-    usersByClientId = {},
     selectedIds,
     onSelectClient,
     onSelectAll,
@@ -35,56 +31,16 @@ export default function ClientsTable({
         });
     };
     const compactCellStyle = { padding: '6px 10px' };
-    const [engagementCounts, setEngagementCounts] = useState({});
-    useEffect(() => {
-        let cancelled = false;
-        const clientIds = (clients || []).map((c) => c.client_id).filter(Boolean);
-        const missing = clientIds.filter((cid) => engagementCounts[cid] == null);
-        if (!missing.length) return;
-        (async () => {
-            try {
-                const results = await Promise.all(
-                    missing.map(async (cid) => {
-                        try {
-                            const res = await http(`/engagements?client_id=${cid}`);
-                            return [cid, Array.isArray(res?.data) ? res.data.length : 0];
-                        } catch {
-                            return [cid, 0];
-                        }
-                    })
-                );
-                if (cancelled) return;
-                const upd = { ...engagementCounts };
-                for (const [cid, count] of results) {
-                    if (upd[cid] == null) upd[cid] = count;
-                }
-                setEngagementCounts(upd);
-            } catch {
-                if (!cancelled) setEngagementCounts((prev) => ({ ...prev }));
-            }
-        })();
-        return () => { cancelled = true; };
-    }, [clients]);
 
     const rows = useMemo(() => {
-        return clients.map((c) => {
-            const primary = c.primary_contact_user_id ? usersById[c.primary_contact_user_id] : null;
-            const projects = projectsByClientId[c.client_id] || [];
-            const engagementCount = projects.reduce((acc, p) => {
-                if (Array.isArray(p.engagement_ids)) return acc + p.engagement_ids.length;
-                if (typeof p.engagement_count === 'number') return acc + p.engagement_count;
-                return acc;
-            }, 0);
-            const displayEngagementCount = engagementCounts[c.client_id] != null ? engagementCounts[c.client_id] : engagementCount;
-            return {
-                ...c,
-                primaryContactName: primary?.user_name || '—',
-                projectCount: projects.length,
-                projects,
-                engagementCount: displayEngagementCount,
-            };
-        });
-    }, [clients, usersById, projectsByClientId, engagementCounts]);
+        return clients.map((c) => ({
+            ...c,
+            primaryContactName: '—',
+            projectCount: c.project_count ?? 0,
+            engagementCount: c.engagement_count ?? 0,
+            userCount: c.user_count ?? 0,
+        }));
+    }, [clients]);
 
     return (
         <div className="table-container">
@@ -104,7 +60,6 @@ export default function ClientsTable({
                         <th className="col-region">Country</th>
                         <th className="col-id">Website</th>
                         <th className="col-id">LinkedIn</th>
-                        <th className="col-compact">Primary Contact</th>
                         <th className="col-compact">Client Manager (Internal)</th>
                         <th className="col-id">Billing Currency</th>
                         <th className="col-status">Client Status</th>
@@ -119,7 +74,6 @@ export default function ClientsTable({
                 <tbody>
                     {rows.map((row) => {
                         const expanded = expandedClientIds.has(row.client_id);
-                        const clientUsers = usersByClientId[row.client_id] || [];
                         return (
                             <>
                                 <tr
@@ -172,13 +126,6 @@ export default function ClientsTable({
                                             '—'
                                         )}
                                     </td>
-                            <td className="col-compact">
-                                {row.primary_contact_user_id ? (
-                                    <Link to={`/users/${row.primary_contact_user_id}`}>{row.primaryContactName}</Link>
-                                ) : (
-                                    row.primaryContactName
-                                )}
-                            </td>
                                     <td className="col-compact">{row.client_manager_internal || '—'}</td>
                                     <td className="col-id">{row.billing_currency || '—'}</td>
                                     <td className="col-status">
@@ -237,51 +184,6 @@ export default function ClientsTable({
                                         </div>
                                     </td>
                                 </tr>
-                                <tr
-                                    key={`${row.client_id}-users`}
-                                    className="client-nested-row"
-                                    style={{ display: expanded ? undefined : 'none' }}
-                                >
-                                    <td colSpan={16} className="p-0">
-                                        <div className="client-nested-wrapper" style={{ padding: '8px 12px' }}>
-                                            <h4 className="client-nested-title" style={{ marginBottom: 8 }}>Users for {row.client_name}</h4>
-                                            {clientUsers.length === 0 ? (
-                                                <p className="empty-state__text">No users found for this client.</p>
-                                            ) : (
-                                                <div className="client-details-card" style={{ padding: 0, margin: 0 }}>
-                                                    <table className="data-table">
-                                                        <thead>
-                                                            <tr>
-                                                                <th style={compactCellStyle}>User</th>
-                                                                <th style={compactCellStyle}>Designation</th>
-                                                                <th style={compactCellStyle}>Email</th>
-                                                                <th>Phone</th>
-                                                                <th>Status</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {clientUsers.map((u) => (
-                                                                <tr key={u.user_id}>
-                                                                    <td style={compactCellStyle}>
-                                                                        <Link to={`/users/${u.user_id}`} onClick={(e) => e.stopPropagation()}>
-                                                                            {u.user_name || '—'}
-                                                                        </Link>
-                                                                    </td>
-                                                                    <td style={compactCellStyle}>{u.designation_title || '—'}</td>
-                                                                    <td style={compactCellStyle}>{u.email || '—'}</td>
-                                                                    <td style={compactCellStyle}>{u.phone || '—'}</td>
-                                                                    <td style={compactCellStyle}>
-                                                                        <span className={cn(statusBadgeClass(u.status))}>{u.status || '—'}</span>
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
                             </>
                         );
                     })}
@@ -290,4 +192,3 @@ export default function ClientsTable({
         </div>
     );
 }
-

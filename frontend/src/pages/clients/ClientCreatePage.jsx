@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createClient, fetchClientUsers } from '../../api/clients';
-import { http } from '../../api/http';
-import { fetchUsers } from '../../api/users';
+import { createClient, fetchClientFormLookups } from '../../api/clients';
 import FilterDropdown from '../../components/experts/FilterDropdown';
 import Button from '../../components/ui/Button';
 
@@ -10,7 +8,8 @@ export default function ClientCreatePage() {
     const navigate = useNavigate();
     const [users, setUsers] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
-    const [allUsersData, setAllUsersData] = useState({ data: [] });
+    const [allUsersData, setAllUsersData] = useState([]);
+    const [lookups, setLookups] = useState({});
 
     const [form, setForm] = useState({
         client_name: '',
@@ -38,13 +37,13 @@ export default function ClientCreatePage() {
         sales_team_ids: [],
     });
 
+    // 1 call instead of 3: replaces fetchClientUsers + fetchUsers(1000) + /lookups
     useEffect(() => {
-        fetchClientUsers().then(setUsers);
-        fetchUsers({ page: 1, limit: 1000, search: '' }).then((r) => setAllUsersData(r || { data: [] }));
-    }, []);
-    const [lookups, setLookups] = useState({});
-    useEffect(() => {
-        http('/lookups').then((res) => setLookups(res.data || {})).catch(() => setLookups({}));
+        fetchClientFormLookups().then((data) => {
+            setUsers(data.client_users || []);
+            setAllUsersData(data.client_users || []);
+            setLookups({ hasamex_users: data.hasamex_users || [] });
+        });
     }, []);
 
     const userOptions = useMemo(() => (users || []).map((u) => u.user_name), [users]);
@@ -66,7 +65,7 @@ export default function ClientCreatePage() {
     const userOptionsByClient = useMemo(() => {
         const target = sanitize(form.client_name);
         if (!target) return [];
-        return (allUsersData.data || [])
+        return (allUsersData || [])
             .filter((u) => sanitize(u.client_name) === target)
             .map((u) => u.user_name)
             .filter(Boolean);
@@ -145,35 +144,35 @@ export default function ClientCreatePage() {
                         </div>
                     </div>
 
-                <div className="form-section">
-                    <h2 className="form-section__title">Solution & Team</h2>
-                    <div className="form-grid">
-                        <div className="form-field">
-                            <label className="form-label">Client Solution</label>
-                            <FilterDropdown
-                                label="Select owners"
-                                options={(lookups.hasamex_users || []).map((u) => u.name)}
-                                selected={(form.client_solution_owner_ids || []).map((id) => hasamexNameById[id]).filter(Boolean)}
-                                onChange={(names) => {
-                                    const ids = names.map((n) => hasamexIdByName[n]).filter(Boolean);
-                                    setForm((p) => ({ ...p, client_solution_owner_ids: ids }));
-                                }}
-                            />
-                        </div>
-                        <div className="form-field">
-                            <label className="form-label">Sales Team</label>
-                            <FilterDropdown
-                                label="Select sales team"
-                                options={(lookups.hasamex_users || []).map((u) => u.name)}
-                                selected={(form.sales_team_ids || []).map((id) => hasamexNameById[id]).filter(Boolean)}
-                                onChange={(names) => {
-                                    const ids = names.map((n) => hasamexIdByName[n]).filter(Boolean);
-                                    setForm((p) => ({ ...p, sales_team_ids: ids }));
-                                }}
-                            />
+                    <div className="form-section">
+                        <h2 className="form-section__title">Solution & Team</h2>
+                        <div className="form-grid">
+                            <div className="form-field">
+                                <label className="form-label">Client Solution</label>
+                                <FilterDropdown
+                                    label="Select owners"
+                                    options={(lookups.hasamex_users || []).map((u) => u.name)}
+                                    selected={(form.client_solution_owner_ids || []).map((id) => hasamexNameById[id]).filter(Boolean)}
+                                    onChange={(names) => {
+                                        const ids = names.map((n) => hasamexIdByName[n]).filter(Boolean);
+                                        setForm((p) => ({ ...p, client_solution_owner_ids: ids }));
+                                    }}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Sales Team</label>
+                                <FilterDropdown
+                                    label="Select sales team"
+                                    options={(lookups.hasamex_users || []).map((u) => u.name)}
+                                    selected={(form.sales_team_ids || []).map((id) => hasamexNameById[id]).filter(Boolean)}
+                                    onChange={(names) => {
+                                        const ids = names.map((n) => hasamexIdByName[n]).filter(Boolean);
+                                        setForm((p) => ({ ...p, sales_team_ids: ids }));
+                                    }}
+                                />
+                            </div>
                         </div>
                     </div>
-                </div>
 
                     <div className="form-section">
                         <h2 className="form-section__title">Commercial</h2>

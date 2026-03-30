@@ -18,6 +18,29 @@ export async function fetchClients({ page = 1, limit = 20, search = '' } = {}) {
     }
 }
 
+/**
+ * Optimized endpoint: returns paginated clients with pre-computed
+ * project_count, engagement_count, and user_count per row.
+ * Replaces fetchClients + fetchClientUsers + fetchProjects + N engagement calls.
+ */
+export async function fetchClientsSummary({ page = 1, limit = 20, search = '' } = {}) {
+    const query = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+        search,
+    });
+    try {
+        const result = await http(`/clients/summary?${query.toString()}`);
+        return {
+            data: result.data || [],
+            meta: result.meta || { total_records: 0, current_page: 1, total_pages: 1, limit },
+        };
+    } catch (error) {
+        console.error('Failed to fetch clients summary:', error);
+        return { data: [], meta: { total_records: 0, current_page: 1, total_pages: 1, limit } };
+    }
+}
+
 export async function fetchClientById(clientId) {
     const result = await http(`/clients/${clientId}`);
     return result.data || null;
@@ -75,3 +98,16 @@ export async function fetchProjects({ clientId } = {}) {
     }
 }
 
+/**
+ * Optimized endpoint: returns all data needed by ClientEditPage/ClientCreatePage
+ * in a single request. Replaces fetchClientUsers + fetchUsers(1000) + /lookups.
+ */
+export async function fetchClientFormLookups() {
+    try {
+        const result = await http('/clients/form-lookups');
+        return result.data || { client_users: [], hasamex_users: [] };
+    } catch (error) {
+        console.error('Failed to fetch client form lookups:', error);
+        return { client_users: [], hasamex_users: [] };
+    }
+}
