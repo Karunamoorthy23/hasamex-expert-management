@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { fetchUserById } from '../../api/users';
+import { fetchUserById, updateUser } from '../../api/users';
 import Loader from '../../components/ui/Loader';
 import EngagementAssignmentsTable from '../../components/engagements/EngagementAssignmentsTable';
+import Modal from '../../components/ui/Modal';
+import Button from '../../components/ui/Button';
 
 export default function UserDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
     const [user, setUser] = useState(null);
+    const [noteModalOpen, setNoteModalOpen] = useState(false);
+    const [isSavingNote, setIsSavingNote] = useState(false);
+    const [newNote, setNewNote] = useState({ date: new Date().toISOString().split('T')[0], title: '', description: '' });
 
     useEffect(() => {
         let cancelled = false;
@@ -22,6 +27,30 @@ export default function UserDetails() {
             cancelled = true;
         };
     }, [id]);
+
+    const handleSaveNote = async () => {
+        if (!newNote.title.trim() && !newNote.description.trim()) return;
+        setIsSavingNote(true);
+        try {
+            const updatedNotes = Array.isArray(user.notes) ? [...user.notes] : [];
+            updatedNotes.push({ ...newNote, id: Date.now() });
+            
+            await updateUser(id, {
+                ...user,
+                notes: updatedNotes
+            });
+            
+            // Refresh user data
+            const updatedUser = await fetchUserById(id);
+            setUser(updatedUser);
+            setNoteModalOpen(false);
+            setNewNote({ date: new Date().toISOString().split('T')[0], title: '', description: '' });
+        } catch (error) {
+            console.error('Failed to save note:', error);
+        } finally {
+            setIsSavingNote(false);
+        }
+    };
 
     const nameDisplay = useMemo(() => {
         if (!user) return 'User';
@@ -112,8 +141,32 @@ export default function UserDetails() {
                         <div className="sec-title">Engagements</div>
                         <EngagementAssignmentsTable pocUserId={id} sticky={true} />
                         <div className="divider"></div>
-                        <div className="sec-title">Notes</div>
-                        <div className="desc-text">{user.notes || '—'}</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                            <div className="sec-title" style={{ margin: 0 }}>Notes</div>
+                            <Button 
+                                variant="secondary" 
+                                size="sm" 
+                                style={{ fontSize: '0.7rem', padding: '3px 8px', height: 'auto', minWidth: 'auto' }} 
+                                onClick={() => setNoteModalOpen(true)}
+                            >
+                                + Add Note
+                            </Button>
+                        </div>
+                        {Array.isArray(user.notes) && user.notes.length > 0 ? (
+                            <div className="notes-display" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                {user.notes.map((note, i) => (
+                                    <div key={i} style={{ padding: '10px', background: '#f9f9f9', borderRadius: '4px', borderLeft: '3px solid #1a5ca8' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                            <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{note.title || 'Untitled Note'}</span>
+                                            <span style={{ fontSize: '0.75rem', color: '#666' }}>{note.date || 'No date'}</span>
+                                        </div>
+                                        <div style={{ fontSize: '0.84rem', color: '#333', whiteSpace: 'pre-wrap' }}>{note.description || '—'}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="desc-text">{typeof user.notes === 'string' ? user.notes : '—'}</div>
+                        )}
                     </div>
                     <div className="right-pane">
                         <div className="ideal-title">Key Info</div>
@@ -134,6 +187,49 @@ export default function UserDetails() {
                     </div>
                 </div>
             </div>
+
+            {noteModalOpen && (
+                <Modal
+                    open={noteModalOpen}
+                    onClose={() => setNoteModalOpen(false)}
+                    title="Add New Note"
+                >
+                    <div className="form-grid" style={{ display: 'flex', flexDirection: 'column', gap: '15px', padding: '10px 0' }}>
+                        <div className="form-field">
+                            <label className="form-label">Date</label>
+                            <input
+                                type="date"
+                                className="form-input"
+                                value={newNote.date}
+                                onChange={(e) => setNewNote(p => ({ ...p, date: e.target.value }))}
+                            />
+                        </div>
+                        <div className="form-field">
+                            <label className="form-label">Title</label>
+                            <input
+                                className="form-input"
+                                placeholder="Note title"
+                                value={newNote.title}
+                                onChange={(e) => setNewNote(p => ({ ...p, title: e.target.value }))}
+                            />
+                        </div>
+                        <div className="form-field">
+                            <label className="form-label">Description</label>
+                            <textarea
+                                className="form-textarea"
+                                rows={4}
+                                placeholder="Enter note details..."
+                                value={newNote.description}
+                                onChange={(e) => setNewNote(p => ({ ...p, description: e.target.value }))}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                            <Button variant="ghost" onClick={() => setNoteModalOpen(false)}>Cancel</Button>
+                            <Button variant="primary" loading={isSavingNote} onClick={handleSaveNote}>Save Note</Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
         </>
     );
 }

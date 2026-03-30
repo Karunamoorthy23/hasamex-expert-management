@@ -294,7 +294,7 @@ class User(db.Model):
     location_id = db.Column(db.Integer, db.ForeignKey('lk_location.id', ondelete='SET NULL'), nullable=True)
     avg_calls_per_month = db.Column(db.Integer)
     status = db.Column(db.String(50))
-    notes = db.Column(db.Text)
+    notes = db.Column(JSONB)
     user_manager = db.Column(db.String(255))
     ai_generated_bio = db.Column(db.Text)
     client_solution_owner_ids = db.Column(db.Text)

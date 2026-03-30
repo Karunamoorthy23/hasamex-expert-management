@@ -63,3 +63,5 @@ VALUES
 )
 ON CONFLICT (user_code) DO NOTHING;
 
+-- update users set notes=null 
+ALTER TABLE users ALTER COLUMN notes TYPE JSONB USING notes::jsonb;

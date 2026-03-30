@@ -46,7 +46,7 @@ export default function UserEditPage() {
                 time_zone: u?.time_zone || '',
                 avg_calls_per_month: u?.avg_calls_per_month ?? '',
                 status: u?.status || '',
-                notes: u?.notes || '',
+                notes: Array.isArray(u?.notes) ? u.notes : [],
                 user_manager: u?.user_manager || '',
                 ai_generated_bio: u?.ai_generated_bio || '',
                 client_solution_owner_ids: Array.isArray(u?.client_solution_owner_ids) ? u.client_solution_owner_ids : [],
@@ -248,12 +248,87 @@ export default function UserEditPage() {
                     </div>
 
                     <div className="form-section">
-                        <h2 className="form-section__title">Notes</h2>
-                        <div className="form-grid">
-                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
-                                <label className="form-label">Notes</label>
-                                <textarea className="form-textarea" rows={3} value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
-                            </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <h2 className="form-section__title" style={{ marginBottom: 0 }}>Notes</h2>
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => setForm(p => ({
+                                    ...p,
+                                    notes: [...(p.notes || []), { id: Date.now(), date: '', title: '', description: '' }]
+                                }))}
+                            >
+                                + Add Note
+                            </Button>
+                        </div>
+                        <div className="notes-list">
+                            {(!form.notes || form.notes.length === 0) ? (
+                                <div style={{ padding: '20px', border: '1px dashed #ccc', borderRadius: '4px', textAlign: 'center', color: '#666' }}>
+                                    No notes added. Click "+ Add Note" to create one.
+                                </div>
+                            ) : (
+                                form.notes.map((note, index) => (
+                                    <div key={note.id || index} className="note-item" style={{ border: '1px solid #eee', padding: '15px', borderRadius: '4px', marginBottom: '15px', position: 'relative' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                            <h4 style={{ margin: 0 }}>Note #{index + 1}</h4>
+                                            <Button
+                                                type="button"
+                                                variant="danger"
+                                                size="sm"
+                                                onClick={() => setForm(p => ({
+                                                    ...p,
+                                                    notes: p.notes.filter((_, i) => i !== index)
+                                                }))}
+                                            >
+                                                Remove
+                                            </Button>
+                                        </div>
+                                        <div className="form-grid">
+                                            <div className="form-field">
+                                                <label className="form-label">Date</label>
+                                                <input
+                                                    type="date"
+                                                    className="form-input"
+                                                    value={note.date}
+                                                    onChange={(e) => {
+                                                        const newNotes = [...form.notes];
+                                                        newNotes[index].date = e.target.value;
+                                                        setForm(p => ({ ...p, notes: newNotes }));
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="form-field">
+                                                <label className="form-label">Title</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={note.title}
+                                                    onChange={(e) => {
+                                                        const newNotes = [...form.notes];
+                                                        newNotes[index].title = e.target.value;
+                                                        setForm(p => ({ ...p, notes: newNotes }));
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                                <label className="form-label">Description</label>
+                                                <textarea
+                                                    className="form-textarea"
+                                                    rows={2}
+                                                    value={note.description}
+                                                    onChange={(e) => {
+                                                        const newNotes = [...form.notes];
+                                                        newNotes[index].description = e.target.value;
+                                                        setForm(p => ({ ...p, notes: newNotes }));
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                        <div className="form-grid" style={{ marginTop: '20px' }}>
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
                                 <label className="form-label">AI-Generated BIO</label>
                                 <textarea className="form-textarea" rows={3} value={form.ai_generated_bio} onChange={(e) => setForm((p) => ({ ...p, ai_generated_bio: e.target.value }))} />
