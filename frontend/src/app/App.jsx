@@ -25,9 +25,10 @@ export default function App() {
             to: '/',
         },
         { id: 'engagements', label: 'Engagements', iconClass: 'fa-solid fa-phone-volume', to: '/engagements' },
-        { id: 'employees', label: 'Employees', iconClass: 'fa-regular fa-circle-user', to: '/employees' },
+        { id: 'leads', label: 'Leads', iconClass: 'fa-solid fa-crosshairs', to: '/leads' },
         // { id: 'leads', label: 'Leads', iconClass: 'fa-solid fa-crosshairs' },
         // { id: 'candidates', label: 'Candidates', iconClass: 'fa-solid fa-user-plus' },
+
     ];
 
     return (

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { fetchUserById, updateUser } from '../../api/users';
+import { fetchProjectsPaged } from '../../api/projects';
 import Loader from '../../components/ui/Loader';
 import EngagementAssignmentsTable from '../../components/engagements/EngagementAssignmentsTable';
 import Modal from '../../components/ui/Modal';
@@ -13,7 +14,10 @@ export default function UserDetails() {
     const [user, setUser] = useState(null);
     const [noteModalOpen, setNoteModalOpen] = useState(false);
     const [isSavingNote, setIsSavingNote] = useState(false);
-    const [newNote, setNewNote] = useState({ date: new Date().toISOString().split('T')[0], title: '', description: '' });
+    const [newNote, setNewNote] = useState({ date: new Date().toISOString().split('T')[0], type: 'Whatsapp', title: '', description: '' });
+    const [userProjects, setUserProjects] = useState([]);
+    const [projPage, setProjPage] = useState(1);
+    const [projMeta, setProjMeta] = useState({ total_pages: 1, current_page: 1, total_records: 0, limit: 20 });
 
     useEffect(() => {
         let cancelled = false;
@@ -27,6 +31,16 @@ export default function UserDetails() {
             cancelled = true;
         };
     }, [id]);
+
+    useEffect(() => {
+        let cancelled = false;
+        fetchProjectsPaged({ page: projPage, limit: 20, pocUserId: id }).then((res) => {
+            if (cancelled) return;
+            setUserProjects(Array.isArray(res?.data) ? res.data : []);
+            setProjMeta(res?.meta || { total_pages: 1, current_page: 1, total_records: 0, limit: 20 });
+        });
+        return () => { cancelled = true; };
+    }, [id, projPage]);
 
     const handleSaveNote = async () => {
         if (!newNote.title.trim() && !newNote.description.trim()) return;
@@ -44,7 +58,7 @@ export default function UserDetails() {
             const updatedUser = await fetchUserById(id);
             setUser(updatedUser);
             setNoteModalOpen(false);
-            setNewNote({ date: new Date().toISOString().split('T')[0], title: '', description: '' });
+            setNewNote({ date: new Date().toISOString().split('T')[0], type: 'Whatsapp', title: '', description: '' });
         } catch (error) {
             console.error('Failed to save note:', error);
         } finally {
@@ -108,7 +122,7 @@ export default function UserDetails() {
                         <button className="btn-edit" onClick={() => navigate(`/users/${user.user_id}/edit`)}>Edit User</button>
                     </div>
                     <div className="hdr-subtitle">
-                        Client: <strong>{user.client_id ? <a href={`/clients/${user.client_id}`}>{user.client_name || `#${user.client_id}`}</a> : (user.client_name || '—')}</strong> • Code: <strong>{user.user_code || '—'}</strong> • Title: <strong>{user.designation_title || '—'}</strong> • Status: <strong>{user.status || '—'}</strong> • LinkedIn: <strong>{linkedinDisplay}</strong>
+                        Client: <strong>{user.client_id ? <a href={`/clients/${user.client_id}`}>{user.client_name || `#${user.client_id}`}</a> : (user.client_name || '—')}</strong> • User ID: <strong>{user.user_code || '—'}</strong> • Title: <strong>{user.designation_title || '—'}</strong> • Status: <strong>{user.status || '—'}</strong> 
                     </div>
                     <div className="team-row">
                         <div className="team-member">
@@ -138,6 +152,47 @@ export default function UserDetails() {
                         <div className="info-row"><div className="info-key">Time Zone</div><div>{user.time_zone || '—'}</div></div>
                         <div className="info-row"><div className="info-key">Avg Calls / Month</div><div>{user.avg_calls_per_month ?? '—'}</div></div>
                         <div className="divider"></div>
+                        <div className="sec-title">Project Details</div>
+                        <div style={{ overflowX: 'auto', marginBottom: 8 }}>
+                            {Array.isArray(userProjects) && userProjects.length > 0 ? (
+                                <div style={{ border: '1px solid #e0e0e0', borderRadius: 4, overflow: 'hidden', background: '#fff' }}>
+                                    <div style={{ overflowY: 'auto', maxHeight: 420 }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                            <thead style={{ background: '#ebebeb' }}>
+                                                <tr>
+                                                    <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: '0.84rem', fontWeight: 600, color: '#333', borderRight: '1px solid #c8c8c8', whiteSpace: 'nowrap' }}>User ID</th>
+                                                    <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: '0.84rem', fontWeight: 600, color: '#333', borderRight: '1px solid #c8c8c8', whiteSpace: 'nowrap' }}>Project ID</th>
+                                                    <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: '0.84rem', fontWeight: 600, color: '#333', borderRight: '1px solid #c8c8c8' }}>Project Title</th>
+                                                    <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: '0.84rem', fontWeight: 600, color: '#333', borderRight: '1px solid #c8c8c8' }}>Target Companies</th>
+                                                    <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: '0.84rem', fontWeight: 600, color: '#333', borderRight: '1px solid #c8c8c8', whiteSpace: 'nowrap' }}>Experts Accepted</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {userProjects.map((p) => (
+                                                    <tr key={p.project_id} style={{ borderTop: '1px solid #e8e8e8' }}>
+                                                        <td style={{ padding: '10px 12px', fontSize: '0.84rem', color: '#333', borderRight: '1px solid #e8e8e8', whiteSpace: 'nowrap' }}>{user.user_id}</td>
+                                                        <td style={{ padding: '10px 12px', fontSize: '0.84rem', color: '#333', borderRight: '1px solid #e8e8e8', whiteSpace: 'nowrap' }}>
+                                                            <Link to={`/projects/${p.project_id}`} style={{ color: '#1a1a1a', textDecoration: 'none', fontWeight: 600 }}>{p.project_id}</Link>
+                                                        </td>
+                                                        <td style={{ padding: '10px 12px', fontSize: '0.84rem', color: '#333', borderRight: '1px solid #e8e8e8' }}>{p.project_title || p.title || `Project #${p.project_id}`}</td>
+                                                        <td style={{ padding: '10px 12px', fontSize: '0.84rem', color: '#333', borderRight: '1px solid #e8e8e8' }}>{p.target_companies || '—'}</td>
+                                                        <td style={{ padding: '10px 12px', fontSize: '0.84rem', color: '#333', borderRight: '1px solid #e8e8e8', whiteSpace: 'nowrap' }}>{p.accepted_count ?? '—'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div style={{ padding: '8px 10px', display: 'flex', justifyContent: 'flex-end', gap: 8, background: '#fff' }}>
+                                        <button className="btn btn--secondary btn--sm" onClick={() => setProjPage((p) => Math.max(1, p - 1))} disabled={projMeta.current_page <= 1}>Prev</button>
+                                        <div style={{ alignSelf: 'center', fontSize: '0.84rem' }}>{projMeta.current_page} / {projMeta.total_pages}</div>
+                                        <button className="btn btn--secondary btn--sm" onClick={() => setProjPage((p) => Math.min(projMeta.total_pages, p + 1))} disabled={projMeta.current_page >= projMeta.total_pages}>Next</button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="desc-text">—</div>
+                            )}
+                        </div>
+                        <div className="divider"></div>
                         <div className="sec-title">Engagements</div>
                         <EngagementAssignmentsTable pocUserId={id} sticky={true} />
                         <div className="divider"></div>
@@ -158,7 +213,9 @@ export default function UserDetails() {
                                     <div key={i} style={{ padding: '10px', background: '#f9f9f9', borderRadius: '4px', borderLeft: '3px solid #1a5ca8' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                                             <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{note.title || 'Untitled Note'}</span>
-                                            <span style={{ fontSize: '0.75rem', color: '#666' }}>{note.date || 'No date'}</span>
+                                            <span style={{ fontSize: '0.75rem', color: '#666', whiteSpace: 'nowrap' }}>
+                                                {note.date || 'No date'} {note.type ? `• ${note.type}` : ''}
+                                            </span>
                                         </div>
                                         <div style={{ fontSize: '0.84rem', color: '#333', whiteSpace: 'pre-wrap' }}>{note.description || '—'}</div>
                                     </div>
@@ -180,7 +237,7 @@ export default function UserDetails() {
                         </ul>
                         <div className="ideal-title">Contact</div>
                         <ul className="ideal-list">
-                            <li><span className="info-key">Email:</span><span>{user.email || '—'}</span></li>
+                            <li><span className="info-key">Email:</span><span>{user.email ? <a href={`mailto:${user.email}`}>{user.email}</a> : '—'}</span></li>
                             <li><span className="info-key">Phone:</span><span>{user.phone || '—'}</span></li>
                             <li><span className="info-key">LinkedIn:</span><span>{linkedinDisplay}</span></li>
                         </ul>
@@ -203,6 +260,21 @@ export default function UserDetails() {
                                 value={newNote.date}
                                 onChange={(e) => setNewNote(p => ({ ...p, date: e.target.value }))}
                             />
+                        </div>
+                        <div className="form-field">
+                            <label className="form-label">Type</label>
+                            <select
+                                className="form-input"
+                                value={newNote.type}
+                                onChange={(e) => setNewNote(p => ({ ...p, type: e.target.value }))}
+                            >
+                                <option value="Whatsapp">Whatsapp</option>
+                                <option value="Phone call">Phone call</option>
+                                <option value="Meeting">Meeting</option>
+                                <option value="LinkedIn">LinkedIn</option>
+                                <option value="Email">Email</option>
+                                <option value="Others">Others</option>
+                            </select>
                         </div>
                         <div className="form-field">
                             <label className="form-label">Title</label>

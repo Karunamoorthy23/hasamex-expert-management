@@ -857,3 +857,94 @@ class Engagement(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
+
+class LeadClient(db.Model):
+    __tablename__ = 'leadclients'
+    id = db.Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    first_name = db.Column(db.String(100), nullable=False)
+    last_name = db.Column(db.String(100), nullable=False)
+    company_name = db.Column(db.String(255), nullable=False)
+    current_role = db.Column('role_title', db.String(255), nullable=False)
+    business_email = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    received_date = db.Column(db.Date)
+    status = db.Column(db.String(32), default='Backlog')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'company_name': self.company_name,
+            'current_role': self.current_role,
+            'business_email': self.business_email,
+            'description': self.description,
+            'received_date': self.received_date.isoformat() if self.received_date else None,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+class LeadExpert(db.Model):
+    __tablename__ = 'leadexperts'
+    id = db.Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    first_name = db.Column(db.String(100), nullable=False)
+    last_name = db.Column(db.String(100), nullable=False)
+    city = db.Column(db.String(150), nullable=False)
+    email = db.Column(db.String(255), nullable=False)
+    phone_number = db.Column(db.String(50), nullable=False)
+    linkedin_url = db.Column(db.String(500), nullable=False)
+    description = db.Column(db.Text)
+    received_date = db.Column(db.Date)
+    status = db.Column(db.String(32), default='Backlog')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'city': self.city,
+            'email': self.email,
+            'phone_number': self.phone_number,
+            'linkedin_url': self.linkedin_url,
+            'description': self.description,
+            'received_date': self.received_date.isoformat() if self.received_date else None,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+class LeadCandidate(db.Model):
+    __tablename__ = 'leadcandidates'
+    id = db.Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    first_name = db.Column(db.String(100), nullable=False)
+    last_name = db.Column(db.String(100), nullable=False)
+    city = db.Column(db.String(150), nullable=False)
+    email = db.Column(db.String(255), nullable=False)
+    phone_number = db.Column(db.String(50), nullable=False)
+    linkedin_url = db.Column(db.String(500), nullable=False)
+    resume_url = db.Column(db.String(1000), nullable=False)
+    received_date = db.Column(db.Date)
+    status = db.Column(db.String(32), default='Backlog')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'city': self.city,
+            'email': self.email,
+            'phone_number': self.phone_number,
+            'linkedin_url': self.linkedin_url,
+            'resume_url': self.resume_url,
+            'received_date': self.received_date.isoformat() if self.received_date else None,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }

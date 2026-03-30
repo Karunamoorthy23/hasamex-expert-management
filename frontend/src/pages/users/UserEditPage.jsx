@@ -256,7 +256,7 @@ export default function UserEditPage() {
                                 size="sm"
                                 onClick={() => setForm(p => ({
                                     ...p,
-                                    notes: [...(p.notes || []), { id: Date.now(), date: '', title: '', description: '' }]
+                                    notes: [...(p.notes || []), { id: Date.now(), date: '', type: 'Whatsapp', title: '', description: '' }]
                                 }))}
                             >
                                 + Add Note
@@ -297,6 +297,25 @@ export default function UserEditPage() {
                                                         setForm(p => ({ ...p, notes: newNotes }));
                                                     }}
                                                 />
+                                            </div>
+                                            <div className="form-field">
+                                                <label className="form-label">Type</label>
+                                                <select
+                                                    className="form-input"
+                                                    value={note.type || 'Whatsapp'}
+                                                    onChange={(e) => {
+                                                        const newNotes = [...form.notes];
+                                                        newNotes[index].type = e.target.value;
+                                                        setForm(p => ({ ...p, notes: newNotes }));
+                                                    }}
+                                                >
+                                                    <option value="Whatsapp">Whatsapp</option>
+                                                    <option value="Phone call">Phone call</option>
+                                                    <option value="Meeting">Meeting</option>
+                                                    <option value="LinkedIn">LinkedIn</option>
+                                                    <option value="Email">Email</option>
+                                                    <option value="Others">Others</option>
+                                                </select>
                                             </div>
                                             <div className="form-field">
                                                 <label className="form-label">Title</label>

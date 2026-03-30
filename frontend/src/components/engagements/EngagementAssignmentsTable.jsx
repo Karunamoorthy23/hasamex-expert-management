@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { http } from '../../api/http';
 
-export default function EngagementAssignmentsTable({ clientId, projectId, pocUserId, sticky = true, maxHeight = 420 }) {
+export default function EngagementAssignmentsTable({ clientId, projectId, pocUserId, sticky = true, maxHeight = 420, pageSize = 20 }) {
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [page, setPage] = useState(1);
 
     useEffect(() => {
         let cancelled = false;
@@ -27,7 +28,7 @@ export default function EngagementAssignmentsTable({ clientId, projectId, pocUse
         return () => { cancelled = true; };
     }, [clientId, projectId, pocUserId]);
 
-    const items = useMemo(() => rows.map((e) => ({
+    const itemsAll = useMemo(() => rows.map((e) => ({
         id: e.id,
         code: e.engagement_id || '—',
         date: e.call_date ? new Date(e.call_date).toLocaleString() : '—',
@@ -38,6 +39,11 @@ export default function EngagementAssignmentsTable({ clientId, projectId, pocUse
         clientRate: e.client_rate ?? '—',
         expertRate: e.expert_rate ?? '—',
     })), [rows]);
+    const totalPages = useMemo(() => Math.max(1, Math.ceil(itemsAll.length / pageSize)), [itemsAll.length, pageSize]);
+    const items = useMemo(() => {
+        const start = (page - 1) * pageSize;
+        return itemsAll.slice(start, start + pageSize);
+    }, [itemsAll, page, pageSize]);
 
     return (
         <div style={{ border: '1px solid #e0e0e0', borderRadius: 4, overflow: 'hidden', background: '#fff' }}>
@@ -84,6 +90,11 @@ export default function EngagementAssignmentsTable({ clientId, projectId, pocUse
                         )}
                     </tbody>
                 </table>
+            </div>
+            <div style={{ padding: '8px 10px', display: 'flex', justifyContent: 'flex-end', gap: 8, background: '#fff' }}>
+                <button className="btn btn--secondary btn--sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>Prev</button>
+                <div style={{ alignSelf: 'center', fontSize: '0.84rem' }}>{page} / {totalPages}</div>
+                <button className="btn btn--secondary btn--sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>Next</button>
             </div>
         </div>
     );

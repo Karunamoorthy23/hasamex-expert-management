@@ -1,12 +1,13 @@
 import { http } from './http';
 
-export async function fetchProjectsPaged({ page = 1, limit = 20, search = '', clientId } = {}) {
+export async function fetchProjectsPaged({ page = 1, limit = 20, search = '', clientId, pocUserId } = {}) {
     const query = new URLSearchParams({
         page: String(page),
         limit: String(limit),
         search,
     });
     if (clientId) query.set('client_id', String(clientId));
+    if (pocUserId) query.set('poc_user_id', String(pocUserId));
 
     try {
         const result = await http(`/projects?${query.toString()}`);

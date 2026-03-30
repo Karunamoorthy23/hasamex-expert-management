@@ -26,6 +26,16 @@ import ResetPasswordPage from '../pages/auth/ResetPasswordPage';
 import EmployeesPage from '../pages/employees/EmployeesPage';
 import EmployeeCreatePage from '../pages/employees/EmployeeCreatePage';
 import EmployeeEditPage from '../pages/employees/EmployeeEditPage';
+import LeadsPage from '../pages/leads/LeadsPage';
+import LeadClientsPage from '../pages/leads/LeadClientsPage';
+import LeadClientCreate from '../pages/leads/LeadClientCreate';
+import LeadClientEdit from '../pages/leads/LeadClientEdit';
+import LeadExpertsPage from '../pages/leads/LeadExpertsPage';
+import LeadExpertCreate from '../pages/leads/LeadExpertCreate';
+import LeadExpertEdit from '../pages/leads/LeadExpertEdit';
+import LeadCandidatesPage from '../pages/leads/LeadCandidatesPage';
+import LeadCandidateCreate from '../pages/leads/LeadCandidateCreate';
+import LeadCandidateEdit from '../pages/leads/LeadCandidateEdit';
 
 /**
  * Application router configuration.
@@ -154,6 +164,22 @@ const router = createBrowserRouter([
             {
                 path: 'employees/:id/edit',
                 element: <EmployeeEditPage />,
+            },
+            {
+                path: 'leads',
+                element: <LeadsPage />,
+                children: [
+                    { index: true, element: <LeadClientsPage /> },
+                    { path: 'clients', element: <LeadClientsPage /> },
+                    { path: 'clients/new', element: <LeadClientCreate /> },
+                    { path: 'clients/:id/edit', element: <LeadClientEdit /> },
+                    { path: 'experts', element: <LeadExpertsPage /> },
+                    { path: 'experts/new', element: <LeadExpertCreate /> },
+                    { path: 'experts/:id/edit', element: <LeadExpertEdit /> },
+                    { path: 'candidates', element: <LeadCandidatesPage /> },
+                    { path: 'candidates/new', element: <LeadCandidateCreate /> },
+                    { path: 'candidates/:id/edit', element: <LeadCandidateEdit /> },
+                ]
             },
         ],
     },
