@@ -14,11 +14,12 @@ export default function UserCreatePage() {
     const [clients, setClients] = useState([]);
     const [lookups, setLookups] = useState({});
     const [isSaving, setIsSaving] = useState(false);
+    const [errorText, setErrorText] = useState('');
+    const [isLocLoading, setIsLocLoading] = useState(false);
 
     const [form, setForm] = useState({
         first_name: '',
         last_name: '',
-        user_code: '',
         designation_title: '',
         email: '',
         phone: '',
@@ -62,6 +63,7 @@ export default function UserCreatePage() {
 
     async function handleSubmit(e) {
         e.preventDefault();
+        setErrorText('');
         setIsSaving(true);
         try {
             let locId = form.location_id || null;
@@ -83,6 +85,13 @@ export default function UserCreatePage() {
                 avg_calls_per_month: form.avg_calls_per_month ? Number(form.avg_calls_per_month) : null,
             });
             navigate('/users');
+        } catch (err) {
+            const apiMsg = err?.data?.error || err?.data?.message || '';
+            if (err?.status === 409 && (apiMsg || '').toLowerCase().includes('email')) {
+                setErrorText('Email already exists. Please use a different email.');
+            } else {
+                setErrorText(apiMsg || 'Failed to create user. Please try again.');
+            }
         } finally {
             setIsSaving(false);
         }
@@ -96,6 +105,11 @@ export default function UserCreatePage() {
 
             <div className="card">
                 <form className="expert-form" onSubmit={handleSubmit}>
+                    {errorText ? (
+                        <div style={{ background: '#fdeaea', border: '1px solid #f5c2c7', color: '#b00020', padding: '10px 12px', borderRadius: 4, marginBottom: 16 }}>
+                            {errorText}
+                        </div>
+                    ) : null}
                     <div className="form-section">
                         <h2 className="form-section__title">User</h2>
                         <div className="form-grid">
@@ -106,10 +120,6 @@ export default function UserCreatePage() {
                             <div className="form-field">
                                 <label className="form-label">Last Name</label>
                                 <input className="form-input" value={form.last_name} onChange={(e) => setForm((p) => ({ ...p, last_name: e.target.value }))} />
-                            </div>
-                            <div className="form-field">
-                                <label className="form-label">User ID</label>
-                                <input className="form-input" value={form.user_code} onChange={(e) => setForm((p) => ({ ...p, user_code: e.target.value }))} placeholder="US-0032" />
                             </div>
                             <div className="form-field">
                                 <label className="form-label">Client Name</label>
@@ -130,7 +140,7 @@ export default function UserCreatePage() {
                             </div>
                             <div className="form-field">
                                 <label className="form-label">Email</label>
-                                <input className="form-input" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+                                <input className="form-input" type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
                             </div>
                             <div className="form-field">
                                 <label className="form-label">Phone</label>
@@ -185,6 +195,7 @@ export default function UserCreatePage() {
                                 <LocationSelector
                                     value={{ display_name: form.location_display_name || form.location }}
                                     onChange={async (sel) => {
+                                        setIsLocLoading(true);
                                         let label = '';
                                         try {
                                             label = await resolveTimezoneLabel({
@@ -192,7 +203,11 @@ export default function UserCreatePage() {
                                                 latitude: sel.latitude,
                                                 longitude: sel.longitude,
                                             });
-                                        } catch {}
+                                        } catch {
+                                            label = '';
+                                        } finally {
+                                            setIsLocLoading(false);
+                                        }
                                         setForm((p) => ({
                                             ...p,
                                             location: sel.display_name,
@@ -205,6 +220,16 @@ export default function UserCreatePage() {
                                         }));
                                     }}
                                 />
+                                {isLocLoading ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, color: '#666', fontSize: 12 }}>
+                                        <svg width="14" height="14" viewBox="0 0 50 50" aria-hidden="true">
+                                            <circle cx="25" cy="25" r="20" stroke="#999" strokeWidth="5" fill="none" strokeDasharray="31.415,31.415" strokeLinecap="round">
+                                                <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+                                            </circle>
+                                        </svg>
+                                        <span>Resolving timezone…</span>
+                                    </div>
+                                ) : null}
                             </div>
                             <div className="form-field">
                                 <label className="form-label">Preferred Contact Method</label>
