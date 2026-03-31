@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchLookups } from '../../api/lookups';
-import { fetchClients } from '../../api/clients';
-import { fetchUsers } from '../../api/users';
-import { createProject } from '../../api/projects';
+import { createProject, fetchProjectFormLookups } from '../../api/projects';
 import FilterDropdown from '../../components/experts/FilterDropdown';
 import Button from '../../components/ui/Button';
 
@@ -42,9 +39,14 @@ export default function ProjectCreatePage() {
     });
 
     useEffect(() => {
-        fetchLookups().then(setLookups);
-        fetchClients({ page: 1, limit: 1000, search: '' }).then((r) => setClients(r.data || []));
-        fetchUsers({ page: 1, limit: 1000, search: '' }).then((r) => setUsers(r.data || []));
+        let mounted = true;
+        fetchProjectFormLookups().then(data => {
+            if (!mounted) return;
+            setLookups(data.lookups || {});
+            setClients(data.clients || []);
+            setUsers(data.users || []);
+        });
+        return () => { mounted = false; };
     }, []);
 
     const clientOptions = useMemo(() => (clients || []).map((c) => c.client_name), [clients]);

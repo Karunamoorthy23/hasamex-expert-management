@@ -659,6 +659,7 @@ class Project(db.Model):
         return {
             'project_id': self.project_id,
             'client_id': self.client_id,
+            'client_name': self.client.client_name if self.client else None,
             'title': self.title,
             'sector': self.sector,
             'description': self.description,

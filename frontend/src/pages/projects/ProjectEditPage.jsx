@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { fetchLookups } from '../../api/lookups';
-import { fetchClients } from '../../api/clients';
-import { fetchUsers } from '../../api/users';
-import { fetchProjectById, updateProject } from '../../api/projects';
+import { fetchProjectById, updateProject, fetchProjectFormLookups } from '../../api/projects';
 import FilterDropdown from '../../components/experts/FilterDropdown';
 import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
@@ -20,9 +17,14 @@ export default function ProjectEditPage() {
     const [form, setForm] = useState(null);
 
     useEffect(() => {
-        fetchLookups().then(setLookups);
-        fetchClients({ page: 1, limit: 1000, search: '' }).then((r) => setClients(r.data || []));
-        fetchUsers({ page: 1, limit: 1000, search: '' }).then((r) => setUsers(r.data || []));
+        let mounted = true;
+        fetchProjectFormLookups().then(data => {
+            if (!mounted) return;
+            setLookups(data.lookups || {});
+            setClients(data.clients || []);
+            setUsers(data.users || []);
+        });
+        return () => { mounted = false; };
     }, []);
 
     useEffect(() => {
@@ -260,8 +262,8 @@ export default function ProjectEditPage() {
                     <div className="form-section">
                         <h2 className="form-section__title">Solution & Team</h2>
                         <div className="form-grid">
-                        <div className="form-field">
-                            <label className="form-label">Research Analyst</label>
+                            <div className="form-field">
+                                <label className="form-label">Research Analyst</label>
                                 <FilterDropdown
                                     label="Select owners"
                                     options={(lookups.hasamex_users || []).map((u) => u.name)}
@@ -272,8 +274,8 @@ export default function ProjectEditPage() {
                                     }}
                                 />
                             </div>
-                        <div className="form-field">
-                            <label className="form-label">Account Manager</label>
+                            <div className="form-field">
+                                <label className="form-label">Account Manager</label>
                                 <FilterDropdown
                                     label="Select sales team"
                                     options={(lookups.hasamex_users || []).map((u) => u.name)}
@@ -284,18 +286,18 @@ export default function ProjectEditPage() {
                                     }}
                                 />
                             </div>
-                        <div className="form-field" style={{ gridColumn: 'span 2' }}>
-                            <label className="form-label">Invited Experts (IDs)</label>
-                            <FilterDropdown
-                                label="Select experts"
-                                options={(lookups.experts_codes || []).map((e) => `${e.code} — ${e.name}`)}
-                                selected={(form.invited_expert_ids || []).map((id) => expertLabelById[id]).filter(Boolean)}
-                                onChange={(labels) => {
-                                    const ids = labels.map((lbl) => expertIdByLabel[lbl]).filter(Boolean);
-                                    setForm((p) => ({ ...p, invited_expert_ids: ids }));
-                                }}
-                            />
-                        </div>
+                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                <label className="form-label">Invited Experts (IDs)</label>
+                                <FilterDropdown
+                                    label="Select experts"
+                                    options={(lookups.experts_codes || []).map((e) => `${e.code} — ${e.name}`)}
+                                    selected={(form.invited_expert_ids || []).map((id) => expertLabelById[id]).filter(Boolean)}
+                                    onChange={(labels) => {
+                                        const ids = labels.map((lbl) => expertIdByLabel[lbl]).filter(Boolean);
+                                        setForm((p) => ({ ...p, invited_expert_ids: ids }));
+                                    }}
+                                />
+                            </div>
                         </div>
                     </div>
 
