@@ -1,31 +1,28 @@
-# Experts Module Optimization Plan
+# Engagements Module Optimization Plan
 
-The Experts module (unlike previous ones) correctly utilizes backend SQL pagination (`Expert.query.offset().limit()`). However, a massive performance bottleneck exists because all frontend views initialize by calling `GET /api/v1/lookups`. The global lookups endpoint currently downloads the *entire* database of Experts, Projects, Clients, and Users (over 10,000+ records) into an uncompressed JSON block indiscriminately on every page load.
+Unlike early versions of the Users and Clients modules, the Engagements module features a well-constructed GraphQL-style `limit/offset` API built natively on joined-tables, preventing any internal `N+1` fetching bugs.
+
+However, the catastrophic bottleneck shared with the Experts module persists here:
+Both the [EngagementDashboardPage.jsx](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/pages/EngagementDashboardPage.jsx) and [EngagementEditPage.jsx](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/pages/engagements/EngagementEditPage.jsx) initialize by dispatching a call to the global `GET /api/v1/lookups` dictionary endpoint. This forces the React client to download the entirety of the platform's multi-megabyte datasets (including recursively nested Expert arrays) every time a user views their Engagements list, purely to extract simple dropdown properties.
 
 ## Goal Description
-Sever the Experts module's dependency on the monolithic `/lookups` endpoint by introducing targeted, domain-specific filter and form APIs.
+Sever the Engagements module's dependency on the monolithic `/lookups` API payload by substituting it with strict, ultra-lightweight domain APIs specifically tailored to exactly what [EngagementDashboardPage](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/pages/EngagementDashboardPage.jsx#12-183) and [EngagementEditPage](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/pages/engagements/EngagementEditPage.jsx#8-495) request.
 
 ## Proposed Changes
 
 ### Backend Route Alterations
-#### [MODIFY] backend/routes/experts.py
-Add 2 new highly optimized dictionary endpoints:
-1. `GET /api/v1/experts/filter-options`: Emits only the discrete enumerations required by `ExpertsFiltersPanel.jsx` ([region](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/models.py#189-191), [primary_sector](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/models.py#195-197), [expert_status](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/models.py#205-207), [current_employment_status](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/models.py#191-193)).
-2. `GET /api/v1/experts/form-lookups`: Emits only the core lookup lists required by the Edit and Create forms (Salutation, Region, Seniority, Currency, etc.) and `hasamex_users`. It entirely excludes heavy relations like Projects, Clients, and the recursive recursive Experts lists.
-
-### Frontend API Layer Modifications
-#### [MODIFY] frontend/src/api/experts.js
-- Replace [getFilterOptions](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/api/experts.js#45-58) definition to point to `/experts/filter-options` instead of the global `/lookups`.
-- Introduce `getFormLookups` pointed to `/experts/form-lookups`.
+#### [MODIFY] backend/routes/engagements.py
+Add 2 surgical proxy endpoints at the top of the file:
+1. `GET /api/v1/engagements/filter-options`: Emits *only* `payment_status`—the singular dictionary utilized by [EngagementFilters.jsx](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/components/engagements/EngagementFilters.jsx).
+2. `GET /api/v1/engagements/form-lookups`: Emits [projects](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/routes/projects.py#28-81), [clients](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/routes/clients.py#34-86), [users](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/routes/clients.py#348-352), `hasamex_users`, `engagement_method`, `currencies`, `post_call_status`, and `payment_status`. Critically entirely excludes the >10,000 item recursive Experts payload.
 
 ### React Component Tuning
-#### [MODIFY] frontend/src/pages/experts/ExpertsPage.jsx
-- Ensure [getFilterOptions](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/api/experts.js#45-58) properly hydrates the left-hand filter panel without importing mega-loads.
+#### [MODIFY] frontend/src/pages/EngagementDashboardPage.jsx
+- Directly rewrite the internal [fetchLookups](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/api/lookups.js#3-7) to target the new lightning-fast `GET /engagements/filter-options` endpoint rather than the global `/lookups` root API.
 
-#### [MODIFY] frontend/src/pages/experts/ExpertEditPage.jsx
-#### [MODIFY] frontend/src/pages/experts/ExpertCreatePage.jsx
-- Switch these heavy forms from [getFilterOptions()](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/api/experts.js#45-58) over to the new, highly targeted `getFormLookups()` API function.
+#### [MODIFY] frontend/src/pages/engagements/EngagementEditPage.jsx
+- Refactor the internal `useEffect` inline `http()` payload fetch to point at `GET /engagements/form-lookups` rather than the global `/lookups` root API.
 
 ## Verification Plan
-1. **Automated Verification**: Build React bundles without compilation errors.
-2. **Network Activity**: Trace identical page navigations before and after to observe a drastic reduction in the "Network" payload size for lookups (expected drop from megabytes down to ~5kb).
+1. **Network Activity Verification**: Profile the internal payload dispatch inside the Developer Tools. Validate that `GET /engagements/...` drops the internal network exchange from a multi-megabyte block down to under ~20kb.
+2. **Feature Regression Check**: Ensure [EngagementFilters.jsx](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/components/engagements/EngagementFilters.jsx) correctly binds `payment_status` without any visual degradation. Ensure the [EngagementEditPage.jsx](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/pages/engagements/EngagementEditPage.jsx) natively constructs all 8 of its dropdown menus seamlessly.
