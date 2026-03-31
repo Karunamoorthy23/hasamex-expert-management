@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
-import { getFilterOptions, fetchExpertById, updateExpert } from '../../api/experts';
+import { getFormLookups, fetchExpertById, updateExpert } from '../../api/experts';
 import { UploadIcon, XIcon, FileIcon } from '../../components/icons/Icons';
 import Skeletons from '../../components/experts/Skeletons';
 import TimezoneSelect from '../../components/ui/TimezoneSelect';
@@ -139,7 +139,7 @@ export default function ExpertEditPage() {
     useEffect(() => {
         setIsLoading(true);
         Promise.all([
-            getFilterOptions(),
+            getFormLookups(),
             fetchExpertById(id)
         ]).then(([lookupsData, expertData]) => {
             setLookups(lookupsData);

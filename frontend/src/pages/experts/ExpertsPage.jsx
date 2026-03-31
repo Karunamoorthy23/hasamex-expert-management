@@ -54,7 +54,7 @@ export default function ExpertsPage() {
     const debouncedSearch = useDebouncedValue(search, 400);
 
     // ── Filter options (lookups) ──
-    const [lookups, setLookups] = useState({ region: [], sector: [], status: [], employment: [], hasamex_users: [] });
+    const [lookups, setLookups] = useState({ region: [], primary_sector: [], expert_status: [], current_employment_status: [] });
 
     useEffect(() => {
         getFilterOptions().then((data) => {
@@ -269,7 +269,7 @@ export default function ExpertsPage() {
     const allPageSelected =
         experts.length > 0 && experts.every((e) => selectedIds.has(e.id));
 
-    
+
 
     return (
         <>
@@ -386,7 +386,7 @@ export default function ExpertsPage() {
                 )}
             </div>
 
-            
+
 
             {/* Delete Confirmation Modal */}
             <ConfirmDialog

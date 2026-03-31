@@ -2,8 +2,6 @@ import ClientCard from './ClientCard';
 
 export default function ClientsCardGrid({
     clients,
-    projectsByClientId = {},
-    usersByClientId = {},
     selectedIds,
     onSelectClient,
     onViewClient,
@@ -17,8 +15,8 @@ export default function ClientsCardGrid({
                 <ClientCard
                     key={client.client_id}
                     client={client}
-                    projects={projectsByClientId[client.client_id] || []}
-                    users={usersByClientId[client.client_id] || []}
+                    projectCount={client.project_count ?? 0}
+                    userCount={client.user_count ?? 0}
                     selected={selectedIds.has(client.client_id)}
                     onSelect={() => onSelectClient(client.client_id)}
                     onView={() => onViewClient(client.client_id)}

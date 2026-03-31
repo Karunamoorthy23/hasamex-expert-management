@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { getFilterOptions } from '../../api/experts';
+import { getFormLookups } from '../../api/experts';
 import { http } from '../../api/http';
 import { UploadIcon, XIcon, FileIcon } from '../../components/icons/Icons';
 import TimezoneSelect from '../../components/ui/TimezoneSelect';
@@ -138,7 +138,7 @@ export default function ExpertCreatePage() {
 
     // ── Fetch lookup values from API ──
     useEffect(() => {
-        getFilterOptions().then((data) => {
+        getFormLookups().then((data) => {
             setLookups(data);
         });
     }, []);

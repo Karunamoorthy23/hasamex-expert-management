@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { fetchClientById, fetchClientUsers, updateClient } from '../../api/clients';
-import { http } from '../../api/http';
-import { fetchUsers } from '../../api/users';
+import { fetchClientById, fetchClientFormLookups, updateClient } from '../../api/clients';
 import FilterDropdown from '../../components/experts/FilterDropdown';
 import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
@@ -14,22 +12,29 @@ export default function ClientEditPage() {
     const [client, setClient] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [allUsersData, setAllUsersData] = useState({ data: [] });
+    const [allUsersData, setAllUsersData] = useState([]);
+    const [lookups, setLookups] = useState({});
 
     const [form, setForm] = useState(null);
 
     useEffect(() => {
-        fetchClientUsers().then(setUsers);
-        http('/lookups').then((res) => setLookups(res.data || {})).catch(() => setLookups({}));
-        fetchUsers({ page: 1, limit: 1000, search: '' }).then((r) => setAllUsersData(r || { data: [] }));
-    }, []);
-    const [lookups, setLookups] = useState({});
-
-    useEffect(() => {
         let cancelled = false;
         setIsLoading(true);
-        fetchClientById(id).then((c) => {
+
+        // 2 calls instead of 4: fetchClientById + fetchClientFormLookups
+        Promise.all([
+            fetchClientById(id),
+            fetchClientFormLookups(),
+        ]).then(([clientData, formLookups]) => {
             if (cancelled) return;
+
+            // Set users from consolidated lookups
+            setUsers(formLookups.client_users || []);
+            setAllUsersData(formLookups.client_users || []);
+            setLookups({ hasamex_users: formLookups.hasamex_users || [] });
+
+            // Set client and form
+            const c = clientData;
             setClient(c);
             setForm({
                 client_name: c?.client_name || '',
@@ -58,6 +63,7 @@ export default function ClientEditPage() {
             });
             setIsLoading(false);
         });
+
         return () => {
             cancelled = true;
         };
@@ -82,7 +88,7 @@ export default function ClientEditPage() {
     const userOptionsByClient = useMemo(() => {
         const target = sanitize(form?.client_name || client?.client_name);
         if (!target) return [];
-        return (allUsersData.data || [])
+        return (allUsersData || [])
             .filter((u) => sanitize(u.client_name) === target)
             .map((u) => u.user_name)
             .filter(Boolean);
@@ -164,35 +170,35 @@ export default function ClientEditPage() {
                         </div>
                     </div>
 
-                <div className="form-section">
-                    <h2 className="form-section__title">Solution & Team</h2>
-                    <div className="form-grid">
-                        <div className="form-field">
-                            <label className="form-label">Client Solution</label>
-                            <FilterDropdown
-                                label="Select owners"
-                                options={(lookups.hasamex_users || []).map((u) => u.name)}
-                                selected={(form.client_solution_owner_ids || []).map((id) => hasamexNameById[id]).filter(Boolean)}
-                                onChange={(names) => {
-                                    const ids = names.map((n) => hasamexIdByName[n]).filter(Boolean);
-                                    setForm((p) => ({ ...p, client_solution_owner_ids: ids }));
-                                }}
-                            />
-                        </div>
-                        <div className="form-field">
-                            <label className="form-label">Sales Team</label>
-                            <FilterDropdown
-                                label="Select sales team"
-                                options={(lookups.hasamex_users || []).map((u) => u.name)}
-                                selected={(form.sales_team_ids || []).map((id) => hasamexNameById[id]).filter(Boolean)}
-                                onChange={(names) => {
-                                    const ids = names.map((n) => hasamexIdByName[n]).filter(Boolean);
-                                    setForm((p) => ({ ...p, sales_team_ids: ids }));
-                                }}
-                            />
+                    <div className="form-section">
+                        <h2 className="form-section__title">Solution & Team</h2>
+                        <div className="form-grid">
+                            <div className="form-field">
+                                <label className="form-label">Client Solution</label>
+                                <FilterDropdown
+                                    label="Select owners"
+                                    options={(lookups.hasamex_users || []).map((u) => u.name)}
+                                    selected={(form.client_solution_owner_ids || []).map((id) => hasamexNameById[id]).filter(Boolean)}
+                                    onChange={(names) => {
+                                        const ids = names.map((n) => hasamexIdByName[n]).filter(Boolean);
+                                        setForm((p) => ({ ...p, client_solution_owner_ids: ids }));
+                                    }}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Sales Team</label>
+                                <FilterDropdown
+                                    label="Select sales team"
+                                    options={(lookups.hasamex_users || []).map((u) => u.name)}
+                                    selected={(form.sales_team_ids || []).map((id) => hasamexNameById[id]).filter(Boolean)}
+                                    onChange={(names) => {
+                                        const ids = names.map((n) => hasamexIdByName[n]).filter(Boolean);
+                                        setForm((p) => ({ ...p, sales_team_ids: ids }));
+                                    }}
+                                />
+                            </div>
                         </div>
                     </div>
-                </div>
 
                     <div className="form-section">
                         <h2 className="form-section__title">Commercial</h2>

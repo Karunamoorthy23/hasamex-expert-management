@@ -11,6 +11,35 @@ from models import Engagement, Project, Expert, Client, User, HasamexUser, LkEng
 
 engagements_bp = Blueprint('engagements', __name__, url_prefix='/api/v1/engagements')
 
+@engagements_bp.route('/filter-options', methods=['GET'])
+def get_filter_options():
+    """
+    GET /api/v1/engagements/filter-options
+    Returns only the specific enumerations required by EngagementFilters.jsx
+    """
+    return jsonify({
+        'payment_status': [{'id': item.id, 'name': item.name} for item in LkPaymentStatus.query.order_by(LkPaymentStatus.id).all()]
+    })
+
+
+@engagements_bp.route('/form-lookups', methods=['GET'])
+def get_form_lookups():
+    """
+    GET /api/v1/engagements/form-lookups
+    Returns lookups for EngagementEditPage, entirely excluding the massive Experts recursive lists.
+    """
+    return jsonify({
+        'projects': [{'id': item.project_id, 'name': item.title} for item in Project.query.order_by(Project.project_id).all()],
+        'clients': [{'id': item.client_id, 'name': item.client_name} for item in Client.query.order_by(Client.client_name).all()],
+        'users': [{'id': item.user_id, 'name': item.user_name} for item in User.query.order_by(User.user_name).all()],
+        'hasamex_users': [{'id': item.id, 'name': (" ".join([p for p in [item.first_name, item.last_name] if p]).strip() or item.username)} for item in HasamexUser.query.filter_by(is_active=True).all()],
+        'engagement_method': [{'id': item.id, 'name': item.name} for item in LkEngagementMethod.query.order_by(LkEngagementMethod.id).all()],
+        'currencies': [{'id': item.id, 'name': item.name} for item in LkCurrency.query.order_by(LkCurrency.id).all()],
+        'post_call_status': [{'id': item.id, 'name': item.name} for item in LkPostCallStatus.query.order_by(LkPostCallStatus.id).all()],
+        'payment_status': [{'id': item.id, 'name': item.name} for item in LkPaymentStatus.query.order_by(LkPaymentStatus.id).all()]
+    })
+
+
 EXCHANGE_RATES_USD = {
     'USD': 1.0,
     'EUR': 1.09,

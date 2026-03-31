@@ -21,6 +21,40 @@ import re
 experts_bp = Blueprint('experts', __name__, url_prefix='/api/v1/experts')
 
 
+@experts_bp.route('/filter-options', methods=['GET'])
+def get_filter_options():
+    """
+    GET /api/v1/experts/filter-options
+    Returns only the specific enumerations required by ExpertsFiltersPanel.jsx
+    """
+    return jsonify({
+        'region': [item.name for item in LkRegion.query.order_by(LkRegion.id).all()],
+        'primary_sector': [item.name for item in LkPrimarySector.query.order_by(LkPrimarySector.id).all()],
+        'expert_status': [item.name for item in LkExpertStatus.query.order_by(LkExpertStatus.id).all()],
+        'current_employment_status': [item.name for item in LkEmploymentStatus.query.order_by(LkEmploymentStatus.id).all()]
+    })
+
+
+@experts_bp.route('/form-lookups', methods=['GET'])
+def get_form_lookups():
+    """
+    GET /api/v1/experts/form-lookups
+    Returns lookups for ExpertCreatePage and ExpertEditPage, excluding massive relationships like Projects/Clients.
+    """
+    from models import HasamexUser
+    return jsonify({
+        'salutation': [item.name for item in LkSalutation.query.order_by(LkSalutation.id).all()],
+        'region': [item.name for item in LkRegion.query.order_by(LkRegion.id).all()],
+        'seniority': [item.name for item in LkSeniority.query.order_by(LkSeniority.id).all()],
+        'currency': [item.name for item in LkCurrency.query.order_by(LkCurrency.id).all()],
+        'company_role': [item.name for item in LkCompanyRole.query.order_by(LkCompanyRole.id).all()],
+        'expert_function': [item.name for item in LkExpertFunction.query.order_by(LkExpertFunction.id).all()],
+        'hcms_classification': [item.name for item in LkHcmsClassification.query.order_by(LkHcmsClassification.id).all()],
+        'primary_sector': [item.name for item in LkPrimarySector.query.order_by(LkPrimarySector.id).all()],
+        'expert_status': [item.name for item in LkExpertStatus.query.order_by(LkExpertStatus.id).all()],
+        'current_employment_status': [item.name for item in LkEmploymentStatus.query.order_by(LkEmploymentStatus.id).all()],
+        'hasamex_users': [{'id': item.id, 'name': (" ".join([p for p in [item.first_name, item.last_name] if p]).strip() or item.username)} for item in HasamexUser.query.filter_by(is_active=True).all()]
+    })
 
 
 def _apply_experts_filters(query, args):

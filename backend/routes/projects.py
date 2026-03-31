@@ -79,6 +79,145 @@ def get_projects():
         }
     })
 
+@projects_bp.route('/summary', methods=['GET'])
+def get_projects_summary():
+    """Returns paginated projects with server-side filtering."""
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 20, type=int)
+    limit = min(limit, 100)
+    search = request.args.get('search', '', type=str).strip()
+    
+    # Comma-separated filters
+    client_ids_str = request.args.get('client_id', '')
+    ra_names_str = request.args.get('ra', '')
+    months_str = request.args.get('month', '')
+    years_str = request.args.get('year', '')
+
+    client_ids = [int(x) for x in client_ids_str.split(',') if x.strip().isdigit()]
+    ra_names = [x.strip().lower() for x in ra_names_str.split(',') if x.strip()]
+    months = [int(x) for x in months_str.split(',') if x.strip().isdigit()]
+    years = [int(x) for x in years_str.split(',') if x.strip().isdigit()]
+
+    query = Project.query.outerjoin(Client, Project.client_id == Client.client_id).outerjoin(User, Project.poc_user_id == User.user_id)
+
+    if client_ids:
+        query = query.filter(Project.client_id.in_(client_ids))
+
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            or_(
+                Project.title.ilike(like),
+                Project.project_title.ilike(like),
+                Project.project_description.ilike(like),
+                Project.target_companies.ilike(like),
+                Project.target_functions_titles.ilike(like),
+                Project.status.ilike(like),
+                Client.client_name.ilike(like),
+                User.user_name.ilike(like),
+            )
+        )
+
+    if months:
+        query = query.filter(db.extract('month', Project.received_date).in_(months))
+    if years:
+        query = query.filter(db.extract('year', Project.received_date).in_(years))
+
+    if ra_names:
+        matching_users = HasamexUser.query.filter(db.func.lower(HasamexUser.username).in_(ra_names)).all()
+        if not matching_users:
+            query = query.filter(db.false())
+        else:
+            filters = []
+            for u in matching_users:
+                uid_str = str(u.id)
+                filters.append(Project.client_solution_owner_ids == uid_str)
+                filters.append(Project.client_solution_owner_ids.like(f"{uid_str},%"))
+                filters.append(Project.client_solution_owner_ids.like(f"%,{uid_str}"))
+                filters.append(Project.client_solution_owner_ids.like(f"%,{uid_str},%"))
+            query = query.filter(or_(*filters))
+
+    query = query.order_by(Project.updated_at.desc().nulls_last())
+
+    total_records = query.count()
+    total_pages = max(1, -(-total_records // limit))
+    page = min(page, total_pages)
+
+    projects = query.offset((page - 1) * limit).limit(limit).all()
+
+    return jsonify({
+        'data': [p.to_dict() for p in projects],
+        'meta': {
+            'total_records': total_records,
+            'current_page': page,
+            'total_pages': total_pages,
+            'limit': limit,
+            'has_next': page < total_pages,
+            'has_prev': page > 1,
+        }
+    })
+
+@projects_bp.route('/filter-options', methods=['GET'])
+def get_project_filter_options():
+    clients = db.session.query(Client.client_name).distinct().order_by(Client.client_name).all()
+    client_names = [c[0] for c in clients if c[0]]
+
+    project_ra_csvs = db.session.query(Project.client_solution_owner_ids).filter(Project.client_solution_owner_ids != None).all()
+    all_ra_ids = set()
+    for row in project_ra_csvs:
+        if row[0]:
+            for x in str(row[0]).split(','):
+                if x.strip().isdigit():
+                    all_ra_ids.add(int(x.strip()))
+    
+    ra_names = []
+    if all_ra_ids:
+        users = HasamexUser.query.filter(HasamexUser.id.in_(all_ra_ids)).order_by(HasamexUser.username).all()
+        ra_names = [u.username for u in users if u.username]
+
+    dates = db.session.query(Project.received_date).filter(Project.received_date != None).all()
+    years = set()
+    months_idx = set()
+    for d in dates:
+        if d[0]:
+            years.add(str(d[0].year))
+            months_idx.add(d[0].month - 1)
+            
+    month_names = ['January','February','March','April','May','June','July','August','September','October','November','December']
+    detected_months = [month_names[i] for i in sorted(list(months_idx))]
+
+    return jsonify({
+        'client_names': client_names,
+        'ra_names': ra_names,
+        'months': detected_months,
+        'years': sorted(list(years))
+    })
+
+@projects_bp.route('/form-lookups', methods=['GET'])
+def get_project_form_lookups():
+    h_users = HasamexUser.query.filter_by(is_active=True).all()
+    experts = Expert.query.all()
+    geo = LkProjectTargetGeography.query.all()
+    pt = LkProjectType.query.all()
+    rg = LkRegion.query.all()
+    
+    lookups = {
+        'hasamex_users': [{'id': u.id, 'name': u.username} for u in h_users],
+        'experts_codes': [{'id': e.id, 'code': e.expert_id, 'name': f"{e.first_name} {e.last_name}"} for e in experts],
+        'project_target_geographies': [g.name for g in geo],
+        'project_type': [p.name for p in pt],
+        'region': [r.name for r in rg]
+    }
+    
+    clients = Client.query.order_by(Client.client_name).all()
+    users = User.query.order_by(User.user_name).all()
+    
+    return jsonify({
+        'clients': [{'client_id': c.client_id, 'client_name': c.client_name} for c in clients],
+        'users': [{'user_id': u.user_id, 'user_name': u.user_name, 'client_id': u.client_id} for u in users],
+        'lookups': lookups
+    })
+
 @projects_bp.route('/<int:project_id>', methods=['GET'])
 def get_project(project_id):
     project = Project.query.get_or_404(project_id)

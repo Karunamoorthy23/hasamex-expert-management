@@ -3,11 +3,9 @@ import Badge from '../ui/Badge';
 import { truncate, getInitials } from '../../utils/format';
 import { EditIcon, TrashIcon } from '../icons/Icons';
 
-export default function ClientCard({ client, projects = [], users = [], selected, onSelect, onView, onDelete, onOpenRules, onEdit }) {
+export default function ClientCard({ client, projectCount = 0, userCount = 0, selected, onSelect, onView, onDelete, onOpenRules, onEdit }) {
     const [first, second] = String(client.client_name || '').split(' ');
     const initials = getInitials(first || '', second || '');
-    const projectCount = projects.length || 0;
-    const userCount = users.length || 0;
     const ra = Array.isArray(client.client_solution_owner_names) && client.client_solution_owner_names.length
         ? client.client_solution_owner_names.join(', ')
         : '—';

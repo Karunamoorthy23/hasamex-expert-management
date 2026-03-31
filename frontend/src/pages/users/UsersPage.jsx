@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { bulkDeleteUsers, deleteUser, fetchUsers } from '../../api/users';
-import { fetchClients } from '../../api/clients';
+import { bulkDeleteUsers, deleteUser, fetchUsersSummary, fetchUserFilterOptions } from '../../api/users';
 import Loader from '../../components/ui/Loader';
 import Pagination from '../../components/experts/Pagination';
 import UsersTable from '../../components/users/UsersTable';
@@ -25,64 +24,70 @@ export default function UsersPage() {
     const [confirmIds, setConfirmIds] = useState([]);
     const [isDeleting, setIsDeleting] = useState(false);
     const [filtersPanelOpen, setFiltersPanelOpen] = useState(false);
-    const [filters, setFilters] = useState({ clients: [], client_type: [], seniority: [], locations: [] });
-    const [clientList, setClientList] = useState([]);
-    const [optionsSourceUsers, setOptionsSourceUsers] = useState([]);
 
+    // Filters hold the human-readable names
+    const [filters, setFilters] = useState({ clients: [], client_type: [], seniority: [], locations: [] });
+    const [filterOptionsData, setFilterOptionsData] = useState(null);
+    const clientNameToIdMap = useRef({});
+
+    // 1. Fetch filter options ONCE on mount instead of all users and clients
+    useEffect(() => {
+        let mounted = true;
+        fetchUserFilterOptions().then((opts) => {
+            if (mounted) setFilterOptionsData(opts);
+        });
+        return () => { mounted = false; };
+    }, []);
+
+    // 2. We still need client_id mapping for the filter parameters, but we only have names
+    useEffect(() => {
+        let mounted = true;
+        import('../../api/users').then(({ fetchUserFormLookups }) => {
+            fetchUserFormLookups().then(data => {
+                if (!mounted) return;
+                const map = {};
+                (data.clients || []).forEach(c => map[c.client_name] = c.client_id);
+                clientNameToIdMap.current = map;
+            });
+        });
+        return () => { mounted = false; };
+    }, []);
+
+    // 3. Main Data Fetching (Replaces fetchUsers with fetchUsersSummary)
     useEffect(() => {
         let cancelled = false;
         setIsLoading(true);
 
-        const clientNameToId = {};
-        (clientList || []).forEach((c) => (clientNameToId[c.client_name] = c.client_id));
-        const selectedClientIds = (filters.clients || []).map((n) => clientNameToId[n]).filter(Boolean);
+        const selectedClientIds = (filters.clients || []).map((n) => clientNameToIdMap.current[n]).filter(Boolean);
 
-        fetchUsers({
+        fetchUsersSummary({
             page,
             limit: LIMIT,
             search,
             filters: {
-                client_id: selectedClientIds,
+                // Pass IDs if available, else passing empty array handles it gracefully
+                client_id: selectedClientIds.length > 0 ? selectedClientIds : [],
                 client_type: filters.client_type || [],
                 seniority: filters.seniority || [],
                 location: filters.locations || [],
             },
         }).then((result) => {
             if (cancelled) return;
-            const s = (v) => String(v || '').trim().toLowerCase();
-            const nameSet = new Set((filters.clients || []).map(s));
-            const typeSet = new Set((filters.client_type || []).map(s));
-            const senSet = new Set((filters.seniority || []).map(s));
-            const locSet = new Set((filters.locations || []).map(s));
-            const idSet = new Set(selectedClientIds.map((id) => String(id)));
-            const filtered = (result.data || []).filter((u) => {
-                const byClient =
-                    nameSet.size === 0 &&
-                    idSet.size === 0
-                        ? true
-                        : idSet.has(String(u.client_id)) || nameSet.has(s(u.client_name));
-                const byType = typeSet.size === 0 ? true : typeSet.has(s(u.client_type));
-                const bySeniority = senSet.size === 0 ? true : senSet.has(s(u.seniority));
-                const byLocation = locSet.size === 0 ? true : locSet.has(s(u.location));
-                return byClient && byType && bySeniority && byLocation;
-            });
-            setData({ data: filtered, meta: { total_records: filtered.length, current_page: 1, total_pages: 1, limit: LIMIT } });
+            // Removed client-side filtering completely!
+            // Backend now handles all filtering correctly.
+            setData(result);
             setIsLoading(false);
         });
 
         return () => {
             cancelled = true;
         };
-    }, [page, search, refreshKey, filters, clientList]);
+    }, [page, search, refreshKey, filters]);
 
     useEffect(() => {
         setPage(1);
         setSelectedIds(new Set());
     }, [filters]);
-    useEffect(() => {
-        fetchClients({ page: 1, limit: 1000, search: '' }).then((r) => setClientList(r.data || []));
-        fetchUsers({ page: 1, limit: 1000, search: '' }).then((r) => setOptionsSourceUsers(r.data || []));
-    }, []);
 
     const users = data?.data || [];
     const meta = data?.meta || { total_records: 0, current_page: 1, total_pages: 1, limit: LIMIT };
@@ -101,12 +106,14 @@ export default function UsersPage() {
     }, [filters]);
 
     const filterOptions = useMemo(() => {
-        const names = Array.from(new Set((clientList || []).map((c) => c.client_name).filter(Boolean))).sort((a, b) => a.localeCompare(b));
-        const types = Array.from(new Set((optionsSourceUsers || []).map((u) => u.client_type).filter(Boolean))).sort((a, b) => a.localeCompare(b));
-        const sen = Array.from(new Set((optionsSourceUsers || []).map((u) => u.seniority).filter(Boolean))).sort((a, b) => a.localeCompare(b));
-        const locs = Array.from(new Set((optionsSourceUsers || []).map((u) => u.location).filter(Boolean))).sort((a, b) => a.localeCompare(b));
-        return { clientNames: names, clientTypes: types, seniority: sen, locations: locs };
-    }, [clientList, optionsSourceUsers]);
+        if (!filterOptionsData) return { clientNames: [], clientTypes: [], seniority: [], locations: [] };
+        return {
+            clientNames: filterOptionsData.client_names || [],
+            clientTypes: filterOptionsData.client_types || [],
+            seniority: filterOptionsData.seniorities || [],
+            locations: filterOptionsData.locations || []
+        };
+    }, [filterOptionsData]);
 
     const onSelectUser = (userId) => {
         setSelectedIds((prev) => {
@@ -292,4 +299,3 @@ export default function UsersPage() {
         </>
     );
 }
-

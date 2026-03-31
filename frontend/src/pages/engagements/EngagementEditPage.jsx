@@ -19,10 +19,10 @@ export default function EngagementEditPage() {
             setIsLoading(true);
             try {
                 const [lookupsData, engagementData] = await Promise.all([
-                    http('/lookups'),
+                    http('/engagements/form-lookups'),
                     id ? http(`/engagements/${id}`) : Promise.resolve(null),
                 ]);
-                setLookups(lookupsData.data || {});
+                setLookups(lookupsData || {});
                 if (engagementData) {
                     const clean = { ...engagementData.data };
                     delete clean.gross_margin_percent;
@@ -403,7 +403,7 @@ export default function EngagementEditPage() {
                                 <label className="form-label">Prorated Expert Amount (USD)</label>
                                 <input className="form-input" type="number" value={form.prorated_expert_amount_usd || ''} onChange={(e) => handleFormChange('prorated_expert_amount_usd', e.target.value)} />
                             </div>
-                            
+
                         </div>
                     </div>
 

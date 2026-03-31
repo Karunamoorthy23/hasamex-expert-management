@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { bulkDeleteProjects, deleteProject, fetchProjectsPaged, fetchProjectExpertStatus, setProjectExpertStatus, setProjectCallAssignment } from '../../api/projects';
-import { fetchClients } from '../../api/clients';
-import { fetchUsers } from '../../api/users';
+import { bulkDeleteProjects, deleteProject, fetchProjectSummary, fetchProjectFilterOptions, fetchProjectExpertStatus, setProjectExpertStatus, setProjectCallAssignment } from '../../api/projects';
 import Loader from '../../components/ui/Loader';
 import Pagination from '../../components/experts/Pagination';
 import Button from '../../components/ui/Button';
@@ -26,86 +24,70 @@ export default function ProjectsPage() {
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [confirmIds, setConfirmIds] = useState([]);
     const [isDeleting, setIsDeleting] = useState(false);
-
-    const [clients, setClients] = useState([]);
-    const [users, setUsers] = useState([]);
     const [filtersPanelOpen, setFiltersPanelOpen] = useState(false);
+
+    // Filters hold the human-readable names
     const [filters, setFilters] = useState({ clients: [], ra: [], months: [], years: [] });
-    const [optionsSourceProjects, setOptionsSourceProjects] = useState([]);
+    const [filterOptionsData, setFilterOptionsData] = useState(null);
+    const clientNameToIdMap = useRef({});
 
+    // 1. Fetch filter dropdown options ONCE on mount
     useEffect(() => {
-        // lightweight caches for label mapping
-        fetchClients({ page: 1, limit: 1000, search: '' }).then((r) => setClients(r.data || []));
-        fetchUsers({ page: 1, limit: 1000, search: '' }).then((r) => setUsers(r.data || []));
+        let mounted = true;
+        fetchProjectFilterOptions().then((opts) => {
+            if (mounted) setFilterOptionsData(opts);
+        });
+        return () => { mounted = false; };
     }, []);
+
+    // 2. Fetch mapping dictionary for client names -> IDs
     useEffect(() => {
-        fetchProjectsPaged({ page: 1, limit: 1000, search: '' }).then((r) => setOptionsSourceProjects(r.data || []));
+        let mounted = true;
+        import('../../api/projects').then(({ fetchProjectFormLookups }) => {
+            fetchProjectFormLookups().then(data => {
+                if (!mounted) return;
+                const map = {};
+                (data.clients || []).forEach(c => map[c.client_name] = c.client_id);
+                clientNameToIdMap.current = map;
+            });
+        });
+        return () => { mounted = false; };
     }, []);
 
-    const clientById = useMemo(() => {
-        const map = new Map();
-        for (const c of clients) map.set(c.client_id, c);
-        return map;
-    }, [clients]);
-
-    const userById = useMemo(() => {
-        const map = new Map();
-        for (const u of users) map.set(u.user_id, u);
-        return map;
-    }, [users]);
-
+    // 3. Main paginated fetch loop (server-side filtering)
     useEffect(() => {
         let cancelled = false;
         setIsLoading(true);
-        fetchProjectsPaged({ page, limit: LIMIT, search }).then((result) => {
+
+        const selectedClientIds = (filters.clients || []).map((n) => clientNameToIdMap.current[n]).filter(Boolean);
+
+        fetchProjectSummary({
+            page,
+            limit: LIMIT,
+            search,
+            filters: {
+                client_id: selectedClientIds.length > 0 ? selectedClientIds : [],
+                ra: filters.ra || [],
+                months: filters.months || [],
+                years: filters.years || [],
+            },
+        }).then((result) => {
             if (cancelled) return;
-            const rows = result?.data || [];
-            const s = (v) => String(v || '').trim().toLowerCase();
-            const clientNameToId = {};
-            (clients || []).forEach((c) => (clientNameToId[c.client_name] = c.client_id));
-            const selectedClientIds = (filters.clients || []).map((n) => clientNameToId[n]).filter(Boolean);
-            const raSet = new Set((filters.ra || []).map(s));
-            const monthMap = {
-                January: 0, February: 1, March: 2, April: 3, May: 4, June: 5,
-                July: 6, August: 7, September: 8, October: 9, November: 10, December: 11
-            };
-            const monthIdx = new Set((filters.months || []).map((m) => monthMap[m]).filter((x) => typeof x === 'number'));
-            const yearSet = new Set((filters.years || []).map((y) => String(y)));
-            const filtered = rows.filter((p) => {
-                const byClient = selectedClientIds.length === 0 ? true : selectedClientIds.includes(p.client_id);
-                const raNames = Array.isArray(p.client_solution_owner_names) ? p.client_solution_owner_names : [];
-                const byRA = raSet.size === 0 ? true : raNames.some((n) => raSet.has(s(n)));
-                let byMonth = true;
-                let byYear = true;
-                if (monthIdx.size > 0 || yearSet.size > 0) {
-                    if (p.received_date) {
-                        const d = new Date(p.received_date);
-                        byMonth = monthIdx.size === 0 ? true : monthIdx.has(d.getMonth());
-                        byYear = yearSet.size === 0 ? true : yearSet.has(String(d.getFullYear()));
-                    } else {
-                        if (monthIdx.size > 0) byMonth = false;
-                        if (yearSet.size > 0) byYear = false;
-                    }
-                }
-                return byClient && byRA && byMonth && byYear;
-            });
-            setData({ data: filtered, meta: { total_records: filtered.length, current_page: 1, total_pages: 1, limit: LIMIT } });
+            setData(result);
             setIsLoading(false);
         });
+
         return () => {
             cancelled = true;
         };
-    }, [page, search, refreshKey, filters, clients]);
+    }, [page, search, refreshKey, filters]);
 
-    const projects = useMemo(() => {
-        const rows = data?.data || [];
-        return rows.map((p) => ({
-            ...p,
-            client_name: p.client_name || clientById.get(p.client_id)?.client_name || null,
-            poc_user_name: p.poc_user_name || userById.get(p.poc_user_id)?.user_name || null,
-        }));
-    }, [data, clientById, userById]);
+    useEffect(() => {
+        setPage(1);
+        setSelectedIds(new Set());
+    }, [filters]);
 
+    const projects = data?.data || [];
     const meta = data?.meta || { total_records: 0, current_page: 1, total_pages: 1, limit: LIMIT };
 
     const allSelected = useMemo(() => {
@@ -118,26 +100,14 @@ export default function ProjectsPage() {
     }, [filters]);
 
     const filterOptions = useMemo(() => {
-        const clientNames = Array.from(new Set((clients || []).map((c) => c.client_name).filter(Boolean))).sort((a, b) => a.localeCompare(b));
-        const raNamesSet = new Set();
-        (optionsSourceProjects || []).forEach((p) => {
-            (p.client_solution_owner_names || []).forEach((n) => {
-                if (n) raNamesSet.add(n);
-            });
-        });
-        const raNames = Array.from(raNamesSet).sort((a, b) => a.localeCompare(b));
-        const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-        const yearsSet = new Set();
-        (optionsSourceProjects || []).forEach((p) => {
-            if (p.received_date) {
-                try {
-                    yearsSet.add(String(new Date(p.received_date).getFullYear()));
-                } catch {}
-            }
-        });
-        const years = Array.from(yearsSet).sort();
-        return { clientNames, raNames, months, years };
-    }, [clients, optionsSourceProjects]);
+        if (!filterOptionsData) return { clientNames: [], raNames: [], months: [], years: [] };
+        return {
+            clientNames: filterOptionsData.client_names || [],
+            raNames: filterOptionsData.ra_names || [],
+            months: filterOptionsData.months || [],
+            years: filterOptionsData.years || []
+        };
+    }, [filterOptionsData]);
 
     const handleToggleFilters = useCallback(() => {
         setFiltersPanelOpen((prev) => !prev);

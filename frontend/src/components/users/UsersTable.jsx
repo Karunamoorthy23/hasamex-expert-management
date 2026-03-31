@@ -1,9 +1,8 @@
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment } from 'react';
 import { cn } from '../../utils/cn';
 import { Link } from 'react-router-dom';
 import Checkbox from '../ui/Checkbox';
 import { EditIcon, TrashIcon } from '../icons/Icons';
-import { http } from '../../api/http';
 
 function statusBadgeClass(status) {
     if (!status) return 'badge badge-outline-theme';
@@ -22,41 +21,10 @@ export default function UsersTable({
     allSelected,
     onDeleteUser,
 }) {
-    const [counts, setCounts] = useState({});
-    useEffect(() => {
-        let cancelled = false;
-        const ids = (users || []).map((u) => u.user_id).filter(Boolean);
-        const missing = ids.filter((id) => counts[id] == null);
-        if (!missing.length) return;
-        (async () => {
-            try {
-                const results = await Promise.all(
-                    missing.map(async (uid) => {
-                        try {
-                            const projRes = await http(`/projects?limit=1&poc_user_id=${uid}`);
-                            const projCount = projRes?.meta?.total_records ?? 0;
-                            const engRes = await http(`/engagements?limit=1000&poc_user_id=${uid}`);
-                            const engCount = Array.isArray(engRes?.data) ? engRes.data.length : 0;
-                            return [uid, { proj: projCount, eng: engCount }];
-                        } catch {
-                            return [uid, { proj: 0, eng: 0 }];
-                        }
-                    })
-                );
-                if (cancelled) return;
-                const upd = { ...counts };
-                for (const [uid, val] of results) {
-                    if (upd[uid] == null) upd[uid] = val;
-                }
-                setCounts(upd);
-            } catch {
-                if (!cancelled) setCounts((prev) => ({ ...prev }));
-            }
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, [users]);
+    // 100% removed the N+1 API calls from here.
+    // Project and Engagement counts are now passed directly in the user object
+    // via the /users/summary backend endpoint.
+
     return (
         <div className="table-container">
             <table className="data-table">
@@ -90,7 +58,9 @@ export default function UsersTable({
                 <tbody>
                     {users.map((u) => {
                         const displayName = u.full_name || u.user_name || '—';
-                        const c = counts[u.user_id] || { proj: u.project_count ?? 0, eng: u.engagement_count ?? 0 };
+                        const projCount = u.project_count ?? 0;
+                        const engCount = u.engagement_count ?? 0;
+
                         return (
                             <tr key={u.user_id} className="user-row">
                                 <td
@@ -138,8 +108,8 @@ export default function UsersTable({
                                 <td className="col-status">
                                     <span className={cn(statusBadgeClass(u.status))}>{u.status || '—'}</span>
                                 </td>
-                                <td className="col-id"><span className="badge badge-outline-theme">{c.proj}</span></td>
-                                <td className="col-id"><span className="badge badge-outline-theme">{c.eng}</span></td>
+                                <td className="col-id"><span className="badge badge-outline-theme">{projCount}</span></td>
+                                <td className="col-id"><span className="badge badge-outline-theme">{engCount}</span></td>
                                 <td className="col-solution">
                                     {Array.isArray(u.client_solution_owner_names) && u.client_solution_owner_names.length
                                         ? u.client_solution_owner_names.join(', ')

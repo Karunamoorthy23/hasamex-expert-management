@@ -1,0 +1,31 @@
+# Experts Module Optimization Plan
+
+The Experts module (unlike previous ones) correctly utilizes backend SQL pagination (`Expert.query.offset().limit()`). However, a massive performance bottleneck exists because all frontend views initialize by calling `GET /api/v1/lookups`. The global lookups endpoint currently downloads the *entire* database of Experts, Projects, Clients, and Users (over 10,000+ records) into an uncompressed JSON block indiscriminately on every page load.
+
+## Goal Description
+Sever the Experts module's dependency on the monolithic `/lookups` endpoint by introducing targeted, domain-specific filter and form APIs.
+
+## Proposed Changes
+
+### Backend Route Alterations
+#### [MODIFY] backend/routes/experts.py
+Add 2 new highly optimized dictionary endpoints:
+1. `GET /api/v1/experts/filter-options`: Emits only the discrete enumerations required by `ExpertsFiltersPanel.jsx` ([region](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/models.py#189-191), [primary_sector](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/models.py#195-197), [expert_status](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/models.py#205-207), [current_employment_status](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/models.py#191-193)).
+2. `GET /api/v1/experts/form-lookups`: Emits only the core lookup lists required by the Edit and Create forms (Salutation, Region, Seniority, Currency, etc.) and `hasamex_users`. It entirely excludes heavy relations like Projects, Clients, and the recursive recursive Experts lists.
+
+### Frontend API Layer Modifications
+#### [MODIFY] frontend/src/api/experts.js
+- Replace [getFilterOptions](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/api/experts.js#45-58) definition to point to `/experts/filter-options` instead of the global `/lookups`.
+- Introduce `getFormLookups` pointed to `/experts/form-lookups`.
+
+### React Component Tuning
+#### [MODIFY] frontend/src/pages/experts/ExpertsPage.jsx
+- Ensure [getFilterOptions](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/api/experts.js#45-58) properly hydrates the left-hand filter panel without importing mega-loads.
+
+#### [MODIFY] frontend/src/pages/experts/ExpertEditPage.jsx
+#### [MODIFY] frontend/src/pages/experts/ExpertCreatePage.jsx
+- Switch these heavy forms from [getFilterOptions()](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/api/experts.js#45-58) over to the new, highly targeted `getFormLookups()` API function.
+
+## Verification Plan
+1. **Automated Verification**: Build React bundles without compilation errors.
+2. **Network Activity**: Trace identical page navigations before and after to observe a drastic reduction in the "Network" payload size for lookups (expected drop from megabytes down to ~5kb).

@@ -48,11 +48,25 @@ export async function fetchExperts({ page = 1, limit = 20, search = '', filters 
  */
 export async function getFilterOptions() {
     try {
-        const result = await http('/lookups');
-        return result.data || {};
+        const result = await http('/experts/filter-options');
+        return result || {};
     } catch (error) {
-        console.error('Failed to fetch lookups:', error);
-        return { region: [], sector: [], status: [], employment: [] };
+        console.error('Failed to fetch filter options:', error);
+        return { region: [], primary_sector: [], expert_status: [], current_employment_status: [] };
+    }
+}
+
+/**
+ * Get form lookups (dictionaries) from the backend.
+ * @returns {Promise<Object>}
+ */
+export async function getFormLookups() {
+    try {
+        const result = await http('/experts/form-lookups');
+        return result || {};
+    } catch (error) {
+        console.error('Failed to fetch form lookups:', error);
+        return {};
     }
 }
 

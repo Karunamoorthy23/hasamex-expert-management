@@ -23,8 +23,8 @@ export default function EngagementDashboardPage() {
 
     const fetchLookups = async () => {
         try {
-            const result = await http('/lookups');
-            setLookups(result.data || {});
+            const result = await http('/engagements/filter-options');
+            setLookups(result || {});
         } catch (error) {
             console.error('Error fetching lookups:', error);
         }
