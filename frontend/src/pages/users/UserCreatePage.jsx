@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchClients } from '../../api/clients';
-import { fetchLookups } from '../../api/lookups';
-import { createUser } from '../../api/users';
+import { fetchUserFormLookups, createUser } from '../../api/users';
 import FilterDropdown from '../../components/experts/FilterDropdown';
 import Button from '../../components/ui/Button';
 import LocationSelector from '../../components/location/LocationSelector';
@@ -41,8 +39,10 @@ export default function UserCreatePage() {
     });
 
     useEffect(() => {
-        fetchClients({ page: 1, limit: 1000, search: '' }).then((r) => setClients(r.data || []));
-        fetchLookups().then(setLookups);
+        fetchUserFormLookups().then(data => {
+            setClients(data.clients || []);
+            setLookups(data);
+        });
     }, []);
 
     const clientOptions = useMemo(() => (clients || []).map((c) => c.client_name), [clients]);
@@ -263,7 +263,7 @@ export default function UserCreatePage() {
                                 size="sm"
                                 onClick={() => setForm(p => ({
                                     ...p,
-                                    notes: [...(p.notes || []), { id: Date.now(), date: '', title: '', description: '' }]
+                                    notes: [...(p.notes || []), { id: Date.now(), date: '', type: 'Whatsapp', title: '', description: '' }]
                                 }))}
                             >
                                 + Add Note
@@ -304,6 +304,25 @@ export default function UserCreatePage() {
                                                         setForm(p => ({ ...p, notes: newNotes }));
                                                     }}
                                                 />
+                                            </div>
+                                            <div className="form-field">
+                                                <label className="form-label">Type</label>
+                                                <select
+                                                    className="form-input"
+                                                    value={note.type || 'Whatsapp'}
+                                                    onChange={(e) => {
+                                                        const newNotes = [...form.notes];
+                                                        newNotes[index].type = e.target.value;
+                                                        setForm(p => ({ ...p, notes: newNotes }));
+                                                    }}
+                                                >
+                                                    <option value="Whatsapp">Whatsapp</option>
+                                                    <option value="Phone call">Phone call</option>
+                                                    <option value="Meeting">Meeting</option>
+                                                    <option value="LinkedIn">LinkedIn</option>
+                                                    <option value="Email">Email</option>
+                                                    <option value="Others">Others</option>
+                                                </select>
                                             </div>
                                             <div className="form-field">
                                                 <label className="form-label">Title</label>
@@ -356,4 +375,3 @@ export default function UserCreatePage() {
         </>
     );
 }
-

@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { cn } from '../../utils/cn';
 import { Link } from 'react-router-dom';
 import Checkbox from '../ui/Checkbox';
 import { EditIcon, TrashIcon, LinkIcon } from '../icons/Icons';
+import { fetchUsers } from '../../api/users';
+import Loader from '../ui/Loader';
 
 function statusBadgeClass(status) {
     if (!status) return 'badge badge-outline-theme';
@@ -10,6 +12,79 @@ function statusBadgeClass(status) {
     if (val === 'active') return 'badge badge-active';
     if (val === 'planning') return 'badge badge-planning';
     return 'badge badge-outline-theme';
+}
+
+function ClientUsersNestedRow({ clientId, clientName, expanded, compactCellStyle }) {
+    const [users, setUsers] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [hasLoaded, setHasLoaded] = useState(false);
+
+    useEffect(() => {
+        if (expanded && !hasLoaded) {
+            let cancelled = false;
+            setLoading(true);
+            fetchUsers({ limit: 100, filters: { client_id: [clientId] } })
+                .then(res => {
+                    if (!cancelled) {
+                        setUsers(res.data || []);
+                        setHasLoaded(true);
+                        setLoading(false);
+                    }
+                })
+                .catch(() => {
+                    if (!cancelled) setLoading(false);
+                });
+            return () => { cancelled = true; };
+        }
+    }, [expanded, clientId, hasLoaded]);
+
+    if (!expanded) return null;
+
+    return (
+        <tr className="client-nested-row" style={{ display: expanded ? undefined : 'none' }}>
+            <td colSpan={16} className="p-0">
+                <div className="client-nested-wrapper" style={{ padding: '12px 16px', backgroundColor: 'var(--bg-subtle)' }}>
+                    <h4 className="client-nested-title" style={{ marginBottom: '8px', color: 'var(--text-strong)', fontSize: '0.9rem' }}>Users for {clientName}</h4>
+                    {loading ? (
+                        <Loader rows={2} />
+                    ) : users.length === 0 ? (
+                        <p className="empty-state__text" style={{ margin: 0, padding: '12px' }}>No users found for this client.</p>
+                    ) : (
+                        <div className="client-details-card" style={{ padding: 0, margin: 0, border: '1px solid var(--border)' }}>
+                            <table className="data-table" style={{ margin: 0 }}>
+                                <thead>
+                                    <tr>
+                                        <th style={compactCellStyle}>User</th>
+                                        <th style={compactCellStyle}>Designation</th>
+                                        <th style={compactCellStyle}>Email</th>
+                                        <th style={compactCellStyle}>Phone</th>
+                                        <th style={compactCellStyle}>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {users.map((u) => (
+                                        <tr key={u.user_id}>
+                                            <td style={compactCellStyle}>
+                                                <Link to={`/users/${u.user_id}`} onClick={(e) => e.stopPropagation()}>
+                                                    {u.user_name || '—'}
+                                                </Link>
+                                            </td>
+                                            <td style={compactCellStyle}>{u.designation_title || '—'}</td>
+                                            <td style={compactCellStyle}>{u.email || '—'}</td>
+                                            <td style={compactCellStyle}>{u.phone || '—'}</td>
+                                            <td style={compactCellStyle}>
+                                                <span className={cn(statusBadgeClass(u.status))}>{u.status || '—'}</span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            </td>
+        </tr>
+    );
 }
 
 export default function ClientsTable({
@@ -184,6 +259,12 @@ export default function ClientsTable({
                                         </div>
                                     </td>
                                 </tr>
+                                <ClientUsersNestedRow
+                                    clientId={row.client_id}
+                                    clientName={row.client_name}
+                                    expanded={expanded}
+                                    compactCellStyle={compactCellStyle}
+                                />
                             </>
                         );
                     })}

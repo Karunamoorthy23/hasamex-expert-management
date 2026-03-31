@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { fetchClients } from '../../api/clients';
-import { fetchLookups } from '../../api/lookups';
-import { fetchUserById, updateUser } from '../../api/users';
+import { fetchUserFormLookups, fetchUserById, updateUser } from '../../api/users';
 import FilterDropdown from '../../components/experts/FilterDropdown';
 import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
@@ -20,9 +18,13 @@ export default function UserEditPage() {
     const [form, setForm] = useState(null);
     const [isLocLoading, setIsLocLoading] = useState(false);
 
+    // Consolidated client and hasamex users lookup into 1 call instead of 2.
+    // Also eliminates fetching 1000 full client objects when we only need ID and Name.
     useEffect(() => {
-        fetchClients({ page: 1, limit: 1000, search: '' }).then((r) => setClients(r.data || []));
-        fetchLookups().then(setLookups);
+        fetchUserFormLookups().then(data => {
+            setClients(data.clients || []);
+            setLookups(data);
+        });
     }, []);
 
     useEffect(() => {
@@ -384,4 +386,3 @@ export default function UserEditPage() {
         </>
     );
 }
-
