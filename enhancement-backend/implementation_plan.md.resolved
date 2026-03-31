@@ -1,237 +1,31 @@
-# User Pages — API Call Optimization Plan
+# Experts Module Optimization Plan
 
-> **Goal**: Reduce HTTP round-trips, eliminate N+1 patterns, and move filtering server-side for all User-related pages — without affecting other pages.
+The Experts module (unlike previous ones) correctly utilizes backend SQL pagination (`Expert.query.offset().limit()`). However, a massive performance bottleneck exists because all frontend views initialize by calling `GET /api/v1/lookups`. The global lookups endpoint currently downloads the *entire* database of Experts, Projects, Clients, and Users (over 10,000+ records) into an uncompressed JSON block indiscriminately on every page load.
 
----
+## Goal Description
+Sever the Experts module's dependency on the monolithic `/lookups` endpoint by introducing targeted, domain-specific filter and form APIs.
 
-## 1 — Current State: API Call Audit
+## Proposed Changes
 
-### 1.1 UsersPage.jsx (List page)
+### Backend Route Alterations
+#### [MODIFY] backend/routes/experts.py
+Add 2 new highly optimized dictionary endpoints:
+1. `GET /api/v1/experts/filter-options`: Emits only the discrete enumerations required by `ExpertsFiltersPanel.jsx` ([region](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/models.py#189-191), [primary_sector](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/models.py#195-197), [expert_status](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/models.py#205-207), [current_employment_status](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/models.py#191-193)).
+2. `GET /api/v1/experts/form-lookups`: Emits only the core lookup lists required by the Edit and Create forms (Salutation, Region, Seniority, Currency, etc.) and `hasamex_users`. It entirely excludes heavy relations like Projects, Clients, and the recursive recursive Experts lists.
 
-| # | API Call | Trigger | Payload Size | Problem |
-|---|---------|---------|--------------|---------|
-| 1 | `GET /users?page=&limit=20&search=` | Page load, search, page change | 20 user rows | ✅ Paginated |
-| 2 | `GET /clients?page=1&limit=1000` | Mount (once) | **ALL clients** | 🔴 Fetches 1000 clients just to build filter dropdown names |
-| 3 | `GET /users?page=1&limit=1000` | Mount (once) | **ALL users** | 🔴 Fetches 1000 users just to extract unique filter options (client_type, seniority, location) |
-| 4–43 | 2 × N calls inside [UsersTable.jsx](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/components/users/UsersTable.jsx) | After users render | N = 20 rows × 2 calls each | 🔴 **N+1 pattern**: per-user `GET /projects?limit=1&poc_user_id=X` + `GET /engagements?limit=1000&poc_user_id=X` |
+### Frontend API Layer Modifications
+#### [MODIFY] frontend/src/api/experts.js
+- Replace [getFilterOptions](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/api/experts.js#45-58) definition to point to `/experts/filter-options` instead of the global `/lookups`.
+- Introduce `getFormLookups` pointed to `/experts/form-lookups`.
 
-**Total on first load: 3 + 2N (≈ 43 requests) with N = 20 user rows.**
+### React Component Tuning
+#### [MODIFY] frontend/src/pages/experts/ExpertsPage.jsx
+- Ensure [getFilterOptions](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/api/experts.js#45-58) properly hydrates the left-hand filter panel without importing mega-loads.
 
-> [!CAUTION]
-> The N+1 in [UsersTable](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/components/users/UsersTable.jsx#17-179) is **twice as bad** as the Client page — it fires 2 HTTP calls per row (projects + engagements), totaling up to 40 parallel requests just for counts.
+#### [MODIFY] frontend/src/pages/experts/ExpertEditPage.jsx
+#### [MODIFY] frontend/src/pages/experts/ExpertCreatePage.jsx
+- Switch these heavy forms from [getFilterOptions()](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/api/experts.js#45-58) over to the new, highly targeted `getFormLookups()` API function.
 
-### 1.2 UserDetails.jsx (Single user view)
-
-| # | API Call | Trigger | Problem |
-|---|---------|---------|---------|
-| 1 | `GET /users/<id>` | Page load | ✅ OK |
-| 2 | `GET /projects?page=&limit=20&poc_user_id=<id>` | Page load | ✅ OK — paginated |
-| 3 | `GET /engagements?limit=1000&poc_user_id=<id>` (via [EngagementAssignmentsTable](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/components/engagements/EngagementAssignmentsTable.jsx#5-102)) | Page load | ⚠️ Limit 1000 — OK for now |
-
-**Total: 3 requests — acceptable, no changes needed.**
-
-### 1.3 UserEditPage.jsx
-
-| # | API Call | Trigger | Problem |
-|---|---------|---------|---------|
-| 1 | `GET /clients?page=1&limit=1000` | Mount | 🔴 Fetches 1000 clients for dropdown |
-| 2 | `GET /lookups` | Mount | ✅ OK — returns hasamex_users |
-| 3 | `GET /users/<id>` | Mount | ✅ OK |
-
-**Total: 3 requests.** Call #1 is excessive.
-
----
-
-## 2 — Root Cause Analysis
-
-```mermaid
-graph LR
-    A["UsersPage mounts"] --> B["fetchUsers (paginated)"]
-    A --> C["fetchClients (1000)"]
-    A --> D["fetchUsers (1000)"]
-    B --> E["UsersTable renders"]
-    E --> F["2N × fetch per user row"]
-    style F fill:#ff6b6b,stroke:#333
-    style C fill:#ffa94d,stroke:#333
-    style D fill:#ff6b6b,stroke:#333
-```
-
-| Issue | Severity | Root Cause |
-|-------|----------|------------|
-| **N+1 project+engagement counts** | 🔴 Critical | [UsersTable.jsx](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/components/users/UsersTable.jsx) fires `GET /projects?poc_user_id=X` + `GET /engagements?poc_user_id=X` per row |
-| **1000-client fetch for filters** | 🔴 High | [UsersPage](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/pages/users/UsersPage.jsx#14-295) downloads entire clients table for filter dropdown names |
-| **1000-user fetch for filter options** | 🔴 High | Downloads all users to extract unique seniorities, locations, client_types |
-| **Client list on Edit page** | ⚠️ Medium | [UserEditPage](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/pages/users/UserEditPage.jsx#13-387) fetches 1000 clients for a dropdown |
-| **No backend aggregation** | 🔴 Critical | `GET /users` returns flat rows; no project/engagement counts |
-
----
-
-## 3 — Proposed Changes
-
-### Phase 1: Backend — `GET /users/summary`
-
-#### [MODIFY] [users.py](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/routes/users.py)
-
-New endpoint returning paginated users with pre-computed counts:
-
-```python
-@users_bp.route('/summary', methods=['GET'])
-def get_users_summary():
-    """
-    Returns paginated users with project_count and engagement_count
-    pre-computed server-side. Replaces 3 + 2N frontend calls with 1.
-    Also supports server-side filtering by client_id, client_type,
-    seniority, and location.
-    """
-```
-
-Uses batch `GROUP BY` queries (same pattern as `/clients/summary`):
-
-```sql
-SELECT user_id, COUNT(*) FROM projects WHERE poc_user_id IN (...) GROUP BY poc_user_id;
-SELECT user_id, COUNT(*) FROM engagements WHERE poc_user_id IN (...) GROUP BY poc_user_id;
-```
-
-Each user row includes:
-```json
-{ "project_count": 3, "engagement_count": 7 }
-```
-
-Also supports server-side filtering with multi-value params:
-- `client_id=1,2,3`
-- `client_type=Hedge Fund,Consulting`
-- `seniority=Senior,Mid`
-- `location=London,New York`
-
----
-
-### Phase 2: Backend — `GET /users/filter-options`
-
-#### [MODIFY] [users.py](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/routes/users.py)
-
-Returns distinct filter values in **a single lightweight call** — replaces fetching 1000 clients + 1000 users:
-
-```python
-@users_bp.route('/filter-options', methods=['GET'])
-def get_user_filter_options():
-    """Returns distinct values for filter dropdowns."""
-    # client_names: SELECT DISTINCT client_name FROM clients ORDER BY client_name
-    # client_types: SELECT DISTINCT client_type FROM users WHERE client_type IS NOT NULL
-    # seniorities: SELECT DISTINCT seniority FROM users WHERE seniority IS NOT NULL
-    # locations: SELECT DISTINCT location FROM users WHERE location IS NOT NULL (via lk_location)
-```
-
-Response:
-```json
-{
-  "client_names": ["Acme Corp", "Beta Inc"],
-  "client_types": ["Hedge Fund", "Consulting"],
-  "seniorities": ["Senior", "Mid-Level"],
-  "locations": ["London, UK", "New York, US"]
-}
-```
-
----
-
-### Phase 3: Backend — `GET /users/form-lookups`
-
-#### [MODIFY] [users.py](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/routes/users.py)
-
-Single endpoint for Edit page dropdowns:
-
-```python
-@users_bp.route('/form-lookups', methods=['GET'])
-def get_user_form_lookups():
-    """Returns clients list + hasamex_users for Edit/Create forms."""
-```
-
----
-
-### Phase 4: Frontend — UsersPage.jsx
-
-#### [MODIFY] [UsersPage.jsx](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/pages/users/UsersPage.jsx)
-
-- Replace [fetchUsers](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/api/users.js#3-30) + [fetchClients(1000)](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/api/clients.js#3-20) + [fetchUsers(1000)](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/api/users.js#3-30) with:
-  - `fetchUsersSummary()` — 1 call for paginated users with counts
-  - `fetchUserFilterOptions()` — 1 call for filter dropdowns (once at mount)
-- Move filter logic to **server-side** via query params
-- Remove client-side `filter()` on already-paginated data (currently breaks pagination)
-
-**Before (3 + 2N calls) → After (2 calls, then 1 per search/page change)**
-
----
-
-### Phase 5: Frontend — UsersTable.jsx
-
-#### [MODIFY] [UsersTable.jsx](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/components/users/UsersTable.jsx)
-
-- **Remove** entire `useEffect` that fires 2N calls (lines 26-59)
-- **Remove** `counts` state, `http` import
-- Read `project_count` and `engagement_count` directly from user data (from summary endpoint)
-
-**Before:** 40 additional HTTP requests per render.
-**After:** 0 additional HTTP requests.
-
----
-
-### Phase 6: Frontend — UserEditPage.jsx
-
-#### [MODIFY] [UserEditPage.jsx](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/pages/users/UserEditPage.jsx)
-
-- Replace [fetchClients(1000)](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/api/clients.js#3-20) + [fetchLookups()](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/api/lookups.js#3-7) with single `fetchUserFormLookups()`
-- Parallel call alongside [fetchUserById(id)](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/api/users.js#31-35)
-
-**Before (3 calls) → After (2 calls)**
-
----
-
-### Phase 7: Frontend API Layer
-
-#### [MODIFY] [users.js](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/api/users.js)
-
-Add three new functions:
-- `fetchUsersSummary({ page, limit, search, filters })`
-- `fetchUserFilterOptions()`
-- `fetchUserFormLookups()`
-
----
-
-## 4 — Impact Summary
-
-| Page | Before | After | Improvement |
-|------|--------|-------|-------------|
-| **UsersPage** | 3 + 2N calls (≈43) | **2 calls** (summary + filter-options) | **~95% reduction** |
-| **UserEditPage** | 3 calls | **2 calls** | **33% reduction** |
-| **UserDetails** | 3 calls | 3 calls | No change — already efficient |
-
-> [!IMPORTANT]
-> All changes are **additive** — new endpoints are added alongside existing ones. The existing `GET /users` endpoint remains untouched.
-
----
-
-## 5 — Files Affected
-
-| File | Change Type | Risk |
-|------|-------------|------|
-| [backend/routes/users.py](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/backend/routes/users.py) | Add 3 new endpoints | Low — new routes only |
-| [frontend/src/api/users.js](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/api/users.js) | Add 3 new functions | Low |
-| [frontend/src/pages/users/UsersPage.jsx](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/pages/users/UsersPage.jsx) | Simplify data fetching + server-side filters | Medium |
-| [frontend/src/components/users/UsersTable.jsx](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/components/users/UsersTable.jsx) | Remove 2N calls | Medium |
-| [frontend/src/pages/users/UserEditPage.jsx](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/pages/users/UserEditPage.jsx) | Consolidate lookups | Low |
-| [frontend/src/components/users/UsersFiltersPanel.jsx](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/components/users/UsersFiltersPanel.jsx) | No change | None |
-| [frontend/src/pages/users/UserDetails.jsx](file:///c:/Users/User/Desktop/demo/Expert-Searching-App/frontend/src/pages/users/UserDetails.jsx) | No change | None |
-
-**Pages NOT affected:** All Client, Expert, Engagement, Project, Lead pages, Dashboard.
-
----
-
-## 6 — Verification Plan
-
-### Manual
-
-1. **UsersPage load time** — Network tab: verify only **2** API calls on load (`/users/summary` + `/users/filter-options`)
-2. **Filters** — open filters, select options → verify only 1 call (`/users/summary` with filter params)
-3. **Search + Pagination** — verify correct results and total counts
-4. **Project/Engagement counts** — verify the counts in the table match reality
-5. **UserEditPage** — verify form loads with correct data and dropdowns populate
-6. **Other pages** — spot-check Expert, Client, Project pages still work
+## Verification Plan
+1. **Automated Verification**: Build React bundles without compilation errors.
+2. **Network Activity**: Trace identical page navigations before and after to observe a drastic reduction in the "Network" payload size for lookups (expected drop from megabytes down to ~5kb).
