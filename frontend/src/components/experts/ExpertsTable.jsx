@@ -49,7 +49,6 @@ export default function ExpertsTable({
                                 ariaLabel="Select all"
                             />
                         </th>
-                        {renderHeader('Expert ID', 'expert_id', 'col-id')}
                         {renderHeader('Name', 'first_name', 'col-name')}
                         {renderHeader('Title / Headline', 'title_headline', 'col-title')}
                         {renderHeader('Sector', 'primary_sector', 'col-sector')}
@@ -68,7 +67,6 @@ export default function ExpertsTable({
                                     onChange={() => onSelectExpert(expert.id)}
                                 />
                             </td>
-                            <td className="col-id">{expert.expert_id}</td>
                             <td className="col-name">
                                 <Link to={`/experts/${expert.id}`} className="expert-name">
                                     {expert.first_name} {expert.last_name}
