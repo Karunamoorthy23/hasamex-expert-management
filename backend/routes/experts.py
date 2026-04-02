@@ -11,7 +11,7 @@ from models import (
     LkRegion, LkPrimarySector, LkExpertStatus,
     LkEmploymentStatus, LkSeniority, LkCurrency,
     LkCompanyRole, LkExpertFunction, LkSalutation,
-    LkHcmsClassification
+    LkHcmsClassification, LkLocation
 )
 import pandas as pd
 from io import BytesIO
@@ -84,7 +84,7 @@ def _apply_experts_filters(query, args):
                 Expert.last_name.ilike(search_pattern),
                 Expert.title_headline.ilike(search_pattern),
                 Expert.rel_primary_sector.has(LkPrimarySector.name.ilike(search_pattern)),
-                Expert.location.ilike(search_pattern),
+                Expert.rel_location.has(LkLocation.display_name.ilike(search_pattern)),
                 Expert.linkedin_url.ilike(search_pattern),
                 Expert.rel_company_role.has(LkCompanyRole.name.ilike(search_pattern)),
                 Expert.rel_expert_function.has(LkExpertFunction.name.ilike(search_pattern)),
@@ -119,8 +119,6 @@ def _apply_experts_filters(query, args):
 def _validate_required_fields(data):
     """Validate required fields for expert creation."""
     errors = []
-    if not data.get('expert_id', '').strip():
-        errors.append('expert_id is required')
     if not data.get('first_name', '').strip():
         errors.append('first_name is required')
     if not data.get('last_name', '').strip():
@@ -259,7 +257,7 @@ def update_expert_fields(expert, data):
     direct_fields = [
         'expert_id', 'first_name', 'last_name', 'primary_email',
         'secondary_email', 'primary_phone', 'secondary_phone',
-        'linkedin_url', 'location', 'timezone',
+        'linkedin_url', 'location_id',
         'years_of_experience', 'title_headline', 'bio',
         'hourly_rate', 'notes', 'payment_details', 'events_invited_to',
         'profile_pdf_url', 'total_calls_completed', 'project_id_added_to',
@@ -349,6 +347,22 @@ def create_expert():
     errors = _validate_required_fields(data)
     if errors:
         return jsonify({'error': 'Validation failed', 'details': errors}), 400
+
+    # Auto-generate expert_id if missing
+    eid = (data.get('expert_id') or '').strip()
+    if not eid:
+        from sqlalchemy import text
+        res = db.session.execute(text("SELECT COALESCE(MAX(CAST(SUBSTRING(expert_id FROM '\\\\d+$') AS INTEGER)), 0) FROM experts WHERE expert_id ~ '^EX-\\\\d+$'"))
+        max_num = res.scalar() or 0
+        
+        while True:
+            max_num += 1
+            eid = f"EX-{max_num:05d}"
+            # Verify collision-free string
+            if not Expert.query.filter_by(expert_id=eid).first():
+                break
+                
+        data['expert_id'] = eid
 
     duplicates = _check_duplicates(data)
     if duplicates:

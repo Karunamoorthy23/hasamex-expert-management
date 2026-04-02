@@ -131,8 +131,8 @@ class Expert(db.Model):
     primary_phone = db.Column(db.String(50))
     secondary_phone = db.Column(db.String(50))
     linkedin_url = db.Column(db.String(500), unique=True)
-    location = db.Column(db.String(255))
-    timezone = db.Column(db.String(100))
+    location_id = db.Column(db.Integer, db.ForeignKey('lk_location.id'))
+    rel_location = db.relationship('LkLocation', lazy='joined')
     
     region_id = db.Column(db.Integer, db.ForeignKey('lk_regions.id'))
     rel_region = db.relationship('LkRegion', lazy='joined')
@@ -186,6 +186,10 @@ class Expert(db.Model):
 
     @property
     def salutation(self): return self.rel_salutation.name if self.rel_salutation else None
+    @property
+    def location(self): return self.rel_location.display_name if self.rel_location else None
+    @property
+    def timezone(self): return self.rel_location.timezone if self.rel_location else None
     @property
     def region(self): return self.rel_region.name if self.rel_region else None
     @property
@@ -947,5 +951,26 @@ class LeadCandidate(db.Model):
             'received_date': self.received_date.isoformat() if self.received_date else None,
             'status': self.status,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+class ProjectFormSubmission(db.Model):
+    __tablename__ = 'project_form_submissions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.project_id', ondelete='CASCADE'), nullable=False)
+    expert_id = db.Column(UUID(as_uuid=False), db.ForeignKey('experts.id', ondelete='CASCADE'), nullable=False)
+    availability_dates = db.Column(JSONB)
+    project_qns_ans = db.Column(JSONB)
+    compliance_onboarding = db.Column(JSONB)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'project_id': self.project_id,
+            'expert_id': self.expert_id,
+            'availability_dates': self.availability_dates,
+            'project_qns_ans': self.project_qns_ans,
+            'compliance_onboarding': self.compliance_onboarding,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
         }

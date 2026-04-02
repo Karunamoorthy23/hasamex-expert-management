@@ -3,10 +3,11 @@ from extensions import db
 from auth import decode_token
 from models import (
     Project, ProjectExpert, Call, Expert, HasamexUser,
-    Client, User, LkProjectType, LkRegion, LkProjectTargetGeography
+    Client, User, LkProjectType, LkRegion, LkProjectTargetGeography,
+    ProjectFormSubmission, ExpertExperience, LkLocation
 )
 from datetime import datetime, date
-from sqlalchemy import or_
+from sqlalchemy import or_, func, text
 
 projects_bp = Blueprint('projects', __name__, url_prefix='/api/v1/projects')
 
@@ -717,3 +718,112 @@ def get_project_form_public(project_id):
         'client_type': client.client_type if client else None,
         'client_name': client.client_name if client else None,
     }})
+
+@public_projects_bp.route('/<int:project_id>/submit-form', methods=['POST'])
+def submit_project_form_public(project_id):
+    """
+    POST /api/v1/public/projects/:id/submit-form
+    Submit expert application for a project.
+    """
+    data = request.get_json() or {}
+    project = Project.query.get_or_404(project_id)
+    
+    details = data.get('details', {})
+    qas = data.get('qas', {})
+    slots = data.get('slots', [])
+    comp = data.get('comp', {})
+    
+    expert_uuid_input = data.get('expert_id') # UUID from URL/Payload
+    email_input = (details.get('email') or '').strip()
+    
+    expert = None
+    
+    # 1. Lookup expert by email (Deduplication)
+    if email_input:
+        expert = Expert.query.filter(Expert.primary_email.ilike(email_input)).first()
+    
+    # 2. Lookup expert by UUID if email not found or not provided
+    if not expert and expert_uuid_input:
+        expert = Expert.query.get(expert_uuid_input)
+    
+    # 3. Create new expert if still not found
+    if not expert:
+        expert = Expert()
+        # Auto-generate expert_id (EX-XXXXX)
+        res = db.session.execute(text("SELECT COALESCE(MAX(CAST(SUBSTRING(expert_id FROM '\\\\d+$') AS INTEGER)), 0) FROM experts WHERE expert_id ~ '^EX-\\\\d+$'"))
+        max_num = res.scalar() or 0
+        
+        while True:
+            max_num += 1
+            eid = f"EX-{max_num:05d}"
+            # Verify collision-free string
+            if not Expert.query.filter_by(expert_id=eid).first():
+                break
+        expert.expert_id = eid
+        db.session.add(expert)
+        db.session.flush() # ID generation
+
+    # 4. Update Expert Core Info (as requested)
+    if details.get('first_name'): expert.first_name = details['first_name']
+    if details.get('last_name'): expert.last_name = details['last_name']
+    if details.get('email'): expert.primary_email = details['email']
+    if details.get('phone'): expert.primary_phone = details['phone']
+
+    # 5. Handle Location
+    loc_name = details.get('location')
+    tz_val = details.get('time_zone')
+    if loc_name:
+        # Resolve location_id from LkLocation
+        lk_loc = LkLocation.query.filter(LkLocation.display_name.ilike(loc_name)).first()
+        if not lk_loc:
+            lk_loc = LkLocation(display_name=loc_name, timezone=tz_val)
+            db.session.add(lk_loc)
+            db.session.flush()
+        expert.location_id = lk_loc.id
+
+    # 6. Update Expert Experience
+    if details.get('emp_company') and details.get('emp_role'):
+        ExpertExperience.query.filter_by(expert_id=expert.id).delete()
+        new_exp = ExpertExperience(
+            expert_id=expert.id,
+            company_name=details['emp_company'],
+            role_title=details['emp_role'],
+            start_year=_safe_int(details.get('emp_start_year')),
+            end_year=_safe_int(details.get('emp_end_year'))
+        )
+        db.session.add(new_exp)
+
+    # 7. Update or Create Project Form Submission
+    submission = ProjectFormSubmission.query.filter_by(project_id=project_id, expert_id=expert.id).first()
+    
+    if submission:
+        submission.availability_dates = slots
+        submission.project_qns_ans = qas
+        submission.compliance_onboarding = comp
+        submission.created_at = datetime.utcnow()
+    else:
+        submission = ProjectFormSubmission(
+            project_id=project_id,
+            expert_id=expert.id,
+            availability_dates=slots,
+            project_qns_ans=qas,
+            compliance_onboarding=comp,
+            created_at=datetime.utcnow()
+        )
+        db.session.add(submission)
+
+    # 8. Update ProjectExpert Stage
+    pe = ProjectExpert.query.filter_by(project_id=project_id, expert_id=expert.id).first()
+    if pe:
+        pe.stage = 'Accepted'
+    else:
+        # If record didn't exist or is a new expert, create it
+        pe = ProjectExpert(project_id=project_id, expert_id=expert.id, stage='Accepted')
+        db.session.add(pe)
+
+    try:
+        db.session.commit()
+        return jsonify({'message': 'Application submitted successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500

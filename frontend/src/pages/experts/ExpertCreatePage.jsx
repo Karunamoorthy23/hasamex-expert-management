@@ -5,6 +5,8 @@ import { http } from '../../api/http';
 import { UploadIcon, XIcon, FileIcon } from '../../components/icons/Icons';
 import TimezoneSelect from '../../components/ui/TimezoneSelect';
 import FilterDropdown from '../../components/experts/FilterDropdown';
+import LocationSelector from '../../components/location/LocationSelector';
+import { resolveTimezoneLabel } from '../../components/location/TimezoneResolver';
 
 
 /**
@@ -15,7 +17,6 @@ const FORM_SECTIONS = [
     {
         title: 'Personal Information',
         fields: [
-            { name: 'expert_id', label: 'Expert ID', type: 'text', required: true, gridSpan: 1 },
             { name: 'salutation', label: 'Salutation', type: 'select', lookupCategory: 'salutation', gridSpan: 1 },
             { name: 'first_name', label: 'First Name', type: 'text', required: true, gridSpan: 1 },
             { name: 'last_name', label: 'Last Name', type: 'text', required: true, gridSpan: 1 },
@@ -29,7 +30,7 @@ const FORM_SECTIONS = [
     {
         title: 'Location & Region',
         fields: [
-            { name: 'location', label: 'Location', type: 'text', placeholder: 'City, State, Country', gridSpan: 1 },
+            { name: 'location', label: 'Location', type: 'location_selector', gridSpan: 1 },
             { name: 'region', label: 'Region', type: 'select', lookupCategory: 'region', gridSpan: 1 },
             { name: 'timezone', label: 'Timezone', type: 'timezone', gridSpan: 2 },
         ],
@@ -83,7 +84,6 @@ const FORM_SECTIONS = [
  */
 function getInitialFormData() {
     return {
-        expert_id: '',
         salutation: '',
         first_name: '',
         last_name: '',
@@ -93,6 +93,12 @@ function getInitialFormData() {
         secondary_phone: '',
         linkedin_url: '',
         location: '',
+        location_display_name: '',
+        location_city: '',
+        location_country: '',
+        location_latitude: '',
+        location_longitude: '',
+        location_id: null,
         region: '',
         timezone: '',
         current_employment_status: '',
@@ -214,7 +220,6 @@ export default function ExpertCreatePage() {
     // ── Client-side validation ──
     const validate = useCallback(() => {
         const newErrors = {};
-        if (!formData.expert_id?.trim()) newErrors.expert_id = 'Expert ID is required';
         if (!formData.first_name?.trim()) newErrors.first_name = 'First name is required';
         if (!formData.last_name?.trim()) newErrors.last_name = 'Last name is required';
         if (!formData.primary_email?.trim()) newErrors.primary_email = 'Primary email is required';
@@ -290,8 +295,26 @@ export default function ExpertCreatePage() {
                 }
             }
 
-            // 2. Clean up data: convert empty strings to null, numbers to int/float
-            const payload = { ...formData, profile_pdf_url: finalProfileUrl };
+            // Handle location pre-processing explicitly 
+            let locId = formData.location_id || null;
+            if (formData.location_city && formData.location_country) {
+                try {
+                    const payloadLoc = {
+                        city: formData.location_city,
+                        country: formData.location_country,
+                        lat: formData.location_latitude,
+                        lng: formData.location_longitude,
+                        display_name: formData.location_display_name || formData.location,
+                        timezone: formData.timezone
+                    };
+                    const res = await http('/location/save', { method: 'POST', body: JSON.stringify(payloadLoc) });
+                    locId = res?.location_id || null;
+                } catch (e) {
+                    // fall back silently
+                }
+            }
+
+            const payload = { ...formData, profile_pdf_url: finalProfileUrl, location_id: locId ? Number(locId) : null };
             if (payload.years_of_experience !== undefined && payload.years_of_experience !== '') {
                 payload.years_of_experience = parseInt(payload.years_of_experience, 10);
             }
@@ -458,6 +481,44 @@ export default function ExpertCreatePage() {
             }
             case 'number':
                 input = <input {...commonProps} type="number" step={field.step || '1'} min="0" />;
+                break;
+            case 'location_selector':
+                input = (
+                    <LocationSelector
+                        value={{ display_name: formData.location_display_name || formData.location }}
+                        onChange={async (sel) => {
+                            if (!sel) {
+                                setFormData(prev => ({
+                                    ...prev,
+                                    location: '',
+                                    location_display_name: '',
+                                    location_city: '',
+                                    location_country: '',
+                                    location_latitude: '',
+                                    location_longitude: '',
+                                    timezone: ''
+                                }));
+                                return;
+                            }
+                            
+                            let tz = formData.timezone;
+                            if (sel.latitude && sel.longitude) {
+                                tz = resolveTimezoneLabel(sel.latitude, sel.longitude) || formData.timezone;
+                            }
+                            
+                            setFormData(prev => ({
+                                ...prev,
+                                location: sel.display_name,
+                                location_display_name: sel.display_name,
+                                location_city: sel.city,
+                                location_country: sel.country,
+                                location_latitude: sel.latitude,
+                                location_longitude: sel.longitude,
+                                timezone: tz
+                            }));
+                        }}
+                    />
+                );
                 break;
             case 'timezone':
                 input = (

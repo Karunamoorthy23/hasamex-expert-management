@@ -9,6 +9,8 @@ const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 export default function ProjectForm() {
   const { id } = useParams();
+  const query = new URLSearchParams(window.location.search);
+  const expert_id = query.get('expert_id');
   const [project, setProject] = useState(null);
   const [clientData, setClientData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -101,15 +103,39 @@ export default function ProjectForm() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const nextStep = () => {
+  const nextStep = async () => {
     if (!validateStep(currentStep)) return;
     if (currentStep < STEPS.length - 1) {
       setCurrentStep(s => s + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      setSubmitted(true);
-      setHeroText('Application Submitted · Thank You');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Perform Final Submission
+      setLoading(true);
+      try {
+        const payload = {
+          expert_id,
+          details,
+          qas: answers,
+          slots,
+          comp
+        };
+        const response = await fetch(`${BASE_URL}/public/projects/${id}/submit-form`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error || 'Failed to submit application');
+        }
+        setSubmitted(true);
+        setHeroText('Application Submitted · Thank You');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
