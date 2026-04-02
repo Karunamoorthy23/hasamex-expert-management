@@ -97,7 +97,7 @@ def create_app():
             return None
 
         # Public endpoints
-        if path.startswith('/api/v1/auth/') or path == '/api/v1/health':
+        if path.startswith('/api/v1/auth/') or path == '/api/v1/health' or path.startswith('/api/v1/public/'):
             return None
 
         auth_header = request.headers.get('Authorization') or ''
@@ -132,7 +132,7 @@ def create_app():
     from routes.lookups import lookups_bp
     from routes.import_experts import import_experts_bp
     from routes.clients import clients_bp
-    from routes.projects import projects_bp
+    from routes.projects import projects_bp, public_projects_bp
     from routes.users import users_bp
     from routes.auth import auth_bp
     from routes.engagements import engagements_bp
@@ -145,6 +145,7 @@ def create_app():
     app.register_blueprint(import_experts_bp)
     app.register_blueprint(clients_bp)
     app.register_blueprint(projects_bp)
+    app.register_blueprint(public_projects_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(engagements_bp)

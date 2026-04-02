@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hasamex – Expert Consultation Invitation</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background-color: #f0ede8;
+      font-family: 'DM Sans', sans-serif;
+      color: #1a1a2e;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .email-wrapper {
+      margin: auto;
+      background: #ffffff;
+      overflow: hidden;
+      box-shadow: 0 4px 40px rgba(0,0,0,0.10);
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: linear-gradient(135deg, #0d1b3e 0%, #162552 60%, #1a2d60 100%);
+      padding: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -60px; right: -60px;
+      width: 240px; height: 240px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(196,158,80,0.18) 0%, transparent 70%);
+    }
+
+    .header-inner {
+      position: relative;
+      z-index: 2;
+      padding: 44px 48px 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo-block {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .logo-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 34px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 0.04em;
+      line-height: 1;
+    }
+
+    .logo-tagline {
+      font-size: 10px;
+      font-weight: 400;
+      color: rgba(255,255,255,0.5);
+      letter-spacing: 0.20em;
+      text-transform: uppercase;
+      margin-top: 6px;
+    }
+
+    .header-badge {
+      background: rgba(196,158,80,0.15);
+      border: 1px solid rgba(196,158,80,0.40);
+      border-radius: 3px;
+      padding: 8px 16px;
+      text-align: center;
+    }
+
+    .header-badge .badge-label {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.20em;
+      text-transform: uppercase;
+      color: #c49e50;
+      display: block;
+    }
+
+    .header-badge .badge-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: #e8c96d;
+      display: block;
+      margin-top: 2px;
+    }
+
+    .header-divider {
+      height: 3px;
+      background: linear-gradient(90deg, #c49e50 0%, #e8c96d 50%, #c49e50 100%);
+    }
+
+    /* ── HERO STRIP ── */
+    .hero-strip {
+      background: #0d1b3e;
+      padding: 18px 48px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .hero-strip .icon {
+      width: 32px; height: 32px;
+      background: rgba(196,158,80,0.20);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .hero-strip .hero-text {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #c49e50;
+      font-weight: 500;
+    }
+
+    /* ── BODY ── */
+    .body {
+      padding: 44px 48px;
+    }
+
+    .greeting {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 28px;
+      font-weight: 600;
+      color: #0d1b3e;
+      line-height: 1.3;
+      margin-bottom: 16px;
+    }
+
+    .project-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: #c49e50;
+      margin-bottom: 24px;
+      border-left: 3px solid #c49e50;
+      padding-left: 15px;
+    }
+
+    .intro-text {
+      font-size: 14.5px;
+      line-height: 1.75;
+      color: #4a4a6a;
+      margin-bottom: 36px;
+      font-weight: 300;
+    }
+
+    /* ── DETAILS CARD ── */
+    .section-label {
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #c49e50;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(196,158,80,0.4), transparent);
+    }
+
+    .details-card {
+      background: #f7f5f0;
+      border: 1px solid #e8e2d6;
+      border-left: 3px solid #0d1b3e;
+      border-radius: 3px;
+      padding: 28px 30px;
+      margin-bottom: 32px;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+    }
+
+    .detail-item {
+      padding: 10px 0;
+      border-bottom: 1px solid #e8e2d6;
+    }
+
+    .detail-item:nth-last-child(-n+2) {
+      border-bottom: none;
+    }
+
+    .detail-item:nth-child(odd) {
+      padding-right: 24px;
+      border-right: 1px solid #e8e2d6;
+    }
+
+    .detail-item:nth-child(even) {
+      padding-left: 24px;
+    }
+
+    .detail-key {
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #9a9ab0;
+      margin-bottom: 4px;
+    }
+
+    .detail-value {
+      font-size: 14px;
+      font-weight: 500;
+      color: #0d1b3e;
+      line-height: 1.4;
+    }
+
+    /* ── CTA BUTTON ── */
+    .cta-container {
+      margin: 40px 0;
+      text-align: center;
+    }
+
+    .cta-button {
+      background: #0d1b3e;
+      color: #e8c96d !important;
+      padding: 18px 40px;
+      text-decoration: none;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      border-radius: 2px;
+      display: inline-block;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(13, 27, 62, 0.2);
+    }
+
+    /* ── COMPLIANCE ── */
+    .compliance-box {
+      background: #fff8ed;
+      border: 1px solid #f0d99a;
+      border-left: 3px solid #c49e50;
+      border-radius: 3px;
+      padding: 22px 24px;
+      margin-bottom: 32px;
+    }
+
+    .compliance-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #8b6914;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .compliance-text {
+      font-size: 12.5px;
+      line-height: 1.75;
+      color: #6b5a2a;
+    }
+
+    /* ── SIGNATURE ── */
+    .signature-block {
+      border-top: 1px solid #e8e2d6;
+      padding-top: 28px;
+    }
+
+    .sig-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 20px;
+      font-weight: 600;
+      color: #0d1b3e;
+    }
+
+    .sig-role {
+      font-size: 12px;
+      color: #7a7a9a;
+      margin-top: 2px;
+    }
+
+    /* ── FOOTER ── */
+    .footer {
+      background: #0d1b3e;
+      padding: 24px 48px;
+      color: #ffffff;
+    }
+
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-brand {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .footer-brand span { color: #c49e50; }
+
+    .footer-links a {
+      font-size: 11px;
+      color: rgba(255,255,255,0.45);
+      text-decoration: none;
+      margin-left: 20px;
+    }
+
+    .footer-copy {
+      font-size: 10px;
+      color: rgba(255,255,255,0.3);
+      text-align: center;
+      margin-top: 20px;
+      letter-spacing: 0.06em;
+    }
+
+    @media (max-width: 600px) {
+      .header-inner, .body, .footer { padding: 30px 24px; }
+      .detail-grid { grid-template-columns: 1fr; }
+      .detail-item:nth-child(odd) { border-right: none; padding-right: 0; }
+      .detail-item:nth-child(even) { padding-left: 0; }
+      .footer-inner { flex-direction: column; gap: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="email-wrapper">
+  <div class="header">
+    <div class="header-inner">
+      <div class="logo-block">
+        <div class="logo-name">HASAMEX</div>
+        <div class="logo-tagline">Expert Insight · Speed &amp; Trust</div>
+      </div>
+      <div class="header-badge">
+        <span class="badge-label">Document Type</span>
+        <span class="badge-value">Project Invitation</span>
+      </div>
+    </div>
+  </div>
+  <div class="header-divider"></div>
+
+  <div class="hero-strip">
+    <div class="icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#c49e50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+    </div>
+    <div class="hero-text">Invitation to Consult · Priority Engagement</div>
+  </div>
+
+  <div class="body">
+    <div class="greeting">Dear Expert,</div>
+    
+    <div class="project-title">
+      Invitation To Consult - Thailand Lighting & Lamp Market Overview
+    </div>
+
+    <p class="intro-text">
+      We are pleased to invite you to participate in a high-level research study focused on the evolving lighting landscape in Thailand. Our client, an international consulting firm, seeks deep industry perspective on market shifts, regulatory trends, and competitive positioning within this sector.
+    </p>
+
+    <div class="section-label">Engagement Overview</div>
+    <div class="details-card">
+      <div class="detail-grid">
+        <div class="detail-item">
+          <div class="detail-key">Project ID</div>
+          <div class="detail-value">TH-LTG-2026</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-key">Project Start</div>
+          <div class="detail-value">Feb 5, 2026</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-key">Region</div>
+          <div class="detail-value">Thailand / SE Asia</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-key">Consultation Type</div>
+          <div class="detail-value">Paid Expert Interview</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cta-container">
+      <a href="https://www.hasamex.com/project-form" class="cta-button">Accept Project & View Details</a>
+    </div>
+
+    <div class="section-label">Important Information</div>
+    <div class="compliance-box">
+      <span class="compliance-title">Compliance & Privacy</span>
+      <p class="compliance-text">
+        This engagement is subject to strict compliance protocols. No confidential, proprietary, or non-public information should be shared. For any administrative concerns or technical issues, please contact us directly at <strong>info@hasamex.com</strong>.
+      </p>
+    </div>
+
+    <div class="signature-block">
+      <div class="sig-name">Client Solutions Team</div>
+      <div class="sig-role">Hasamex | Global Expert Network</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-inner">
+      <div class="footer-brand">HASA<span>MEX</span></div>
+      <div class="footer-links">
+        <a href="https://www.hasamex.com" target="_blank">www.hasamex.com</a>
+        <a href="mailto:info@hasamex.com">Support</a>
+      </div>
+    </div>
+    <div class="footer-divider" style="height: 1px; background: rgba(255,255,255,0.08); margin: 16px 0;"></div>
+    <div class="footer-copy">
+      © 2026 Hasamex · Expert Insight Delivered with Speed &amp; Trust
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

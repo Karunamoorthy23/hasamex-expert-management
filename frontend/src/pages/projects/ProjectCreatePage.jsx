@@ -32,7 +32,7 @@ export default function ProjectCreatePage() {
         project_created_by: '',
         client_solution_owner_ids: [],
         sales_team_ids: [],
-        invited_expert_ids: [],
+        leads_expert_ids: [],
         scheduled_calls_count: 0,
         completed_calls_count: 0,
         goal_calls_count: 0,
@@ -137,7 +137,7 @@ export default function ProjectCreatePage() {
                 scheduled_calls_count: form.scheduled_calls_count ? Number(form.scheduled_calls_count) : 0,
                 completed_calls_count: form.completed_calls_count ? Number(form.completed_calls_count) : 0,
                 goal_calls_count: form.goal_calls_count ? Number(form.goal_calls_count) : 0,
-                invited_expert_ids: form.invited_expert_ids || [],
+                leads_expert_ids: form.leads_expert_ids || [],
             };
             await createProject(payload);
             navigate('/projects');
@@ -267,14 +267,14 @@ export default function ProjectCreatePage() {
                                 />
                             </div>
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
-                                <label className="form-label">Invited Experts (IDs)</label>
+                                <label className="form-label">Leads Experts (IDs)</label>
                                 <FilterDropdown
                                     label="Select experts"
                                     options={(lookups.experts_codes || []).map((e) => `${e.code} — ${e.name}`)}
-                                    selected={(form.invited_expert_ids || []).map((id) => expertLabelById[id]).filter(Boolean)}
+                                    selected={(form.leads_expert_ids || []).map((id) => expertLabelById[id]).filter(Boolean)}
                                     onChange={(labels) => {
                                         const ids = labels.map((lbl) => expertIdByLabel[lbl]).filter(Boolean);
-                                        setForm((p) => ({ ...p, invited_expert_ids: ids }));
+                                        setForm((p) => ({ ...p, leads_expert_ids: ids }));
                                     }}
                                 />
                             </div>

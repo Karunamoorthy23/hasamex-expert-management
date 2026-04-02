@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hasamex – Expert Project Application</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --navy: #0d1b3e;
+      --navy-mid: #162552;
+      --navy-light: #1a2d60;
+      --gold: #c49e50;
+      --gold-light: #e8c96d;
+      --gold-pale: rgba(196,158,80,0.15);
+      --gold-border: rgba(196,158,80,0.40);
+      --cream: #f7f5f0;
+      --cream-border: #e8e2d6;
+      --body-bg: #f0ede8;
+      --text-dark: #0d1b3e;
+      --text-mid: #4a4a6a;
+      --text-light: #9a9ab0;
+      --blue-soft: #eef1f8;
+      --blue-border: #d0d8ee;
+      --warn-bg: #fff8ed;
+      --warn-border: #f0d99a;
+      --warn-text: #6b5a2a;
+      --success: #1a7a4a;
+      --error: #c0392b;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background-color: var(--body-bg);
+      font-family: 'DM Sans', sans-serif;
+      color: var(--text-dark);
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
+
+    /* ── PAGE WRAPPER ── */
+    .page-wrapper {
+      margin: 0 auto;
+    }
+
+    /* ── HEADER CARD ── */
+    .header-card {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 60%, var(--navy-light) 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header-card::before {
+      content: '';
+      position: absolute;
+      top: -60px; right: -60px;
+      width: 280px; height: 280px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(196,158,80,0.18) 0%, transparent 70%);
+    }
+
+    .header-card::after {
+      content: '';
+      position: absolute;
+      bottom: -50px; left: -50px;
+      width: 200px; height: 200px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(196,158,80,0.10) 0%, transparent 70%);
+    }
+
+    .header-inner {
+      position: relative;
+      z-index: 2;
+      padding: 44px 48px 32px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .logo-block .logo-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 34px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.04em;
+      line-height: 1;
+    }
+
+    .logo-block .logo-tagline {
+      font-size: 10px;
+      color: rgba(255,255,255,0.5);
+      letter-spacing: 0.20em;
+      text-transform: uppercase;
+      margin-top: 6px;
+    }
+
+    .header-badge {
+      background: var(--gold-pale);
+      border: 1px solid var(--gold-border);
+      border-radius: 3px;
+      padding: 10px 18px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .header-badge .badge-label {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.20em;
+      text-transform: uppercase;
+      color: var(--gold);
+      display: block;
+    }
+
+    .header-badge .badge-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--gold-light);
+      display: block;
+      margin-top: 2px;
+    }
+
+    .header-divider {
+      height: 3px;
+      background: linear-gradient(90deg, var(--gold) 0%, var(--gold-light) 50%, var(--gold) 100%);
+    }
+
+    /* ── HERO STRIP ── */
+    .hero-strip {
+      background: var(--navy);
+      padding: 16px 48px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .hero-icon {
+      width: 30px; height: 30px;
+      background: var(--gold-pale);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .hero-icon svg { width: 14px; height: 14px; }
+
+    .hero-text {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold);
+      font-weight: 500;
+    }
+
+    /* ── PROGRESS BAR ── */
+    .progress-bar-wrap {
+      background: var(--navy);
+      padding: 0 48px 20px;
+    }
+
+    .progress-steps {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      position: relative;
+    }
+
+    .step-item:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      right: 0; top: 50%;
+      width: calc(100% - 120px);
+      height: 1px;
+      background: rgba(255,255,255,0.15);
+      transform: translateY(-50%);
+      left: 120px;
+    }
+
+    .step-dot {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.4);
+      flex-shrink: 0;
+      transition: all 0.3s ease;
+    }
+
+    .step-dot.active {
+      background: var(--gold);
+      border-color: var(--gold);
+      color: var(--navy);
+    }
+
+    .step-dot.done {
+      background: rgba(196,158,80,0.3);
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    .step-label {
+      font-size: 10px;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      white-space: nowrap;
+    }
+
+    .step-label.active { color: var(--gold); }
+    .step-label.done { color: rgba(196,158,80,0.7); }
+
+    /* ── MAIN CONTENT AREA ── */
+    .form-card {
+      background: #ffffff;
+      border-radius: 0 0 6px 6px;
+      overflow: hidden;
+      box-shadow: 0 8px 50px rgba(0,0,0,0.12);
+    }
+
+    /* ── FORM SECTIONS ── */
+    .form-section {
+      padding: 44px 48px;
+      border-bottom: 1px solid var(--cream-border);
+      display: none;
+      animation: fadeIn 0.35s ease;
+    }
+
+    .form-section.active { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── PROJECT OVERVIEW (step 0 — read only) ── */
+    .project-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 30px;
+      font-weight: 700;
+      color: var(--navy);
+      line-height: 1.25;
+      margin-bottom: 8px;
+    }
+
+    .project-subtitle {
+      font-size: 13px;
+      color: var(--text-mid);
+      font-weight: 300;
+      margin-bottom: 28px;
+      line-height: 1.6;
+    }
+
+    .section-label {
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(196,158,80,0.4), transparent);
+    }
+
+    .details-card {
+      background: var(--cream);
+      border: 1px solid var(--cream-border);
+      border-left: 3px solid var(--gold);
+      border-radius: 3px;
+      padding: 24px 28px;
+      margin-bottom: 24px;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+    }
+
+    .detail-item {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--cream-border);
+    }
+
+    .detail-item:nth-last-child(-n+2) { border-bottom: none; }
+    .detail-item:nth-child(odd) { padding-right: 24px; border-right: 1px solid var(--cream-border); }
+    .detail-item:nth-child(even) { padding-left: 24px; }
+    .detail-item.full { grid-column: 1 / -1; border-right: none !important; padding-right: 0 !important; border-bottom: none !important; }
+
+    .detail-key {
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-light);
+      margin-bottom: 4px;
+    }
+
+    .detail-value {
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--navy);
+      line-height: 1.4;
+    }
+
+    .scope-list {
+      list-style: none;
+      margin-bottom: 24px;
+    }
+
+    .scope-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0ede8;
+      font-size: 13.5px;
+      color: var(--text-mid);
+      line-height: 1.65;
+      font-weight: 300;
+    }
+
+    .scope-list li:last-child { border-bottom: none; }
+
+    .scope-bullet {
+      width: 6px; height: 6px;
+      background: var(--gold);
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 8px;
+    }
+
+    .compliance-box {
+      background: var(--warn-bg);
+      border: 1px solid var(--warn-border);
+      border-left: 3px solid var(--gold);
+      border-radius: 3px;
+      padding: 20px 22px;
+      margin-bottom: 0;
+    }
+
+    .compliance-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .compliance-header svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+    .compliance-title {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #8b6914;
+    }
+
+    .compliance-text {
+      font-size: 12.5px;
+      line-height: 1.75;
+      color: var(--warn-text);
+    }
+
+    /* ── FORM FIELDS ── */
+    .field-group {
+      margin-bottom: 24px;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--navy);
+      margin-bottom: 8px;
+    }
+
+    .field-label .required {
+      color: var(--gold);
+      margin-left: 3px;
+    }
+
+    .field-hint {
+      font-size: 11.5px;
+      color: var(--text-mid);
+      font-weight: 300;
+      margin-bottom: 10px;
+      line-height: 1.55;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    textarea,
+    select {
+      width: 100%;
+      background: var(--cream);
+      border: 1px solid var(--cream-border);
+      border-radius: 3px;
+      padding: 12px 16px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13.5px;
+      font-weight: 400;
+      color: var(--navy);
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    input[type="text"]:focus,
+    input[type="email"]:focus,
+    input[type="tel"]:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(196,158,80,0.12);
+      background: #fff;
+    }
+
+    input::placeholder, textarea::placeholder {
+      color: var(--text-light);
+      font-weight: 300;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 110px;
+      line-height: 1.6;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    /* ── RADIO / OPTION CARDS ── */
+    .options-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .options-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+
+    .option-card {
+      position: relative;
+      cursor: pointer;
+    }
+
+    .option-card input[type="radio"],
+    .option-card input[type="checkbox"] {
+      position: absolute;
+      opacity: 0;
+      width: 0; height: 0;
+    }
+
+    .option-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: var(--cream);
+      border: 1px solid var(--cream-border);
+      border-radius: 3px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 13px;
+      color: var(--text-mid);
+      line-height: 1.5;
+    }
+
+    .option-label:hover {
+      border-color: var(--gold);
+      background: #fffdf7;
+    }
+
+    .option-card input:checked + .option-label {
+      border-color: var(--gold);
+      background: #fffdf7;
+      box-shadow: 0 0 0 2px rgba(196,158,80,0.15);
+    }
+
+    .option-indicator {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      border: 2px solid var(--cream-border);
+      flex-shrink: 0;
+      margin-top: 1px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s ease;
+      background: #fff;
+    }
+
+    .option-card.checkbox .option-indicator { border-radius: 3px; }
+
+    .option-card input:checked + .option-label .option-indicator {
+      background: var(--gold);
+      border-color: var(--gold);
+    }
+
+    .option-card input:checked + .option-label .option-indicator::after {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: white;
+    }
+
+    .option-card.checkbox input:checked + .option-label .option-indicator::after {
+      content: '';
+      width: 10px; height: 6px;
+      border-radius: 0;
+      background: transparent;
+      border-left: 2px solid white;
+      border-bottom: 2px solid white;
+      transform: rotate(-45deg) translateY(-1px);
+    }
+
+    .option-letter {
+      background: var(--navy);
+      color: var(--gold-light);
+      border-radius: 2px;
+      width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 1px;
+      letter-spacing: 0;
+    }
+
+    .option-card input:checked + .option-label .option-letter {
+      background: var(--gold);
+      color: var(--navy);
+    }
+
+    .option-text strong {
+      display: block;
+      color: var(--navy);
+      font-weight: 500;
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    /* ── CONFIDENCE SLIDER ── */
+    .slider-wrap {
+      padding: 8px 0 16px;
+    }
+
+    .confidence-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(to right, var(--gold) 0%, var(--gold) 50%, var(--cream-border) 50%, var(--cream-border) 100%);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .confidence-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--navy);
+      border: 3px solid var(--gold);
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .confidence-slider::-moz-range-thumb {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--navy);
+      border: 3px solid var(--gold);
+      cursor: pointer;
+    }
+
+    .slider-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+
+    .slider-labels span {
+      font-size: 10px;
+      color: var(--text-light);
+      letter-spacing: 0.06em;
+    }
+
+    .confidence-display {
+      text-align: center;
+      margin-top: 12px;
+    }
+
+    .confidence-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 40px;
+      font-weight: 700;
+      color: var(--navy);
+      line-height: 1;
+    }
+
+    .confidence-label {
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-light);
+      margin-top: 4px;
+    }
+
+    /* ── AVAILABILITY ── */
+    .avail-row {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .avail-sep {
+      font-size: 12px;
+      color: var(--text-light);
+      text-align: center;
+      padding-top: 28px;
+    }
+
+    .add-slot-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: none;
+      border: 1px dashed var(--gold-border);
+      border-radius: 3px;
+      padding: 10px 16px;
+      color: var(--gold);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      text-transform: uppercase;
+      width: 100%;
+      margin-top: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .add-slot-btn:hover {
+      background: var(--gold-pale);
+      border-color: var(--gold);
+    }
+
+    .remove-slot {
+      background: none;
+      border: none;
+      color: #c0392b;
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      padding: 0 4px;
+      opacity: 0.5;
+      transition: opacity 0.2s;
+    }
+
+    .remove-slot:hover { opacity: 1; }
+
+    /* ── TERMS ── */
+    .terms-block {
+      background: var(--cream);
+      border: 1px solid var(--cream-border);
+      border-radius: 3px;
+      padding: 20px 22px;
+      margin-bottom: 20px;
+    }
+
+    .terms-title {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--navy);
+      margin-bottom: 12px;
+    }
+
+    .terms-list {
+      list-style: none;
+    }
+
+    .terms-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 12.5px;
+      color: var(--text-mid);
+      line-height: 1.65;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--cream-border);
+    }
+
+    .terms-list li:last-child { border-bottom: none; }
+
+    .terms-check {
+      width: 16px; height: 16px;
+      background: var(--gold);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .terms-check svg { width: 8px; height: 8px; }
+
+    .terms-list a { color: var(--gold); text-decoration: none; }
+    .terms-list a:hover { text-decoration: underline; }
+
+    /* ── NAVIGATION BUTTONS ── */
+    .form-nav {
+      padding: 28px 48px;
+      background: var(--cream);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--cream-border);
+    }
+
+    .btn-back {
+      background: none;
+      border: 1px solid var(--cream-border);
+      border-radius: 3px;
+      padding: 12px 24px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--text-mid);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-back:hover {
+      border-color: var(--navy);
+      color: var(--navy);
+    }
+
+    .btn-next {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+      border: none;
+      border-radius: 3px;
+      padding: 13px 32px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 16px rgba(13,27,62,0.25);
+    }
+
+    .btn-next:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(13,27,62,0.35);
+    }
+
+    .btn-next svg { width: 14px; height: 14px; }
+
+    .btn-submit {
+      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+      border: none;
+      border-radius: 3px;
+      padding: 13px 36px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--navy);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 16px rgba(196,158,80,0.35);
+    }
+
+    .btn-submit:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(196,158,80,0.50);
+    }
+
+    .step-counter {
+      font-size: 11px;
+      color: var(--text-light);
+      letter-spacing: 0.08em;
+    }
+
+    /* ── SUCCESS STATE ── */
+    .success-screen {
+      display: none;
+      padding: 64px 48px;
+      text-align: center;
+      animation: fadeIn 0.5s ease;
+    }
+
+    .success-screen.visible { display: block; }
+
+    .success-icon {
+      width: 72px; height: 72px;
+      background: linear-gradient(135deg, var(--navy), var(--navy-mid));
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px;
+      box-shadow: 0 8px 30px rgba(13,27,62,0.25);
+    }
+
+    .success-icon svg { width: 32px; height: 32px; }
+
+    .success-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 34px;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 12px;
+    }
+
+    .success-text {
+      font-size: 14px;
+      color: var(--text-mid);
+      line-height: 1.75;
+      max-width: 440px;
+      margin: 0 auto 32px;
+      font-weight: 300;
+    }
+
+    .success-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--gold-pale);
+      border: 1px solid var(--gold-border);
+      border-radius: 3px;
+      padding: 10px 20px;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--gold);
+      font-weight: 600;
+    }
+
+    /* ── SECTION HEADING ── */
+    .section-heading {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 6px;
+    }
+
+    .section-desc {
+      font-size: 13.5px;
+      color: var(--text-mid);
+      font-weight: 300;
+      margin-bottom: 28px;
+      line-height: 1.6;
+    }
+
+    /* ── FIELD VALIDATION ── */
+    .field-error {
+      font-size: 11px;
+      color: var(--error);
+      margin-top: 5px;
+      display: none;
+    }
+
+    input.invalid, textarea.invalid, select.invalid {
+      border-color: var(--error);
+    }
+
+    /* ── FOOTER ── */
+    .footer {
+      background: var(--navy);
+      padding: 22px 48px;
+    }
+
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-brand {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.9);
+      letter-spacing: 0.04em;
+    }
+
+    .footer-brand span { color: var(--gold); }
+
+    .footer-links { display: flex; gap: 20px; }
+
+    .footer-links a {
+      font-size: 11px;
+      color: rgba(255,255,255,0.45);
+      text-decoration: none;
+      letter-spacing: 0.08em;
+    }
+
+    .footer-links a:hover { color: var(--gold); }
+
+    .footer-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.08);
+      margin: 14px 0;
+    }
+
+    .footer-copy {
+      font-size: 10.5px;
+      color: rgba(255,255,255,0.28);
+      text-align: center;
+      letter-spacing: 0.06em;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      .page-wrapper { padding: 0 0 40px; }
+      .header-inner { padding: 28px 24px 22px; flex-direction: column; }
+      .header-badge { align-self: flex-start; }
+      .hero-strip, .form-section, .form-nav, .footer { padding-left: 24px; padding-right: 24px; }
+      .progress-bar-wrap { padding: 0 24px 16px; }
+      .detail-grid { grid-template-columns: 1fr; }
+      .detail-item:nth-child(odd) { border-right: none; padding-right: 0; }
+      .detail-item:nth-child(even) { padding-left: 0; }
+      .detail-item { border-bottom: 1px solid var(--cream-border) !important; }
+      .field-row, .options-grid.cols-2 { grid-template-columns: 1fr; }
+      .footer-inner { flex-direction: column; gap: 12px; text-align: center; }
+      .avail-row { grid-template-columns: 1fr; }
+      .avail-sep { padding-top: 0; }
+      .step-label { display: none; }
+      .success-screen { padding: 44px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+
+  <!-- HEADER -->
+  <div class="header-card">
+    <div class="header-inner">
+      <div class="logo-block">
+        <div class="logo-name">HASAMEX</div>
+        <div class="logo-tagline">Expert Insight · Speed &amp; Trust</div>
+      </div>
+      <div class="header-badge">
+        <span class="badge-label">Document Type</span>
+        <span class="badge-value">Expert Application</span>
+      </div>
+    </div>
+  </div>
+  <div class="header-divider"></div>
+
+  <div class="form-card">
+
+    <!-- HERO STRIP -->
+    <div class="hero-strip">
+      <div class="hero-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#c49e50" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <div class="hero-text">Expert Consultation · Application Form</div>
+    </div>
+
+    <!-- PROGRESS STEPS -->
+    <div class="progress-bar-wrap">
+      <div class="progress-steps">
+        <div class="step-item">
+          <div class="step-dot active" id="dot-0">1</div>
+          <span class="step-label active" id="lbl-0">Project Brief</span>
+        </div>
+        <div class="step-item">
+          <div class="step-dot" id="dot-1">2</div>
+          <span class="step-label" id="lbl-1">Profile Questions</span>
+        </div>
+        <div class="step-item">
+          <div class="step-dot" id="dot-2">3</div>
+          <span class="step-label" id="lbl-2">Your Details</span>
+        </div>
+        <div class="step-item">
+          <div class="step-dot" id="dot-3">4</div>
+          <span class="step-label" id="lbl-3">Compliance</span>
+        </div>
+        <div class="step-item">
+          <div class="step-dot" id="dot-4">5</div>
+          <span class="step-label" id="lbl-4">Declaration</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- STEP 1 — PROJECT BRIEF                      -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="form-section active" id="step-0">
+      <div class="project-title">Thailand Lamp &amp; Lighting Market</div>
+      <p class="project-subtitle">CY2024 – CY2025 · International Management Consulting Study · 45–60 Minute Paid Consultation</p>
+
+      <div class="section-label">About the Project</div>
+      <p style="font-size:13.5px; color:var(--text-mid); line-height:1.75; font-weight:300; margin-bottom:20px;">
+        An analyst at an international consulting firm is conducting research on Thailand's Lamp &amp; Lighting market for CY2024 and CY2025. The objective is to understand overall market size and structure, including organized vs unorganized segments, LED vs non-LED adoption, channel dynamics across B2C and B2B, and competitive positioning of major lighting players operating in Thailand.
+      </p>
+
+      <div class="section-label">Project Details</div>
+      <div class="details-card">
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-key">Client Type</div>
+            <div class="detail-value">International Management Consulting Firm</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-key">Study Period</div>
+            <div class="detail-value">CY2024 – CY2025</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-key">Geography</div>
+            <div class="detail-value">Thailand</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-key">Sector</div>
+            <div class="detail-value">Lamp &amp; Lighting Market</div>
+          </div>
+          <div class="detail-item full">
+            <div class="detail-key">Call Format &amp; Duration</div>
+            <div class="detail-value">45–60 Minute One-on-One · MS Teams or Zoom · Paid Engagement</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label">Scope of Discussion</div>
+      <ul class="scope-list">
+        <li><span class="scope-bullet"></span><span>Total Lamp &amp; Lighting market size in Thailand, including the split between organized and unorganized segments.</span></li>
+        <li><span class="scope-bullet"></span><span>LED vs non-LED penetration for lamps, and the overall mix between lamps and lighting fixtures.</span></li>
+        <li><span class="scope-bullet"></span><span>Performance of the organized market across B2C (Modern Trade vs General Trade — urban and rural) and B2B (residential, commercial, industrial, hospitality, sport, and infrastructure).</span></li>
+        <li><span class="scope-bullet"></span><span>Market share estimates for key players for CY2024 and CY2025.</span></li>
+        <li><span class="scope-bullet"></span><span>Key drivers behind market and share shifts in CY2025, including channel dynamics and sector-specific demand trends.</span></li>
+      </ul>
+
+      <div class="compliance-box">
+        <div class="compliance-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#b8860b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          <span class="compliance-title">Compliance Disclaimer</span>
+        </div>
+        <p class="compliance-text">This project is conducted in accordance with Hasamex's strict compliance protocols. We do not permit the sharing of confidential, proprietary, or material non-public information (MNPI), nor any information covered under employment, fiduciary, or non-disclosure obligations. Experts must rely solely on personal experience and publicly available information.</p>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- STEP 2 — PROFILE QUESTIONS                  -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="form-section" id="step-1">
+      <div class="section-heading">Profile Questions</div>
+      <p class="section-desc">Please answer each question to help us evaluate your fit for this project. Your responses help the client team assess relevance and depth of expertise.</p>
+
+      <div class="field-group">
+        <label class="field-label">1. Market Size &amp; Structure <span class="required">*</span></label>
+        <p class="field-hint">Are you able to speak about Thailand's Lamp &amp; Lighting market size and structure for CY2024–CY2025, including organized vs unorganized segments, LED vs non-LED lamps, and the split between lamps and lighting fixtures? Please briefly describe your experience and role.</p>
+        <textarea id="q1" placeholder="Describe your relevant experience, role, and the depth of knowledge you can bring to this topic…"></textarea>
+        <div class="field-error" id="q1-err">This field is required.</div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">2. Channel &amp; Segment Dynamics <span class="required">*</span></label>
+        <p class="field-hint">Are you able to speak about channel and segment dynamics in Thailand's lighting market, including B2C (Modern Trade vs General Trade) and B2B demand across residential, commercial, industrial, hospitality, and infrastructure? Please briefly describe your experience and role.</p>
+        <textarea id="q2" placeholder="Describe your relevant experience and exposure to distribution channels in the Thailand lighting market…"></textarea>
+        <div class="field-error" id="q2-err">This field is required.</div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">3. Market Shares &amp; Competitive Dynamics <span class="required">*</span></label>
+        <p class="field-hint">Are you able to speak about market shares and competitive dynamics in Thailand's lighting market? Please briefly describe your experience and role.</p>
+        <textarea id="q3" placeholder="Describe your understanding of major players, competitive positioning, and market share trends…"></textarea>
+        <div class="field-error" id="q3-err">This field is required.</div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">4. Confidence Level <span class="required">*</span></label>
+        <p class="field-hint">On a scale of 1 to 10, how confident are you in speaking about the topics above? This helps us prioritize experts with both knowledge and confidence to contribute valuable insights.</p>
+        <div class="slider-wrap">
+          <input type="range" class="confidence-slider" id="confidence" min="0" max="10" value="5" oninput="updateSlider(this)" />
+          <div class="slider-labels">
+            <span>0 — Not confident</span>
+            <span>10 — Highly confident</span>
+          </div>
+          <div class="confidence-display">
+            <div class="confidence-value" id="conf-val">5</div>
+            <div class="confidence-label">Confidence Score</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- STEP 3 — BASIC INFORMATION                  -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="form-section" id="step-2">
+      <div class="section-heading">Your Basic Information</div>
+      <p class="section-desc">Please provide your core contact details so we can keep your profile up to date and reach out if you're selected for this project. Your information will be kept secure and used only for Hasamex project evaluation and communication purposes.</p>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label" for="fname">Full Name <span class="required">*</span></label>
+          <input type="text" id="fname" placeholder="e.g. John Smith" />
+          <div class="field-error" id="fname-err">Full name is required.</div>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="email">Personal Email <span class="required">*</span></label>
+          <input type="email" id="email" placeholder="e.g. john@email.com" />
+          <div class="field-error" id="email-err">A valid email is required.</div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label" for="phone">Phone Number <span class="required">*</span></label>
+          <input type="tel" id="phone" placeholder="e.g. +66 81 234 5678" />
+          <div class="field-error" id="phone-err">Phone number is required.</div>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="employer">Current Employment <span class="required">*</span></label>
+          <input type="text" id="employer" placeholder="Company name &amp; role title" />
+          <div class="field-error" id="employer-err">Current employment is required.</div>
+        </div>
+      </div>
+
+      <div class="field-group" style="margin-top: 8px;">
+        <label class="field-label">Your Availability <span class="required">*</span></label>
+        <p class="field-hint">Please share your availability for a phone consultation over the next 5 business days. You may list specific dates and time windows (in your local time zone), and we will coordinate based on client preference and scheduling.</p>
+        <div id="avail-slots">
+          <div class="avail-row" data-slot="0">
+            <div>
+              <div class="field-label" style="font-size:10px; margin-bottom:5px;">Date</div>
+              <input type="text" placeholder="e.g. Mon 7 Apr, 2026" class="avail-date" />
+            </div>
+            <div class="avail-sep">—</div>
+            <div>
+              <div class="field-label" style="font-size:10px; margin-bottom:5px;">Time Window (local timezone)</div>
+              <input type="text" placeholder="e.g. 10:00 AM – 12:00 PM SGT" class="avail-time" />
+            </div>
+          </div>
+        </div>
+        <button type="button" class="add-slot-btn" onclick="addSlot()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Another Time Slot
+        </button>
+        <div class="field-error" id="avail-err">Please add at least one availability slot.</div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- STEP 4 — COMPLIANCE ONBOARDING              -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="form-section" id="step-3">
+      <div class="section-heading">Compliance Onboarding</div>
+      <p class="section-desc">Before proceeding, we'd like to ensure you understand key compliance principles governing all expert consultations at Hasamex. Please answer the two questions below to confirm your understanding around confidentiality and your responsibilities.</p>
+
+      <div class="field-group">
+        <label class="field-label">1. Sharing Material Non-Public Information (MNPI) <span class="required">*</span></label>
+        <p class="field-hint">Are you permitted to share material non-public information (MNPI) or any confidential data obtained through your current or former employer(s) during a Hasamex consultation?</p>
+        <div class="options-grid" id="comp1">
+          <label class="option-card">
+            <input type="radio" name="comp1" value="A" />
+            <div class="option-label">
+              <span class="option-letter">A</span>
+              <span class="option-text">Yes, as long as the client agrees to keep it confidential</span>
+            </div>
+          </label>
+          <label class="option-card">
+            <input type="radio" name="comp1" value="B" />
+            <div class="option-label">
+              <span class="option-letter">B</span>
+              <span class="option-text">Yes, if it is no longer being used by the company</span>
+            </div>
+          </label>
+          <label class="option-card">
+            <input type="radio" name="comp1" value="C" />
+            <div class="option-label">
+              <span class="option-letter">C</span>
+              <span class="option-text"><strong>No, I must never share any confidential or non-public information</strong></span>
+            </div>
+          </label>
+          <label class="option-card">
+            <input type="radio" name="comp1" value="D" />
+            <div class="option-label">
+              <span class="option-letter">D</span>
+              <span class="option-text">I can share internal information if I no longer work for the company</span>
+            </div>
+          </label>
+        </div>
+        <div class="field-error" id="comp1-err">Please select an answer.</div>
+      </div>
+
+      <div class="field-group" style="margin-top: 8px;">
+        <label class="field-label">2. Handling Sensitive Client Requests <span class="required">*</span></label>
+        <p class="field-hint">During a consultation, a client asks for details about an upcoming product launch at your former company, which has not been publicly disclosed. What should you do?</p>
+        <div class="options-grid" id="comp2">
+          <label class="option-card">
+            <input type="radio" name="comp2" value="A" />
+            <div class="option-label">
+              <span class="option-letter">A</span>
+              <span class="option-text">Share only the launch date, not the full strategy</span>
+            </div>
+          </label>
+          <label class="option-card">
+            <input type="radio" name="comp2" value="B" />
+            <div class="option-label">
+              <span class="option-letter">B</span>
+              <span class="option-text">Answer the question if the product has already been mentioned internally</span>
+            </div>
+          </label>
+          <label class="option-card">
+            <input type="radio" name="comp2" value="C" />
+            <div class="option-label">
+              <span class="option-letter">C</span>
+              <span class="option-text"><strong>Politely decline to answer and explain that it involves non-public information</strong></span>
+            </div>
+          </label>
+          <label class="option-card">
+            <input type="radio" name="comp2" value="D" />
+            <div class="option-label">
+              <span class="option-letter">D</span>
+              <span class="option-text">Share the information if it's not being used to trade stocks</span>
+            </div>
+          </label>
+        </div>
+        <div class="field-error" id="comp2-err">Please select an answer.</div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- STEP 5 — DECLARATION                        -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="form-section" id="step-4">
+      <div class="section-heading">Terms of Participation &amp; Declaration</div>
+      <p class="section-desc">To complete your onboarding for this project, we ask that you review and acknowledge the following terms before submitting your application.</p>
+
+      <div class="terms-block">
+        <div class="terms-title">By submitting, you confirm that:</div>
+        <ul class="terms-list">
+          <li>
+            <div class="terms-check">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <span>You are participating voluntarily and are not restricted by any contractual, fiduciary, or legal obligations that would prevent your involvement.</span>
+          </li>
+          <li>
+            <div class="terms-check">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <span>The information you have provided is accurate and complete to the best of your knowledge.</span>
+          </li>
+          <li>
+            <div class="terms-check">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <span>You have read and understood the <a href="https://www.hasamex.com/terms" target="_blank">Hasamex Expert Participation Terms</a> and agree to abide by them.</span>
+          </li>
+          <li>
+            <div class="terms-check">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <span>You consent to Hasamex storing and processing your personal information solely for project evaluation and future relevant opportunities, in accordance with our <a href="https://www.hasamex.com/privacy" target="_blank">Privacy Policy</a>. Your data will never be shared externally without your explicit consent.</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Confirmation <span class="required">*</span></label>
+        <p class="field-hint">Do you confirm that you have read, understood, and agreed to the Hasamex Expert Participation Terms and Privacy Policy, and that the information provided in this form is true and complete to the best of your knowledge?</p>
+        <div class="options-grid cols-2" id="declaration">
+          <label class="option-card">
+            <input type="radio" name="declaration" value="yes" />
+            <div class="option-label" style="justify-content: center; text-align: center; flex-direction: column; gap: 8px; padding: 20px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#1a7a4a" stroke-width="2.2" width="22" height="22" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span class="option-text"><strong style="color:var(--navy);">Yes — I confirm and agree</strong></span>
+            </div>
+          </label>
+          <label class="option-card">
+            <input type="radio" name="declaration" value="no" />
+            <div class="option-label" style="justify-content: center; text-align: center; flex-direction: column; gap: 8px; padding: 20px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#c0392b" stroke-width="2.2" width="22" height="22" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              <span class="option-text"><strong style="color:var(--text-mid);">No — I do not</strong></span>
+            </div>
+          </label>
+        </div>
+        <div class="field-error" id="decl-err">You must confirm to submit your application.</div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- SUCCESS SCREEN                              -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="success-screen" id="success">
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#e8c96d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+      </div>
+      <div class="success-title">Application Submitted</div>
+      <p class="success-text">Thank you for expressing your interest. Our team at Hasamex will review your profile and reach out within 1–2 business days if your background is a strong match for this project.</p>
+      <div class="success-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Review typically within 1–2 business days
+      </div>
+    </div>
+
+    <!-- NAVIGATION -->
+    <div class="form-nav" id="form-nav">
+      <button class="btn-back" id="btn-back" onclick="prevStep()" style="visibility:hidden;">
+        ← Back
+      </button>
+      <span class="step-counter" id="step-counter">Step 1 of 5</span>
+      <button class="btn-next" id="btn-next" onclick="nextStep()">
+        Continue
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </button>
+    </div>
+
+  </div><!-- /.form-card -->
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-inner">
+      <div class="footer-brand">HASA<span>MEX</span></div>
+      <div class="footer-links">
+        <a href="https://www.hasamex.com/" target="_blank">Website</a>
+        <a href="mailto:contact@hasamex.com">Contact</a>
+        <a href="#">Privacy Policy</a>
+      </div>
+    </div>
+    <div class="footer-divider"></div>
+    <div class="footer-copy">© 2026 Hasamex · Expert Insight Delivered with Speed &amp; Trust · Confidential Communication</div>
+  </div>
+
+</div><!-- /.page-wrapper -->
+
+<script>
+  let currentStep = 0;
+  const totalSteps = 5;
+
+  function updateSlider(input) {
+    const val = input.value;
+    document.getElementById('conf-val').textContent = val;
+    const pct = (val / 10) * 100;
+    input.style.background = `linear-gradient(to right, #c49e50 0%, #c49e50 ${pct}%, #e8e2d6 ${pct}%, #e8e2d6 100%)`;
+  }
+
+  // Init slider
+  updateSlider(document.getElementById('confidence'));
+
+  function setStep(n) {
+    document.querySelectorAll('.form-section').forEach((s, i) => {
+      s.classList.toggle('active', i === n);
+    });
+
+    for (let i = 0; i < totalSteps; i++) {
+      const dot = document.getElementById(`dot-${i}`);
+      const lbl = document.getElementById(`lbl-${i}`);
+      dot.className = 'step-dot' + (i < n ? ' done' : i === n ? ' active' : '');
+      lbl.className = 'step-label' + (i < n ? ' done' : i === n ? ' active' : '');
+      if (i < n) dot.innerHTML = '✓';
+      else dot.innerHTML = i + 1;
+    }
+
+    document.getElementById('btn-back').style.visibility = n === 0 ? 'hidden' : 'visible';
+    document.getElementById('step-counter').textContent = `Step ${n + 1} of ${totalSteps}`;
+
+    const nextBtn = document.getElementById('btn-next');
+    if (n === totalSteps - 1) {
+      nextBtn.innerHTML = `Submit Application <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>`;
+      nextBtn.className = 'btn-submit';
+    } else {
+      nextBtn.innerHTML = `Continue <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
+      nextBtn.className = 'btn-next';
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function validateStep(n) {
+    let valid = true;
+
+    if (n === 1) {
+      ['q1','q2','q3'].forEach(id => {
+        const el = document.getElementById(id);
+        const err = document.getElementById(id + '-err');
+        if (!el.value.trim()) {
+          el.classList.add('invalid');
+          err.style.display = 'block';
+          valid = false;
+        } else {
+          el.classList.remove('invalid');
+          err.style.display = 'none';
+        }
+      });
+    }
+
+    if (n === 2) {
+      ['fname','email','phone','employer'].forEach(id => {
+        const el = document.getElementById(id);
+        const err = document.getElementById(id + '-err');
+        const isEmpty = !el.value.trim();
+        const isInvalidEmail = id === 'email' && el.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value);
+        if (isEmpty || isInvalidEmail) {
+          el.classList.add('invalid');
+          err.style.display = 'block';
+          valid = false;
+        } else {
+          el.classList.remove('invalid');
+          err.style.display = 'none';
+        }
+      });
+    }
+
+    if (n === 3) {
+      ['comp1','comp2'].forEach((name, idx) => {
+        const checked = document.querySelector(`input[name="${name}"]:checked`);
+        const err = document.getElementById(`${name}-err`);
+        if (!checked) {
+          err.style.display = 'block';
+          valid = false;
+        } else {
+          err.style.display = 'none';
+        }
+      });
+    }
+
+    if (n === 4) {
+      const checked = document.querySelector('input[name="declaration"]:checked');
+      const err = document.getElementById('decl-err');
+      if (!checked || checked.value !== 'yes') {
+        err.style.display = 'block';
+        valid = false;
+      } else {
+        err.style.display = 'none';
+      }
+    }
+
+    return valid;
+  }
+
+  function nextStep() {
+    if (!validateStep(currentStep)) return;
+    if (currentStep < totalSteps - 1) {
+      currentStep++;
+      setStep(currentStep);
+    } else {
+      // Submit
+      document.getElementById('form-nav').style.display = 'none';
+      document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
+      document.getElementById('success').classList.add('visible');
+      document.querySelector('.hero-strip .hero-text').textContent = 'Application Submitted · Thank You';
+    }
+  }
+
+  function prevStep() {
+    if (currentStep > 0) {
+      currentStep--;
+      setStep(currentStep);
+    }
+  }
+
+  // Add availability slot
+  let slotCount = 1;
+  function addSlot() {
+    slotCount++;
+    const wrap = document.getElementById('avail-slots');
+    const row = document.createElement('div');
+    row.className = 'avail-row';
+    row.dataset.slot = slotCount;
+    row.innerHTML = `
+      <div>
+        <div class="field-label" style="font-size:10px; margin-bottom:5px;">Date</div>
+        <input type="text" placeholder="e.g. Tue 8 Apr, 2026" class="avail-date" />
+      </div>
+      <div class="avail-sep">—</div>
+      <div style="display:flex; gap:8px; align-items:flex-end;">
+        <div style="flex:1;">
+          <div class="field-label" style="font-size:10px; margin-bottom:5px;">Time Window (local timezone)</div>
+          <input type="text" placeholder="e.g. 2:00 PM – 4:00 PM SGT" class="avail-time" />
+        </div>
+        <button type="button" class="remove-slot" onclick="this.closest('.avail-row').remove()" title="Remove slot">×</button>
+      </div>
+    `;
+    wrap.appendChild(row);
+  }
+</script>
+
+</body>
+</html>

@@ -344,10 +344,10 @@ def create_project():
         geos = LkProjectTargetGeography.query.filter(LkProjectTargetGeography.name.in_(geo_names)).all()
         new_project.target_geographies = geos
     
-    # Initial invited experts
-    invited_ids = data.get('invited_expert_ids') or data.get('expert_ids') or []
-    if isinstance(invited_ids, list):
-        new_project.invited_expert_ids = [str(x) for x in invited_ids if str(x).strip() != '']
+    # Initial leads experts (UI previously called this invited_expert_ids)
+    leads_ids = data.get('leads_expert_ids') or data.get('invited_expert_ids') or data.get('expert_ids') or []
+    if isinstance(leads_ids, list):
+        new_project.leads_expert_ids = [str(x) for x in leads_ids if str(x).strip() != '']
 
     db.session.add(new_project)
     db.session.commit()
@@ -407,11 +407,11 @@ def update_project(project_id):
         else:
             setattr(project, key, value)
     
-    # Update invited experts if provided (supports alias 'expert_ids')
-    if 'invited_expert_ids' in data or 'expert_ids' in data:
-        invited_ids = data.get('invited_expert_ids') or data.get('expert_ids') or []
-        if isinstance(invited_ids, list):
-            project.invited_expert_ids = [str(x) for x in invited_ids if str(x).strip() != '']
+    # Update leads experts if provided
+    if 'leads_expert_ids' in data or 'invited_expert_ids' in data or 'expert_ids' in data:
+        leads_ids = data.get('leads_expert_ids') or data.get('invited_expert_ids') or data.get('expert_ids') or []
+        if isinstance(leads_ids, list):
+            project.leads_expert_ids = [str(x) for x in leads_ids if str(x).strip() != '']
             
     db.session.commit()
     return jsonify({'data': project.to_dict()})
@@ -620,3 +620,31 @@ def set_expert_status(project_id):
     project.declined_expert_ids = list(declined)
     db.session.commit()
     return jsonify({'data': project.to_dict()})
+
+
+# ── Public endpoint for expert application form (no auth) ──
+
+public_projects_bp = Blueprint('public_projects', __name__, url_prefix='/api/v1/public/projects')
+
+@public_projects_bp.route('/<int:project_id>/form', methods=['GET'])
+def get_project_form_public(project_id):
+    """Return only the fields needed for the expert-facing application form."""
+    project = Project.query.get_or_404(project_id)
+    client = Client.query.get(project.client_id) if project.client_id else None
+    return jsonify({'data': {
+        'project_id': project.project_id,
+        'project_title': project.project_title or project.title,
+        'project_description': project.project_description or project.description,
+        'sector': project.sector,
+        'received_date': project.received_date.isoformat() if project.received_date else None,
+        'project_deadline': project.project_deadline.isoformat() if project.project_deadline else None,
+        'target_region': project.rel_target_region.name if project.rel_target_region else None,
+        'target_geographies': [g.name for g in project.target_geographies] if project.target_geographies else [],
+        'target_functions_titles': project.target_functions_titles,
+        'project_type': project.rel_project_type.name if project.rel_project_type else None,
+        'profile_question_1': project.profile_question_1,
+        'profile_question_2': project.profile_question_2,
+        'profile_question_3': project.profile_question_3,
+        'client_type': client.client_type if client else None,
+        'client_name': client.client_name if client else None,
+    }})
