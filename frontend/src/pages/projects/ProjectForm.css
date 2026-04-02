@@ -195,6 +195,10 @@
 .pf-page-wrapper input[type="text"],
 .pf-page-wrapper input[type="email"],
 .pf-page-wrapper input[type="tel"],
+.pf-page-wrapper input[type="date"],
+.pf-page-wrapper input[type="time"],
+.pf-page-wrapper input[type="number"],
+.pf-page-wrapper .form-input,
 .pf-page-wrapper textarea,
 .pf-page-wrapper select {
   width: 100%; background: var(--pf-cream); border: 1px solid var(--pf-cream-border);
@@ -206,6 +210,10 @@
 .pf-page-wrapper input[type="text"]:focus,
 .pf-page-wrapper input[type="email"]:focus,
 .pf-page-wrapper input[type="tel"]:focus,
+.pf-page-wrapper input[type="date"]:focus,
+.pf-page-wrapper input[type="time"]:focus,
+.pf-page-wrapper input[type="number"]:focus,
+.pf-page-wrapper .form-input:focus,
 .pf-page-wrapper textarea:focus,
 .pf-page-wrapper select:focus {
   border-color: var(--pf-gold); box-shadow: 0 0 0 3px rgba(196,158,80,0.12); background: #fff;
@@ -355,7 +363,7 @@
 /* ── VALIDATION ── */
 .pf-field-error { font-size: 11px; color: var(--pf-error); margin-top: 5px; display: none; }
 .pf-field-error.visible { display: block; }
-.pf-page-wrapper input.invalid, .pf-page-wrapper textarea.invalid, .pf-page-wrapper select.invalid { border-color: var(--pf-error); }
+.pf-page-wrapper input.invalid, .pf-page-wrapper textarea.invalid, .pf-page-wrapper select.invalid, .pf-page-wrapper .invalid-loc input { border-color: var(--pf-error) !important; }
 
 /* ── SUCCESS ── */
 .pf-success-screen { display: none; padding: 64px 48px; text-align: center; animation: pf-fadeIn 0.5s ease; }

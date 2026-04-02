@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef, useLayoutEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { fetchProjectById, fetchProjectExpertStatus, setProjectExpertStatus, setProjectCallAssignment } from '../../api/projects';
+import { fetchProjectById, fetchProjectExpertStatus, setProjectExpertStatus, setProjectCallAssignment, sendProjectInvites } from '../../api/projects';
 import { fetchClientById } from '../../api/clients';
 import Modal from '../../components/ui/Modal';
 import { updateExpert } from '../../api/experts';
@@ -124,6 +124,7 @@ export default function ProjectDetails() {
     const [serviceOpen, setServiceOpen] = useState(false);
     const [mailboxOpen, setMailboxOpen] = useState(false);
     const [clientData, setClientData] = useState(null);
+    const [isSendingInvites, setIsSendingInvites] = useState(false);
 
     const loadParticipants = async () => {
         try {
@@ -260,6 +261,31 @@ export default function ProjectDetails() {
         } catch (err) {
             console.error('Failed to update rating:', err);
             alert('Failed to update rating');
+        }
+    };
+
+    const handleSendInvites = async () => {
+        const leadExpertIds = [];
+        filteredParticipants.forEach(p => {
+            if (selectedIds.has(p.id || p.expert_id) && p.category === 'Leads') {
+                leadExpertIds.push(p.id || p.expert_id);
+            }
+        });
+        
+        if (leadExpertIds.length === 0) return;
+        
+        setIsSendingInvites(true);
+        try {
+            const res = await sendProjectInvites(id, leadExpertIds);
+            alert(`Project links successfully dispatched to ${res.sent_count} lead(s).`);
+            setMailboxOpen(false);
+            setSelectedIds(new Set());
+            loadParticipants();
+        } catch (err) {
+            console.error('Failed to send invites:', err);
+            alert('Failed to send some or all project invites.');
+        } finally {
+            setIsSendingInvites(false);
         }
     };
 
@@ -471,9 +497,35 @@ export default function ProjectDetails() {
                                 </div>
                                 <div className="mb-actions-flex">
                                     {selectedStats.Leads > 0 ? (
-                                        <button className="btn-mb-primary" onClick={() => { setMailboxOpen(false); alert(`Ready to send project link to ${selectedStats.Leads} Leads!`); }}>
-                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                                            Send the project to experts (Leads alone: {selectedStats.Leads})
+                                        <button 
+                                            className="btn-mb-primary" 
+                                            onClick={handleSendInvites}
+                                            disabled={isSendingInvites}
+                                            style={{ opacity: isSendingInvites ? 0.7 : 1 }}
+                                        >
+                                            {isSendingInvites ? (
+                                                <>
+                                                    <svg 
+                                                        viewBox="0 0 24 24" 
+                                                        width="18" height="18" 
+                                                        fill="none" 
+                                                        stroke="currentColor" 
+                                                        strokeWidth="2" 
+                                                        strokeLinecap="round" 
+                                                        strokeLinejoin="round" 
+                                                        style={{ animation: 'spin-anim 1s linear infinite' }}
+                                                    >
+                                                        <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                                                    </svg>
+                                                    <style>{`@keyframes spin-anim { 100% { transform: rotate(360deg); } }`}</style>
+                                                    Sending...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                                                    Send the project to experts (Leads alone: {selectedStats.Leads})
+                                                </>
+                                            )}
                                         </button>
                                     ) : (
                                         <div style={{ padding: '8px 16px', background: '#e0e0e0', color: '#555', borderRadius: '4px', border: '1px solid #c8c8c8', fontSize: '0.85rem', fontWeight: 600 }}>

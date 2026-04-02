@@ -127,4 +127,11 @@ export async function setProjectCallAssignment(projectId, { expert_id, category,
     return result.data;
 }
 
+export async function sendProjectInvites(projectId, expertIds) {
+    const result = await http(`/projects/${projectId}/send-invite`, {
+        method: 'POST',
+        body: JSON.stringify({ expert_ids: expertIds }),
+    });
+    return result;
+}
 

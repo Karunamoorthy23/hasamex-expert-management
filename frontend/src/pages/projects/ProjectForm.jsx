@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import LocationSelector from '../../components/location/LocationSelector';
+import { resolveTimezoneLabel } from '../../components/location/TimezoneResolver';
 import './ProjectForm.css';
 
 const STEPS = ['Project Brief', 'Profile Questions', 'Your Details', 'Compliance', 'Declaration'];
@@ -18,8 +20,9 @@ export default function ProjectForm() {
   // Form state
   const [answers, setAnswers] = useState({ q1: '', q2: '', q3: '' });
   const [confidence, setConfidence] = useState(5);
-  const [details, setDetails] = useState({ fname: '', email: '', phone: '', employer: '' });
-  const [slots, setSlots] = useState([{ date: '', time: '' }]);
+  const [details, setDetails] = useState({ first_name: '', last_name: '', email: '', phone: '', emp_company: '', emp_role: '', emp_start_year: '', emp_end_year: '', location: '', time_zone: '' });
+  const [slots, setSlots] = useState([{ date: '', startTime: '', endTime: '' }]);
+  const [isLocLoading, setIsLocLoading] = useState(false);
   const [comp, setComp] = useState({ comp1: '', comp2: '' });
   const [declaration, setDeclaration] = useState('');
   const [errors, setErrors] = useState({});
@@ -76,12 +79,16 @@ export default function ProjectForm() {
       });
     }
     if (step === 2) {
-      if (!details.fname.trim()) newErrors.fname = 'Full name is required.';
+      if (!details.first_name.trim()) newErrors.first_name = 'First name is required.';
+      if (!details.last_name.trim()) newErrors.last_name = 'Last name is required.';
       if (!details.email.trim()) newErrors.email = 'A valid email is required.';
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(details.email)) newErrors.email = 'A valid email is required.';
       if (!details.phone.trim()) newErrors.phone = 'Phone number is required.';
       else if (!/^[+\d\s()-]{7,20}$/.test(details.phone)) newErrors.phone = 'Enter a valid phone number.';
-      if (!details.employer.trim()) newErrors.employer = 'Current employment is required.';
+      if (!details.emp_company.trim()) newErrors.emp_company = 'Company name is required.';
+      if (!details.emp_role.trim()) newErrors.emp_role = 'Role / Position is required.';
+      if (!details.location?.trim()) newErrors.location = 'Location is required.';
+      if (!details.time_zone?.trim()) newErrors.time_zone = 'Time zone is required.';
     }
     if (step === 3) {
       if (!comp.comp1) newErrors.comp1 = 'Please select an answer.';
@@ -114,7 +121,7 @@ export default function ProjectForm() {
     }
   };
 
-  const addSlot = () => setSlots(s => [...s, { date: '', time: '' }]);
+  const addSlot = () => setSlots(s => [...s, { date: '', startTime: '', endTime: '' }]);
   const removeSlot = (i) => setSlots(s => s.filter((_, idx) => idx !== i));
   const updateSlot = (i, field, val) => setSlots(s => s.map((sl, idx) => idx === i ? { ...sl, [field]: val } : sl));
 
@@ -295,27 +302,98 @@ export default function ProjectForm() {
 
           <div className="pf-field-row">
             <div className="pf-field-group">
-              <label className="pf-field-label">Full Name <span className="required">*</span></label>
-              <input type="text" value={details.fname} onChange={e => setDetails(d => ({ ...d, fname: e.target.value }))} placeholder="e.g. John Smith" className={errors.fname ? 'invalid' : ''} />
-              <div className={`pf-field-error ${errors.fname ? 'visible' : ''}`}>{errors.fname}</div>
+              <label className="pf-field-label">First Name <span className="required">*</span></label>
+              <input type="text" value={details.first_name} onChange={e => setDetails(d => ({ ...d, first_name: e.target.value }))} placeholder="e.g. John" className={errors.first_name ? 'invalid' : ''} />
+              <div className={`pf-field-error ${errors.first_name ? 'visible' : ''}`}>{errors.first_name}</div>
             </div>
             <div className="pf-field-group">
-              <label className="pf-field-label">Personal Email <span className="required">*</span></label>
-              <input type="email" value={details.email} onChange={e => setDetails(d => ({ ...d, email: e.target.value }))} placeholder="e.g. john@email.com" className={errors.email ? 'invalid' : ''} />
-              <div className={`pf-field-error ${errors.email ? 'visible' : ''}`}>{errors.email}</div>
+              <label className="pf-field-label">Last Name <span className="required">*</span></label>
+              <input type="text" value={details.last_name} onChange={e => setDetails(d => ({ ...d, last_name: e.target.value }))} placeholder="e.g. Smith" className={errors.last_name ? 'invalid' : ''} />
+              <div className={`pf-field-error ${errors.last_name ? 'visible' : ''}`}>{errors.last_name}</div>
             </div>
           </div>
 
           <div className="pf-field-row">
             <div className="pf-field-group">
+              <label className="pf-field-label">Personal Email <span className="required">*</span></label>
+              <input type="email" value={details.email} onChange={e => setDetails(d => ({ ...d, email: e.target.value }))} placeholder="e.g. john@email.com" className={errors.email ? 'invalid' : ''} />
+              <div className={`pf-field-error ${errors.email ? 'visible' : ''}`}>{errors.email}</div>
+            </div>
+            <div className="pf-field-group">
               <label className="pf-field-label">Phone Number <span className="required">*</span></label>
               <input type="tel" value={details.phone} onChange={e => setDetails(d => ({ ...d, phone: e.target.value }))} placeholder="e.g. +66 81 234 5678" className={errors.phone ? 'invalid' : ''} />
               <div className={`pf-field-error ${errors.phone ? 'visible' : ''}`}>{errors.phone}</div>
             </div>
+          </div>
+
+          <div className="pf-field-row">
             <div className="pf-field-group">
-              <label className="pf-field-label">Current Employment <span className="required">*</span></label>
-              <input type="text" value={details.employer} onChange={e => setDetails(d => ({ ...d, employer: e.target.value }))} placeholder="Company name & role title" className={errors.employer ? 'invalid' : ''} />
-              <div className={`pf-field-error ${errors.employer ? 'visible' : ''}`}>{errors.employer}</div>
+              <label className="pf-field-label">Company Name <span className="required">*</span></label>
+              <input type="text" value={details.emp_company} onChange={e => setDetails(d => ({ ...d, emp_company: e.target.value }))} placeholder="e.g. Google" className={errors.emp_company ? 'invalid' : ''} />
+              <div className={`pf-field-error ${errors.emp_company ? 'visible' : ''}`}>{errors.emp_company}</div>
+            </div>
+            <div className="pf-field-group">
+              <label className="pf-field-label">Role / Position <span className="required">*</span></label>
+              <input type="text" value={details.emp_role} onChange={e => setDetails(d => ({ ...d, emp_role: e.target.value }))} placeholder="e.g. Senior Engineer" className={errors.emp_role ? 'invalid' : ''} />
+              <div className={`pf-field-error ${errors.emp_role ? 'visible' : ''}`}>{errors.emp_role}</div>
+            </div>
+          </div>
+
+          <div className="pf-field-row">
+            <div className="pf-field-group">
+              <label className="pf-field-label">Start Year</label>
+              <input type="number" min="1950" max={new Date().getFullYear() + 10} value={details.emp_start_year} onChange={e => setDetails(d => ({ ...d, emp_start_year: e.target.value }))} placeholder="YYYY" />
+            </div>
+            <div className="pf-field-group">
+              <label className="pf-field-label">End Year</label>
+              <input type="number" min="1950" max={new Date().getFullYear() + 10} value={details.emp_end_year} onChange={e => setDetails(d => ({ ...d, emp_end_year: e.target.value }))} placeholder="YYYY (leave blank for Present)" />
+            </div>
+          </div>
+
+          <div className="pf-field-row">
+            <div className="pf-field-group">
+              <label className="pf-field-label">Location <span className="required">*</span></label>
+              <div className={errors.location ? 'invalid-loc' : ''}>
+                  <LocationSelector
+                      value={{ display_name: details.location }}
+                      onChange={async (sel) => {
+                          setIsLocLoading(true);
+                          let label = '';
+                          try {
+                              label = await resolveTimezoneLabel({
+                                  timezoneName: sel.timezone,
+                                  latitude: sel.latitude,
+                                  longitude: sel.longitude,
+                              });
+                          } catch {
+                              label = '';
+                          } finally {
+                              setIsLocLoading(false);
+                          }
+                          setDetails((p) => ({
+                              ...p,
+                              location: sel.display_name,
+                              time_zone: label || p.time_zone,
+                          }));
+                      }}
+                  />
+              </div>
+              {isLocLoading && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, color: '#666', fontSize: 12 }}>
+                      <svg width="14" height="14" viewBox="0 0 50 50" aria-hidden="true">
+                          <circle cx="25" cy="25" r="20" stroke="#999" strokeWidth="5" fill="none" strokeDasharray="31.415,31.415" strokeLinecap="round">
+                              <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+                          </circle>
+                      </svg>
+                      <span>Resolving timezone…</span>
+                  </div>
+              )}
+              <div className={`pf-field-error ${errors.location ? 'visible' : ''}`}>{errors.location}</div>
+            </div>
+            <div className="pf-field-group">
+              <label className="pf-field-label">Time Zone <span className="required">*</span></label>
+              <input type="text" value={details.time_zone} onChange={e => setDetails(d => ({ ...d, time_zone: e.target.value }))} placeholder="e.g. GMT+7 (Bangkok)" className={errors.time_zone ? 'invalid' : ''} />
+              <div className={`pf-field-error ${errors.time_zone ? 'visible' : ''}`}>{errors.time_zone}</div>
             </div>
           </div>
 
@@ -324,15 +402,19 @@ export default function ProjectForm() {
             <p className="pf-field-hint">Please share your availability for a phone consultation over the next 5 business days.</p>
             {slots.map((slot, i) => (
               <div className="pf-avail-row" key={i}>
-                <div>
+                <div style={{ flex: 1 }}>
                   <div className="pf-field-label" style={{ fontSize: 10, marginBottom: 5 }}>Date</div>
-                  <input type="text" placeholder="e.g. Mon 7 Apr, 2026" value={slot.date} onChange={e => updateSlot(i, 'date', e.target.value)} />
+                  <input type="date" value={slot.date} onChange={e => updateSlot(i, 'date', e.target.value)} />
                 </div>
                 <div className="pf-avail-sep">—</div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flex: 2 }}>
                   <div style={{ flex: 1 }}>
-                    <div className="pf-field-label" style={{ fontSize: 10, marginBottom: 5 }}>Time Window (local timezone)</div>
-                    <input type="text" placeholder="e.g. 10:00 AM – 12:00 PM" value={slot.time} onChange={e => updateSlot(i, 'time', e.target.value)} />
+                    <div className="pf-field-label" style={{ fontSize: 10, marginBottom: 5 }}>Start Time</div>
+                    <input type="time" value={slot.startTime} onChange={e => updateSlot(i, 'startTime', e.target.value)} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div className="pf-field-label" style={{ fontSize: 10, marginBottom: 5 }}>End Time</div>
+                    <input type="time" value={slot.endTime} onChange={e => updateSlot(i, 'endTime', e.target.value)} />
                   </div>
                   {i > 0 && <button type="button" className="pf-remove-slot" onClick={() => removeSlot(i)} title="Remove slot">×</button>}
                 </div>
