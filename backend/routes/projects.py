@@ -224,6 +224,13 @@ def get_project(project_id):
     project = Project.query.get_or_404(project_id)
     return jsonify({'data': project.to_dict()})
 
+@projects_bp.route('/<int:project_id>/expert-submission/<string:expert_id>', methods=['GET'])
+def get_expert_submission(project_id, expert_id):
+    submission = ProjectFormSubmission.query.filter_by(project_id=project_id, expert_id=expert_id).first()
+    if not submission:
+        return jsonify({'error': 'Submission not found'}), 404
+    return jsonify({'data': submission.to_dict()})
+
 @projects_bp.route('/<int:project_id>/expert-calls', methods=['POST'])
 def set_expert_call_assignment(project_id):
     project = Project.query.get_or_404(project_id)
@@ -732,6 +739,7 @@ def submit_project_form_public(project_id):
     qas = data.get('qas', {})
     slots = data.get('slots', [])
     comp = data.get('comp', {})
+    confidence_level = data.get('confidence', 5) # Default to 5 if not provided
     
     expert_uuid_input = data.get('expert_id') # UUID from URL/Payload
     email_input = (details.get('email') or '').strip()
@@ -797,6 +805,7 @@ def submit_project_form_public(project_id):
     submission = ProjectFormSubmission.query.filter_by(project_id=project_id, expert_id=expert.id).first()
     
     if submission:
+        submission.confidence_level = confidence_level
         submission.availability_dates = slots
         submission.project_qns_ans = qas
         submission.compliance_onboarding = comp
@@ -805,6 +814,7 @@ def submit_project_form_public(project_id):
         submission = ProjectFormSubmission(
             project_id=project_id,
             expert_id=expert.id,
+            confidence_level=confidence_level,
             availability_dates=slots,
             project_qns_ans=qas,
             compliance_onboarding=comp,
@@ -812,7 +822,7 @@ def submit_project_form_public(project_id):
         )
         db.session.add(submission)
 
-    # 8. Update ProjectExpert Stage
+    # 8. Update ProjectExpert Stage and Project JSONB lists
     pe = ProjectExpert.query.filter_by(project_id=project_id, expert_id=expert.id).first()
     if pe:
         pe.stage = 'Accepted'
@@ -820,6 +830,26 @@ def submit_project_form_public(project_id):
         # If record didn't exist or is a new expert, create it
         pe = ProjectExpert(project_id=project_id, expert_id=expert.id, stage='Accepted')
         db.session.add(pe)
+    
+    # Also update the project model's JSONB lists for immediate UI reflection
+    project = Project.query.get(project_id)
+    if project:
+        e_id_str = str(expert.id)
+        leads = set(project.leads_expert_ids or [])
+        invited = set(project.invited_expert_ids or [])
+        accepted = set(project.accepted_expert_ids or [])
+        declined = set(getattr(project, 'declined_expert_ids', []) or [])
+        
+        # Move logic: remove from others, add to accepted
+        leads.discard(e_id_str)
+        invited.discard(e_id_str)
+        declined.discard(e_id_str)
+        accepted.add(e_id_str)
+        
+        project.leads_expert_ids = list(leads)
+        project.invited_expert_ids = list(invited)
+        project.accepted_expert_ids = list(accepted)
+        project.declined_expert_ids = list(declined)
 
     try:
         db.session.commit()

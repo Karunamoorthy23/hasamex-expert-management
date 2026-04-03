@@ -959,6 +959,7 @@ class ProjectFormSubmission(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.project_id', ondelete='CASCADE'), nullable=False)
     expert_id = db.Column(UUID(as_uuid=False), db.ForeignKey('experts.id', ondelete='CASCADE'), nullable=False)
+    confidence_level = db.Column(db.Integer)
     availability_dates = db.Column(JSONB)
     project_qns_ans = db.Column(JSONB)
     compliance_onboarding = db.Column(JSONB)
@@ -969,6 +970,7 @@ class ProjectFormSubmission(db.Model):
             'id': self.id,
             'project_id': self.project_id,
             'expert_id': self.expert_id,
+            'confidence_level': self.confidence_level,
             'availability_dates': self.availability_dates,
             'project_qns_ans': self.project_qns_ans,
             'compliance_onboarding': self.compliance_onboarding,
