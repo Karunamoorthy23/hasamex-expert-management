@@ -112,12 +112,38 @@ export default function ProjectForm() {
       // Perform Final Submission
       setLoading(true);
       try {
+        // Map questions to their actual text for better readability in the dashboard
+        const finalQas = {};
+        profileQuestions.forEach((q, i) => {
+          finalQas[q] = answers[`q${i + 1}`];
+        });
+
+        const comp1Text = "Are you permitted to share material non-public information (MNPI) during a Hasamex consultation?";
+        const comp1Options = {
+          'A': 'Yes, as long as the client agrees to keep it confidential',
+          'B': 'Yes, if it is no longer being used by the company',
+          'C': 'No, I must never share any confidential or non-public information',
+          'D': 'I can share internal information if I no longer work for the company'
+        };
+        const comp2Text = "During a consultation, a client asks for details about an upcoming product launch at your former company. What should you do?";
+        const comp2Options = {
+          'A': 'Share only the launch date, not the full strategy',
+          'B': 'Answer the question if the product has already been mentioned internally',
+          'C': 'Politely decline to answer and explain that it involves non-public information',
+          'D': "Share the information if it's not being used to trade stocks"
+        };
+        const finalComp = {
+          [comp1Text]: comp1Options[comp.comp1] || comp.comp1,
+          [comp2Text]: comp2Options[comp.comp2] || comp.comp2
+        };
+
         const payload = {
           expert_id,
           details,
-          qas: answers,
+          confidence,
+          qas: finalQas,
           slots,
-          comp
+          comp: finalComp
         };
         const response = await fetch(`${BASE_URL}/public/projects/${id}/submit-form`, {
           method: 'POST',

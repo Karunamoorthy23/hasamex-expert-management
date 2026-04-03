@@ -1,6 +1,13 @@
-import { useEffect, useMemo, useState, useRef, useLayoutEffect } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useLayoutEffect, Fragment } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { fetchProjectById, fetchProjectExpertStatus, setProjectExpertStatus, setProjectCallAssignment, sendProjectInvites } from '../../api/projects';
+import { 
+    fetchProjectById, 
+    fetchProjectExpertStatus, 
+    setProjectExpertStatus, 
+    setProjectCallAssignment, 
+    sendProjectInvites,
+    fetchExpertSubmission
+} from '../../api/projects';
 import { fetchClientById } from '../../api/clients';
 import Modal from '../../components/ui/Modal';
 import { updateExpert } from '../../api/experts';
@@ -109,6 +116,99 @@ function StarRating({ rating, onRate }) {
     );
 }
 
+function SubmissionDetailView({ submission, isLoading }) {
+    if (isLoading) {
+        return (
+            <div className="submission-loading">
+                <div className="spinner"></div>
+                <span>Fetching submission details...</span>
+            </div>
+        );
+    }
+
+    if (!submission) {
+        return (
+            <div className="submission-empty">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                No submission details found for this expert.
+            </div>
+        );
+    }
+
+    const { confidence_level, availability_dates, project_qns_ans, compliance_onboarding, created_at } = submission;
+    const submissionDate = new Date(created_at).toLocaleDateString('en-US', { 
+        month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+    });
+
+    return (
+        <div className="submission-detail">
+            <div className="sd-header">
+                <div className="sd-title-wrap">
+                    <div className="sd-label">Form Submission</div>
+                    <div className="sd-date">Submitted on {submissionDate}</div>
+                </div>
+                <div className="sd-confidence">
+                    <div className="sd-conf-label">Confidence Level : {confidence_level} / 10</div>
+                    <div className="sd-conf-gauge">
+                        <div className="sd-conf-fill" style={{ width: `${(confidence_level || 5) * 10}%` }}></div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="sd-grid">
+                <div className="sd-section">
+                    <div className="sd-sec-title">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        Project Brief Questions
+                    </div>
+                    <div className="sd-qas">
+                        {Object.entries(project_qns_ans || {}).map(([q, a], i) => (
+                            <div key={i} className="sd-qa-card">
+                                <div className="sd-q">{q}</div>
+                                <div className="sd-a">{a || <span className="empty-val">—</span>}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="sd-section">
+                    <div className="sd-sec-title">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        Availability & Compliance
+                    </div>
+                    
+                    <div className="sd-group">
+                        <div className="sd-group-label">Proposed Availability</div>
+                        <div className="sd-slots">
+                            {(availability_dates || []).length > 0 ? (
+                                availability_dates.map((slot, i) => (
+                                    <div key={i} className="sd-slot-badge">
+                                        {slot.date} | {slot.startTime} - {slot.endTime}
+                                    </div>
+                                ))
+                            ) : <div className="empty-val">No slots provided</div>}
+                        </div>
+                    </div>
+
+                    <div className="sd-group">
+                        <div className="sd-group-label">Compliance & Onboarding</div>
+                        <div className="sd-comp-list">
+                            {Object.entries(compliance_onboarding || {}).map(([q, a], i) => (
+                                <div key={i} className="sd-comp-item">
+                                    <div className="sd-comp-q">{q}</div>
+                                    <div className={`sd-comp-a ${a === true ? 'yes' : a === false ? 'no' : ''}`}>
+                                        {a === true ? 'Yes' : a === false ? 'No' : a || '—'}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function ProjectDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -125,6 +225,9 @@ export default function ProjectDetails() {
     const [mailboxOpen, setMailboxOpen] = useState(false);
     const [clientData, setClientData] = useState(null);
     const [isSendingInvites, setIsSendingInvites] = useState(false);
+    const [expandedSubmissionId, setExpandedSubmissionId] = useState(null);
+    const [submissionCache, setSubmissionCache] = useState({}); // {expertId: data}
+    const [isFetchingSubmission, setIsFetchingSubmission] = useState(false);
 
     const loadParticipants = async () => {
         try {
@@ -154,6 +257,33 @@ export default function ProjectDetails() {
         } catch (err) {
             console.error('Failed to load participants', err);
             setParticipants([]);
+        }
+    };
+
+    const fetchSubmissionDetails = async (expertId) => {
+        if (submissionCache[expertId]) return;
+        
+        setIsFetchingSubmission(true);
+        try {
+            const result = await fetchExpertSubmission(id, expertId);
+            if (result && result.data) {
+                setSubmissionCache(prev => ({ ...prev, [expertId]: result.data }));
+            }
+        } catch (error) {
+            console.error('Error fetching submission:', error);
+        } finally {
+            setIsFetchingSubmission(false);
+        }
+    };
+
+    const handleRowClick = (expertId, status) => {
+        if (status !== 'Accepted') return;
+        
+        if (expandedSubmissionId === expertId) {
+            setExpandedSubmissionId(null);
+        } else {
+            setExpandedSubmissionId(expertId);
+            fetchSubmissionDetails(expertId);
         }
     };
 
@@ -405,8 +535,57 @@ export default function ProjectDetails() {
   .bi-row { font-size: 0.81rem; color: #333333; display: flex; align-items: center; gap: 0; }
   .bi-row.email { color: #1a5ca8; }
   .bi-fee { font-weight: 600; color: #111111; }
+  
+  .submission-dropdown { grid-column: 1 / -1; background: #fff; border-top: 1px solid #eee; overflow: hidden; animation: slideDownSubmission 0.3s ease-out; }
+  @keyframes slideDownSubmission { from { max-height: 0; opacity: 0; } to { max-height: 1000px; opacity: 1; } }
+  
+  .submission-loading { padding: 40px; display: flex; flex-direction: column; align-items: center; gap: 12px; color: #666; font-size: 0.9rem; }
+  .spinner { width: 24px; height: 24px; border: 3px solid #eee; border-top-color: #0a66c2; border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  
+  .submission-empty { padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 10px; color: #999; font-size: 0.9rem; }
+  
+  .submission-detail { padding: 24px; background: linear-gradient(to bottom, #fcfdfe, #ffffff); }
+  .sd-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; border-bottom: 1px solid #f0f0f0; padding-bottom: 16px; }
+  .sd-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #0a66c2; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .sd-date { font-size: 0.85rem; color: #666; }
+  
+  .sd-confidence { text-align: right; min-width: 150px; }
+  .sd-conf-label { font-size: 0.75rem; font-weight: 700; color: #444; margin-bottom: 6px; }
+  .sd-conf-gauge { height: 8px; background: #eee; border-radius: 4px; position: relative; width: 100%; overflow: hidden; margin-bottom: 4px; }
+  .sd-conf-fill { height: 100%; background: linear-gradient(to right, #f59e0b, #10b981); border-radius: 4px; transition: width 0.6s ease-out; }
+  .sd-conf-val { font-size: 0.8rem; font-weight: 700; color: #111; }
+  
+  .sd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .sd-section { display: flex; flex-direction: column; gap: 16px; }
+  .sd-sec-title { font-size: 0.9rem; font-weight: 700; color: #111; display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 2px solid #0a66c2; width: fit-content; }
+  
+  .sd-qas { display: flex; flex-direction: column; gap: 12px; }
+  .sd-qa-card { background: #fff; padding: 14px; border-radius: 8px; border: 1px solid #eef2f6; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+  .sd-q { font-size: 0.82rem; font-weight: 700; color: #1a3070; margin-bottom: 6px; line-height: 1.4; }
+  .sd-a { font-size: 0.85rem; color: #333; line-height: 1.6; white-space: pre-wrap; }
+  
+  .sd-group { margin-bottom: 20px; }
+  .sd-group-label { font-size: 0.75rem; font-weight: 700; color: #666; text-transform: uppercase; margin-bottom: 10px; }
+  .sd-slots { display: flex; flex-wrap: wrap; gap: 4px; }
+  .sd-slot-badge { padding: 3px 12px; background: #e0f2fe; color: #0369a1; border-radius: 6px; font-size: 0.8rem; font-weight: 600; border: 1px solid #bae6fd; }
+  
+  .sd-comp-list { display: flex; flex-direction: column; gap: 8px; }
+  .sd-comp-item { display: flex;flex-direction: column; justify-content: space-between; align-items: center; padding: 10px 14px; background: #fff; border: 1px solid #f1f5f9; border-radius: 6px; }
+  .sd-comp-q { font-size: 0.82rem; color: #444; flex: 1; padding-right: 12px; }
+  .sd-comp-a { font-size: 0.78rem; font-weight: 700; padding: 3px 10px; border-radius: 4px; text-transform: uppercase; }
+  .sd-comp-a.yes { background: #dcfce7; color: #15803d; }
+  .sd-comp-a.no { background: #fee2e2; color: #b91c1c; }
+  
+  .empty-val { color: #aaa; font-style: italic; }
+
+  .p-row.accepted { cursor: pointer; transition: background 0.2s; }
+  .p-row.accepted:hover { background: #f8fbff; }
+  .p-row.accepted.expanded { background: #f0f7ff; border-left: 4px solid #0a66c2; }
+
   .mailbox-bar { position: relative; display: flex; align-items: center; justify-content: center; background: #e6f0fa; border-bottom: 1px solid #c8c8c8; padding: 10px; animation: slideDown 0.3s ease-out; }
   @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
   .btn-mailbox { display: inline-flex; align-items: center; gap: 8px; background: #0a66c2; color: #fff; border: none; padding: 6px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; box-shadow: 0 2px 6px rgba(10,102,194,0.3); }
   .btn-mailbox:hover { background: #004182; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(10,102,194,0.4); }
   .mb-content { padding: 10px 0; }
@@ -620,6 +799,7 @@ export default function ProjectDetails() {
                         const statusLabel = row.category || '—';
                         const history = Array.isArray(row.employment_history) ? row.employment_history : [];
                         const historyExpanded = expandedHistoryId === expertId;
+                        const submissionExpanded = expandedSubmissionId === expertId;
                         const visibleHistory = historyExpanded ? history : history.slice(0, 2);
                         let statusClass = 's-pending';
                         if (statusLabel === 'Leads') statusClass = 's-pending';
@@ -627,8 +807,13 @@ export default function ProjectDetails() {
                         else if (statusLabel === 'Accepted') statusClass = 's-accepted';
                         else if (statusLabel === 'Declined') statusClass = 's-declined';
                         else if (statusLabel === 'Scheduled') statusClass = 's-scheduled';
+                        
                         return (
-                            <div className="p-row" key={`${expertId}-${idx}`}>
+                            <Fragment key={`${expertId}-${idx}`}>
+                            <div 
+                                className={`p-row ${statusLabel === 'Accepted' ? 'accepted' : ''} ${submissionExpanded ? 'expanded' : ''}`} 
+                                onClick={() => handleRowClick(expertId, statusLabel)}
+                            >
                                 <div className="p-cell">
                                     <Checkbox 
                                         id={`select-expert-${expertId}`}
@@ -727,6 +912,15 @@ export default function ProjectDetails() {
                                     </div>
                                 </div>
                             </div>
+                            {submissionExpanded && (
+                                <div className="submission-dropdown">
+                                    <SubmissionDetailView 
+                                        submission={submissionCache[expertId]} 
+                                        isLoading={isFetchingSubmission && !submissionCache[expertId]} 
+                                    />
+                                </div>
+                            )}
+                            </Fragment>
                         );
                     })}
                 </div>

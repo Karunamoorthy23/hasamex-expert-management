@@ -135,3 +135,7 @@ export async function sendProjectInvites(projectId, expertIds) {
     return result;
 }
 
+export async function fetchExpertSubmission(projectId, expertId) {
+    return await http(`/projects/${projectId}/expert-submission/${expertId}`);
+}
+
