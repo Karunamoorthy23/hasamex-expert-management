@@ -1,4 +1,5 @@
-from flask import Blueprint, request, jsonify, render_template
+from flask import Blueprint, request, jsonify, render_template, current_app
+import threading
 from extensions import db
 from auth import decode_token
 from models import (
@@ -335,9 +336,7 @@ def create_project():
         scheduled_calls_count=_safe_int(data.get('scheduled_calls_count')),
         completed_calls_count=_safe_int(data.get('completed_calls_count')),
         goal_calls_count=_safe_int(data.get('goal_calls_count')),
-        profile_question_1=data.get('profile_question_1'),
-        profile_question_2=data.get('profile_question_2'),
-        profile_question_3=data.get('profile_question_3'),
+        project_questions=data.get('project_questions') or [],
         compliance_question_1=data.get('compliance_question_1'),
         project_deadline=parse_date(data.get('project_deadline')),
         project_created_by=created_by_name or data.get('project_created_by'),
@@ -629,6 +628,47 @@ def set_expert_status(project_id):
     db.session.commit()
     return jsonify({'data': project.to_dict()})
 
+def _bg_send_project_invites(app, project_id, expert_ids, frontend_url):
+    """Background task to render and send invite emails."""
+    with app.app_context():
+        from services.mailer import send_email
+        project = Project.query.get(project_id)
+        if not project:
+            return
+        
+        experts = Expert.query.filter(Expert.id.in_(expert_ids)).all()
+        
+        p_title = project.project_title or project.title or "Expert Project"
+        p_code = project.project_id
+        p_start = project.received_date.strftime("%b %d, %Y") if project.received_date else "TBD"
+        p_region = project.rel_target_region.name if getattr(project, 'rel_target_region', None) else "Global"
+        p_desc = project.project_description or "We invite you to participate in a high-level research study."
+        p_type = project.rel_project_type.name if getattr(project, 'rel_project_type', None) else "Paid Expert Interview"
+
+        for expert in experts:
+            if not expert.primary_email:
+                continue
+            
+            cta_link = f"{frontend_url}/project-form/{project.project_id}?expert_id={expert.expert_id}"
+            
+            try:
+                html_content = render_template('project_invite.html',
+                    expert_name=expert.first_name or "Expert",
+                    project_title=p_title,
+                    project_description=p_desc,
+                    project_code=f"PRJ-{p_code}",
+                    project_start=p_start,
+                    project_region=p_region,
+                    project_type=p_type,
+                    cta_link=cta_link
+                )
+                
+                subject = f"Invitation To Consult - {p_title}"
+                send_email(to=expert.primary_email, subject=subject, html=html_content)
+            except Exception as e:
+                import logging
+                logging.error(f"Background email failed to {expert.primary_email}: {str(e)}")
+
 @projects_bp.route('/<int:project_id>/send-invite', methods=['POST'])
 def send_project_invite(project_id):
     project = Project.query.get_or_404(project_id)
@@ -641,63 +681,30 @@ def send_project_invite(project_id):
     if not experts:
         return jsonify({'error': 'Experts not found'}), 404
 
-    from services.mailer import send_email
     import os
-    
-    sent_count = 0
-    errors = []
-    
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip('/')
     
-    p_title = project.project_title or project.title or "Expert Project"
-    p_code = project.project_id
-    p_start = project.received_date.strftime("%b %d, %Y") if project.received_date else "TBD"
-    p_region = project.rel_target_region.name if getattr(project, 'rel_target_region', None) else "Global"
-    p_desc = project.project_description or "We invite you to participate in a high-level research study."
-    p_type = project.rel_project_type.name if getattr(project, 'rel_project_type', None) else "Paid Expert Interview"
-
     leads_set = set(project.leads_expert_ids or [])
     invited_set = set(project.invited_expert_ids or [])
 
+    # Immediate DB update for UI reflection
     for expert in experts:
-        if not expert.primary_email:
-            errors.append(f"Expert {expert.expert_id} has no email")
-            continue
-        
-        cta_link = f"{frontend_url}/project-form/{project.project_id}?expert_id={expert.expert_id}"
-        
-        try:
-            html_content = render_template('project_invite.html',
-                expert_name=expert.first_name or "Expert",
-                project_title=p_title,
-                project_description=p_desc,
-                project_code=f"PRJ-{p_code}",
-                project_start=p_start,
-                project_region=p_region,
-                project_type=p_type,
-                cta_link=cta_link
-            )
-            
-            subject = f"Invitation To Consult - {p_title}"
-            send_email(to=expert.primary_email, subject=subject, html=html_content)
-            sent_count += 1
-            
-            # Move from Leads to Invited
-            e_id_str = str(expert.id)
-            e_id_int = expert.id
-            if e_id_str in leads_set: leads_set.remove(e_id_str)
-            if e_id_int in leads_set: leads_set.remove(e_id_int)
-            invited_set.add(e_id_str)
-            
-        except Exception as e:
-            errors.append(f"Failed to send to {expert.primary_email}: {str(e)}")
+        e_id_str = str(expert.id)
+        if e_id_str in leads_set: leads_set.discard(e_id_str)
+        invited_set.add(e_id_str)
 
-    if sent_count > 0:
-        project.leads_expert_ids = list(leads_set)
-        project.invited_expert_ids = list(invited_set)
-        db.session.commit()
+    project.leads_expert_ids = list(leads_set)
+    project.invited_expert_ids = list(invited_set)
+    db.session.commit()
 
-    return jsonify({'sent_count': sent_count, 'errors': errors})
+    # Start background mailing thread
+    app = current_app._get_current_object()
+    threading.Thread(target=_bg_send_project_invites, args=(app, project_id, expert_ids, frontend_url)).start()
+
+    return jsonify({
+        'message': f'Sending invitations to {len(experts)} experts in the background.',
+        'sent_count': len(experts)
+    })
 
 # ── Public endpoint for expert application form (no auth) ──
 
@@ -719,9 +726,7 @@ def get_project_form_public(project_id):
         'target_geographies': [g.name for g in project.target_geographies] if project.target_geographies else [],
         'target_functions_titles': project.target_functions_titles,
         'project_type': project.rel_project_type.name if project.rel_project_type else None,
-        'profile_question_1': project.profile_question_1,
-        'profile_question_2': project.profile_question_2,
-        'profile_question_3': project.profile_question_3,
+        'project_questions': project.project_questions or [],
         'client_type': client.client_type if client else None,
         'client_name': client.client_name if client else None,
     }})

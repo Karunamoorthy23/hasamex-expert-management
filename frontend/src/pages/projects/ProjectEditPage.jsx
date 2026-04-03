@@ -15,6 +15,7 @@ export default function ProjectEditPage() {
     const [isSaving, setIsSaving] = useState(false);
 
     const [form, setForm] = useState(null);
+    const [assignedExpertIds, setAssignedExpertIds] = useState([]);
 
     useEffect(() => {
         let mounted = true;
@@ -32,6 +33,17 @@ export default function ProjectEditPage() {
         setIsLoading(true);
         fetchProjectById(id).then((p) => {
             if (cancelled) return;
+
+            // Extract all experts who are in advanced stages (not leads)
+            const assigned = [
+                ...(Array.isArray(p?.invited_expert_ids) ? p.invited_expert_ids : []),
+                ...(Array.isArray(p?.accepted_expert_ids) ? p.accepted_expert_ids : []),
+                ...(Array.isArray(p?.declined_expert_ids) ? p.declined_expert_ids : []),
+                ...(Array.isArray(p?.expert_scheduled) ? p.expert_scheduled : []),
+                ...(Array.isArray(p?.expert_call_completed) ? p.expert_call_completed : []),
+            ];
+            setAssignedExpertIds(assigned);
+
             setForm({
                 client_id: p?.client_id ? String(p.client_id) : '',
                 poc_user_id: p?.poc_user_id ? String(p.poc_user_id) : '',
@@ -48,9 +60,7 @@ export default function ProjectEditPage() {
                 scheduled_calls_count: p?.scheduled_calls_count ?? 0,
                 completed_calls_count: p?.completed_calls_count ?? 0,
                 goal_calls_count: p?.goal_calls_count ?? 0,
-                profile_question_1: p?.profile_question_1 || '',
-                profile_question_2: p?.profile_question_2 || '',
-                profile_question_3: p?.profile_question_3 || '',
+                project_questions: Array.isArray(p?.project_questions) && p.project_questions.length > 0 ? p.project_questions : [''],
                 compliance_question_1: p?.compliance_question_1 || '',
                 project_deadline: p?.project_deadline || '',
                 project_created_by: p?.project_created_by || '',
@@ -99,6 +109,10 @@ export default function ProjectEditPage() {
     const selectedClientName = useMemo(() => clients.find((c) => String(c.client_id) === String(form?.client_id))?.client_name, [clients, form?.client_id]);
     const selectedUserName = useMemo(() => users.find((u) => String(u.user_id) === String(form?.poc_user_id))?.user_name, [users, form?.poc_user_id]);
 
+    const disabledExpertLabels = useMemo(() => {
+        return (assignedExpertIds || []).map(id => expertLabelById[id]).filter(Boolean);
+    }, [assignedExpertIds, expertLabelById]);
+
     const clientId = form?.client_id;
     const pocUserId = form?.poc_user_id;
     useEffect(() => {
@@ -125,10 +139,6 @@ export default function ProjectEditPage() {
                 'target_region',
                 'target_functions_titles',
                 'current_former_both',
-                'number_of_calls',
-                'profile_question_1',
-                'profile_question_2',
-                'profile_question_3',
                 'compliance_question_1',
                 'project_deadline',
             ];
@@ -141,6 +151,12 @@ export default function ProjectEditPage() {
                 const val = form[key];
                 if (!Array.isArray(val) || val.length === 0) missing.push(key);
             }
+            
+            // Check project questions
+            if ((form.project_questions || []).some(q => !q.trim())) {
+                missing.push('All project questions must be filled');
+            }
+
             if (missing.length) {
                 alert('Please fill all required fields: ' + missing.join(', '));
                 return;
@@ -161,6 +177,23 @@ export default function ProjectEditPage() {
             setIsSaving(false);
         }
     }
+
+    const addQuestion = () => {
+        setForm(p => ({ ...p, project_questions: [...(p.project_questions || []), ''] }));
+    };
+
+    const removeQuestion = (index) => {
+        setForm(p => ({
+            ...p,
+            project_questions: p.project_questions.filter((_, i) => i !== index)
+        }));
+    };
+
+    const updateQuestion = (index, value) => {
+        const next = [...(form.project_questions || [])];
+        next[index] = value;
+        setForm(p => ({ ...p, project_questions: next }));
+    };
 
     if (isLoading || !form) {
         return <Loader rows={8} />;
@@ -292,6 +325,7 @@ export default function ProjectEditPage() {
                                     label="Select experts"
                                     options={(lookups.experts_codes || []).map((e) => `${e.code} — ${e.name}`)}
                                     selected={(form.leads_expert_ids || []).map((id) => expertLabelById[id]).filter(Boolean)}
+                                    disabled={disabledExpertLabels}
                                     onChange={(labels) => {
                                         const ids = labels.map((lbl) => expertIdByLabel[lbl]).filter(Boolean);
                                         setForm((p) => ({ ...p, leads_expert_ids: ids }));
@@ -405,34 +439,52 @@ export default function ProjectEditPage() {
                             </div>
 
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
-                                <label className="form-label">Profile Question 1</label>
-                                <textarea
-                                    className="form-textarea"
-                                    rows={2}
-                                    required
-                                    value={form.profile_question_1}
-                                    onChange={(e) => setForm((p) => ({ ...p, profile_question_1: e.target.value }))}
-                                />
-                            </div>
-                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
-                                <label className="form-label">Profile Question 2</label>
-                                <textarea
-                                    className="form-textarea"
-                                    rows={2}
-                                    required
-                                    value={form.profile_question_2}
-                                    onChange={(e) => setForm((p) => ({ ...p, profile_question_2: e.target.value }))}
-                                />
-                            </div>
-                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
-                                <label className="form-label">Profile Question 3</label>
-                                <textarea
-                                    className="form-textarea"
-                                    rows={2}
-                                    required
-                                    value={form.profile_question_3}
-                                    onChange={(e) => setForm((p) => ({ ...p, profile_question_3: e.target.value }))}
-                                />
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                    <label className="form-label" style={{ marginBottom: 0 }}>Project Profile Questions</label>
+                                    <Button type="button" variant="secondary" size="small" onClick={addQuestion} style={{ padding: '4px 12px', fontSize: '12px' }}>
+                                        + Add Question
+                                    </Button>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    {(form.project_questions || []).map((q, index) => (
+                                        <div key={index} style={{ position: 'relative' }}>
+                                            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                                                <div style={{ flex: 1 }}>
+                                                    <textarea
+                                                        className="form-textarea"
+                                                        rows={2}
+                                                        required
+                                                        placeholder={`Project Question #${index + 1}`}
+                                                        value={q}
+                                                        onChange={(e) => updateQuestion(index, e.target.value)}
+                                                    />
+                                                </div>
+                                                {form.project_questions.length > 1 && (
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => removeQuestion(index)}
+                                                        style={{ 
+                                                            background: 'none', 
+                                                            border: 'none', 
+                                                            color: '#ff4d4f', 
+                                                            cursor: 'pointer',
+                                                            padding: '8px',
+                                                            marginTop: '4px'
+                                                        }}
+                                                        title="Remove question"
+                                                    >
+                                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                                                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                                                        </svg>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
 
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>

@@ -593,9 +593,7 @@ class Project(db.Model):
     target_functions_titles = db.Column(db.Text)
     current_former_both = db.Column(db.String(20))
     number_of_calls = db.Column(db.Integer)
-    profile_question_1 = db.Column(db.Text)
-    profile_question_2 = db.Column(db.Text)
-    profile_question_3 = db.Column(db.Text)
+    project_questions = db.Column(JSONB, nullable=False, default=list)
     compliance_question_1 = db.Column(db.Text)
     project_deadline = db.Column(db.Date)
     poc_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id', ondelete='SET NULL'))
@@ -678,9 +676,7 @@ class Project(db.Model):
             'target_functions_titles': self.target_functions_titles,
             'current_former_both': self.current_former_both,
             'number_of_calls': self.number_of_calls,
-            'profile_question_1': self.profile_question_1,
-            'profile_question_2': self.profile_question_2,
-            'profile_question_3': self.profile_question_3,
+            'project_questions': self.project_questions or [],
             'compliance_question_1': self.compliance_question_1,
             'project_deadline': self.project_deadline.isoformat() if self.project_deadline else None,
             'poc_user_id': self.poc_user_id,

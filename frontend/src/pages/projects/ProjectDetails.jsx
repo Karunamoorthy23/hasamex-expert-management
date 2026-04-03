@@ -727,7 +727,7 @@ export default function ProjectDetails() {
                         <div className="disclaimer">Region: {project.target_region || '—'}</div>
                         <div className="divider"></div>
                         <div className="q-title">Project Questions</div>
-                        {[project.profile_question_1, project.profile_question_2, project.profile_question_3, project.compliance_question_1].filter(Boolean).map((q, i) => (
+                        {(project.project_questions || []).concat(project.compliance_question_1 ? [project.compliance_question_1] : []).filter(Boolean).map((q, i) => (
                             <div className="q-item" key={i}>{q}</div>
                         ))}
                     </div>

@@ -20,7 +20,7 @@ export default function ProjectForm() {
   const [heroText, setHeroText] = useState('Expert Consultation · Application Form');
 
   // Form state
-  const [answers, setAnswers] = useState({ q1: '', q2: '', q3: '' });
+  const [answers, setAnswers] = useState({});
   const [confidence, setConfidence] = useState(5);
   const [details, setDetails] = useState({ first_name: '', last_name: '', email: '', phone: '', emp_company: '', emp_role: '', emp_start_year: '', emp_end_year: '', location: '', time_zone: '' });
   const [slots, setSlots] = useState([{ date: '', startTime: '', endTime: '' }]);
@@ -61,10 +61,7 @@ export default function ProjectForm() {
     return `linear-gradient(to right, #c49e50 0%, #c49e50 ${pct}%, #e8e2d6 ${pct}%, #e8e2d6 100%)`;
   }, []);
 
-  const profileQuestions = [];
-  if (project?.profile_question_1) profileQuestions.push(project.profile_question_1);
-  if (project?.profile_question_2) profileQuestions.push(project.profile_question_2);
-  if (project?.profile_question_3) profileQuestions.push(project.profile_question_3);
+  const profileQuestions = project?.project_questions || [];
 
   const scopeItems = (project?.target_functions_titles || '')
     .split('\n').map(s => s.trim()).filter(Boolean);
@@ -75,7 +72,7 @@ export default function ProjectForm() {
 
   const validateStep = (step) => {
     const newErrors = {};
-    if (step === 1) {
+    if (step === 1) { // Profile Questions (index 1)
       profileQuestions.forEach((_, i) => {
         if (!answers[`q${i + 1}`]?.trim()) newErrors[`q${i + 1}`] = 'This field is required.';
       });
