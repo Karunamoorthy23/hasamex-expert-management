@@ -628,7 +628,7 @@ def set_expert_status(project_id):
     db.session.commit()
     return jsonify({'data': project.to_dict()})
 
-def _bg_send_project_invites(app, project_id, expert_ids, frontend_url):
+def _bg_send_project_invites(app, project_id, expert_ids, frontend_url, sender_email=None):
     """Background task to render and send invite emails."""
     with app.app_context():
         from services.mailer import send_email
@@ -660,7 +660,8 @@ def _bg_send_project_invites(app, project_id, expert_ids, frontend_url):
                     project_start=p_start,
                     project_region=p_region,
                     project_type=p_type,
-                    cta_link=cta_link
+                    cta_link=cta_link,
+                    sender_email=sender_email
                 )
                 
                 subject = f"Invitation To Consult - {p_title}"
@@ -698,8 +699,9 @@ def send_project_invite(project_id):
     db.session.commit()
 
     # Start background mailing thread
+    sender_email = getattr(request, 'jwt_claims', {}).get('email')
     app = current_app._get_current_object()
-    threading.Thread(target=_bg_send_project_invites, args=(app, project_id, expert_ids, frontend_url)).start()
+    threading.Thread(target=_bg_send_project_invites, args=(app, project_id, expert_ids, frontend_url, sender_email)).start()
 
     return jsonify({
         'message': f'Sending invitations to {len(experts)} experts in the background.',

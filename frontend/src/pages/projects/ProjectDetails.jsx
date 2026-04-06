@@ -193,14 +193,33 @@ function SubmissionDetailView({ submission, isLoading }) {
                     <div className="sd-group">
                         <div className="sd-group-label">Compliance & Onboarding</div>
                         <div className="sd-comp-list">
-                            {Object.entries(compliance_onboarding || {}).map(([q, a], i) => (
-                                <div key={i} className="sd-comp-item">
-                                    <div className="sd-comp-q">{q}</div>
-                                    <div className={`sd-comp-a ${a === true ? 'yes' : a === false ? 'no' : ''}`}>
-                                        {a === true ? 'Yes' : a === false ? 'No' : a || '—'}
+                            {Object.entries(compliance_onboarding || {}).map(([q, a], i) => {
+                                const qLower = q.toLowerCase();
+                                const isMNPI = qLower.includes('material non-public information');
+                                const isSensitive = qLower.includes('upcoming product launch');
+                                
+                                const correctMNPI = "no, i must never share any confidential or non-public information";
+                                const correctSensitive = "politely decline to answer and explain that it involves non-public information";
+                                
+                                const normalize = (val) => String(val || '').trim().toLowerCase();
+                                const currentAns = normalize(a);
+                                
+                                let statusClass = '';
+                                if (a === true || (isMNPI && currentAns === correctMNPI) || (isSensitive && currentAns === correctSensitive)) {
+                                    statusClass = 'correct-ans';
+                                } else if (a === false || isMNPI || isSensitive) {
+                                    statusClass = 'incorrect-ans';
+                                }
+
+                                return (
+                                    <div key={i} className="sd-comp-item">
+                                        <div className="sd-comp-q">{q}</div>
+                                        <div className={`sd-comp-a ${statusClass}`}>
+                                            {a === true ? 'Yes' : a === false ? 'No' : a || '—'}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
@@ -548,7 +567,7 @@ export default function ProjectDetails() {
   .submission-detail { padding: 24px; background: linear-gradient(to bottom, #fcfdfe, #ffffff); }
   .sd-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; border-bottom: 1px solid #f0f0f0; padding-bottom: 16px; }
   .sd-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #0a66c2; letter-spacing: 0.05em; margin-bottom: 4px; }
-  .sd-date { font-size: 0.85rem; color: #666; }
+  .sd-date { font-size: 0.85rem; color: #666; font-weight:bold}
   
   .sd-confidence { text-align: right; min-width: 150px; }
   .sd-conf-label { font-size: 0.75rem; font-weight: 700; color: #444; margin-bottom: 6px; }
@@ -576,6 +595,8 @@ export default function ProjectDetails() {
   .sd-comp-a { font-size: 0.78rem; font-weight: 700; padding: 3px 10px; border-radius: 4px; text-transform: uppercase; }
   .sd-comp-a.yes { background: #dcfce7; color: #15803d; }
   .sd-comp-a.no { background: #fee2e2; color: #b91c1c; }
+  .sd-comp-a.correct-ans { background: #e6f4ea; color: #1e7e34; border: 1px solid #c3e6cb; }
+  .sd-comp-a.incorrect-ans { background: #fdf2f2; color: #dc3545; border: 1px solid #f5c6cb; }
   
   .empty-val { color: #aaa; font-style: italic; }
 

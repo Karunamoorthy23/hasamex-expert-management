@@ -91,19 +91,21 @@
       
       <p>{{ project_description }}</p>
       
-      <div class="project-info">
+      <!-- <div class="project-info"> -->
         <div class="info-row"><span class="info-label">Project ID:</span> {{ project_code }}</div>
         <div class="info-row"><span class="info-label">Estimated Start:</span> {{ project_start }}</div>
         <div class="info-row"><span class="info-label">Region:</span> {{ project_region }}</div>
         <div class="info-row"><span class="info-label">Type:</span> {{ project_type }}</div>
-      </div>
+      <!-- </div> -->
       
+      <p style="margin-top: 30px;">If You need any clarification regarding the project, feel free to contact us through the email address: {{ sender_email or "info@hasamex.com" }}</p>
+
       <center>
         <a href="{{ cta_link }}" class="cta-button">Accept Project & View Details</a>
       </center>
       
       <p style="margin-top: 30px;">If you are interested, please click the button above to view full details and submit your availability. If you have any questions, feel free to reply to this email.</p>
-      
+
       <div class="footer">
         Best regards,<br>
         <strong>Client Solutions Team</strong><br>
