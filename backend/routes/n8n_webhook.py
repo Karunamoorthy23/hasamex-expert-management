@@ -35,6 +35,25 @@ def n8n_status():
 def search_experts():
     # Ensure database session is clean of any previous failed transactions
     db.session.rollback()
+
+    # Manual Authorization Check (N8N Service Token)
+    # Support both Header (standard) and Query Param (robust fallback for Docker/Proxies)
+    auth_header = request.headers.get('Authorization') or ''
+    query_token = request.args.get('token')
+    expected_token = os.getenv('N8N_SERVICE_TOKEN')
+    
+    received_token = ""
+    if auth_header.startswith('Bearer '):
+        received_token = auth_header.split(' ', 1)[1].strip()
+    elif query_token:
+        received_token = query_token.strip()
+    
+    print(f"[AUTH DEBUG] Expected: '{expected_token}'")
+    print(f"[AUTH DEBUG] Received: '{received_token}'")
+
+    if not received_token or (expected_token and received_token != expected_token):
+        print(f"[AUTH ERROR] Invalid or missing N8N_SERVICE_TOKEN.")
+        return jsonify({'error': 'Unauthorized: Invalid N8N_SERVICE_TOKEN'}), 401
     
     try:
         data = request.get_json(silent=True)

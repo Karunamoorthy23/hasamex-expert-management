@@ -97,7 +97,7 @@ def create_app():
             return None
 
         # Public endpoints
-        if path.startswith('/api/v1/auth/') or path == '/api/v1/health' or path.startswith('/api/v1/public/'):
+        if path.startswith('/api/v1/auth/') or path == '/api/v1/health' or path.startswith('/api/v1/public/') or path.startswith('/api/v1/n8n/'):
             return None
 
         auth_header = request.headers.get('Authorization') or ''

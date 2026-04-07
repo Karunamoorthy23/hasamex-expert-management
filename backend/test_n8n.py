@@ -15,7 +15,7 @@ print("="*50 + "\n")
 
 # we'll test sending data straight as JSON, and also nested under 'body'
 req = urllib.request.Request(
-    'http://localhost:8080/api/v1/n8n/search-experts',
+    'http://localhost:8080/api/v1/n8n/search-experts?token=hasamex-n8n-service-2026-secret',
     data=json.dumps(data).encode('utf-8'),
     headers={
         'Content-Type': 'application/json',
