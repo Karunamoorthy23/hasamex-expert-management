@@ -12,6 +12,38 @@ from sqlalchemy import or_, func, text
 
 projects_bp = Blueprint('projects', __name__, url_prefix='/api/v1/projects')
 
+
+def _notify_n8n_project_created(app, project):
+    """Fire-and-forget: POST project data to n8n webhook in background thread."""
+    import os
+    import requests as http_requests
+    webhook_url = os.getenv('N8N_WEBHOOK_URL')
+    if not webhook_url:
+        print("n8n: N8N_WEBHOOK_URL not set, skipping notification")
+        return
+
+    # Build payload with search-relevant fields
+    payload = {
+        'project_id': project.project_id,
+        'project_title': project.project_title or project.title,
+        'target_companies': project.target_companies,
+        'target_geographies': [g.name for g in project.target_geographies] if project.target_geographies else [],
+        'target_functions_titles': project.target_functions_titles,
+        'project_description': project.project_description,
+        'status': project.status,
+    }
+
+    def _send():
+        with app.app_context():
+            try:
+                resp = http_requests.post(webhook_url, json=payload, timeout=10)
+                print(f"n8n: Webhook notified for project {project.project_id} → {resp.status_code}")
+            except Exception as e:
+                print(f"n8n: Webhook notification failed → {e}")
+
+    threading.Thread(target=_send, daemon=True).start()
+
+
 def _csv_from_list(val):
     if val is None:
         return None
@@ -358,6 +390,10 @@ def create_project():
 
     db.session.add(new_project)
     db.session.commit()
+
+    # Notify n8n workflow (fire-and-forget background thread)
+    _notify_n8n_project_created(current_app._get_current_object(), new_project)
+
     return jsonify({'data': new_project.to_dict()}), 201
 
 @projects_bp.route('/<int:project_id>', methods=['PUT'])

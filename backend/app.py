@@ -107,6 +107,12 @@ def create_app():
         if not token:
             return jsonify({'error': 'Unauthorized'}), 401
 
+        # n8n service token bypass (machine-to-machine auth)
+        service_token = os.getenv('N8N_SERVICE_TOKEN')
+        if service_token and token == service_token:
+            request.jwt_claims = {'service': 'n8n', 'user_id': None}  # type: ignore[attr-defined]
+            return None
+
         try:
             claims = decode_token(token)
             request.jwt_claims = claims  # type: ignore[attr-defined]
@@ -139,6 +145,8 @@ def create_app():
     from routes.employees import employees_bp
     from routes.locations import locations_bp
     from routes.leads import leads_bp
+    from routes.ingest import ingest_bp
+    from routes.n8n_webhook import n8n_bp
 
     app.register_blueprint(experts_bp)
     app.register_blueprint(lookups_bp)
@@ -152,6 +160,8 @@ def create_app():
     app.register_blueprint(employees_bp)
     app.register_blueprint(locations_bp)
     app.register_blueprint(leads_bp)
+    app.register_blueprint(ingest_bp)
+    app.register_blueprint(n8n_bp)
 
     # Configure and create uploads folder for expert PDFs
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'expert_pdf')
