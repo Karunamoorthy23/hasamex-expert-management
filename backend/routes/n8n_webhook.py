@@ -160,17 +160,59 @@ def search_experts():
                     
                 print(f"[DATA] Extracted {len(results)} search results.")
                 
+                profiles_found = []
                 for item in results:
-                    # Schema-Agnostic URL detection
                     url = (item.get('url') or item.get('profileUrl') or item.get('link') or '')
+                    if url and 'linkedin.com/in/' in url:
+                        profiles_found.append(url)
+                
+                print(f"[DATA] Extracted {len(profiles_found)} LinkedIn URLs from search.")
+                
+                # ── STAGE 2: DEEP ENRICHMENT (BULK PROFILE SCRAPE) ────────────────────────
+                if profiles_found:
+                    print(f"[LOADING] TRIGGERING DEEP SCRAPE FOR {len(profiles_found)} URLS...")
+                    # Using the verified High-Fidelity Scraper: 'curious_coder/linkedin-profile-scraper'
+                    # which is reliable for full experience and skills.
+                    profile_actor = "curious_coder/linkedin-profile-scraper" 
+                    li_at = os.getenv('LINKEDIN_LI_AT_COOKIE')
                     
-                    if not url or 'linkedin.com/in/' not in url:
-                        continue
+                    deep_payload = {
+                        "urls": profiles_found, # curious_coder uses "urls"
+                        "proxy": {"useApifyProxy": True}
+                    }
+                    if li_at: deep_payload["cookie"] = li_at
                     
-                    # Google Search results have 'title' and 'description'
-                    expert_data = _store_expert_from_profile_final(item, url, project_id)
-                    if expert_data:
-                        all_experts.append(expert_data)
+                    try:
+                        # Synchronous run with 180s timeout on Apify's side
+                        # and 240s on our side to account for network lag.
+                        scrape_resp = http_requests.post(
+                            f"https://api.apify.com/v2/acts/{profile_actor}/run-sync-get-dataset-items?token={apify_token}&timeout=180",
+                            json=deep_payload,
+                            timeout=240
+                        )
+                        if scrape_resp.ok:
+                            deep_data = scrape_resp.json() or []
+                            print(f"[SUCCESS] Deep Scrape complete. Enriching {len(deep_data)} profiles.")
+                            for profile in deep_data:
+                                p_url = (profile.get('url') or profile.get('profileUrl') or '')
+                                if p_url:
+                                    expert_data = _store_expert_from_profile_final(profile, p_url, project_id)
+                                    if expert_data: all_experts.append(expert_data)
+                        else:
+                            print(f"[WARNING] Deep Scrape failed ({scrape_resp.status_code}): {scrape_resp.text[:200]}")
+                            # Fallback to the original snippet-based data from search results
+                            for item in results:
+                                url = (item.get('url') or item.get('profileUrl') or item.get('link') or '')
+                                if url and 'linkedin.com/in/' in url:
+                                    expert_data = _store_expert_from_profile_final(item, url, project_id)
+                                    if expert_data: all_experts.append(expert_data)
+                    except Exception as e:
+                        print(f"[ERROR] Deep Scrape exception: {str(e)}. Falling back to snippets.")
+                        for item in results:
+                            url = (item.get('url') or item.get('profileUrl') or item.get('link') or '')
+                            if url and 'linkedin.com/in/' in url:
+                                expert_data = _store_expert_from_profile_final(item, url, project_id)
+                                if expert_data: all_experts.append(expert_data)
             else:
                 errors.append(f"Apify Error {resp.status_code}")
                 print(f"[ERROR] Apify API failed: {resp.text[:500]}")
@@ -250,6 +292,14 @@ def _store_expert_from_profile_final(person, linkedin_url, project_id):
         import re
         found = re.findall(r'[\w\.-]+@[\w\.-]+\.\w+', summary)
         if found: email = found[0]
+
+    # Snippet Intelligence: Extract Skills, Experience, Location
+    # (These helpers now handle both snippet parsing AND rich JSON mapping)
+    skills = person.get('skills') or person.get('skills_list') or _extract_skills_from_bio(summary)
+    experiences = person.get('experiences') or person.get('experience') or _extract_experience_history_from_bio(summary, title)
+    
+    # Precise Location Capture
+    location_name = (person.get('location') or person.get('city') or person.get('region') or '').strip()
             
     try:
         expert = Expert.query.filter_by(linkedin_url=linkedin_url).first()
@@ -264,6 +314,7 @@ def _store_expert_from_profile_final(person, linkedin_url, project_id):
                 primary_email=email,
                 title_headline=headline[:250] if headline else None,
                 bio=summary[:1000] if summary else None,
+                notes=f"Deep Scrape Location: {location_name}" if location_name else None
             )
             db.session.add(expert)
             db.session.flush()
@@ -271,6 +322,44 @@ def _store_expert_from_profile_final(person, linkedin_url, project_id):
             expert.first_name = fn
             expert.last_name = ln
             if headline: expert.title_headline = headline[:250]
+            if email: expert.primary_email = email
+            if summary: expert.bio = summary[:1000]
+            if location_name: expert.notes = f"Location: {location_name}"
+
+        # Add Strengths (Skills)
+        if skills:
+            from models import ExpertStrength
+            # If skills is a list of objects (common in high-fidelity scrapers)
+            skill_names = []
+            for s in skills:
+                if isinstance(s, dict): skill_names.append(s.get('name') or s.get('title'))
+                else: skill_names.append(str(s))
+            
+            for s_name in skill_names:
+                if not s_name: continue
+                exists = ExpertStrength.query.filter_by(expert_id=expert.id, topic_name=s_name[:255]).first()
+                if not exists:
+                    db.session.add(ExpertStrength(expert_id=expert.id, topic_name=s_name[:255]))
+
+        # Add Experience History
+        if experiences:
+            from models import ExpertExperience
+            for exp in experiences:
+                comp = (exp.get('companyName') or exp.get('company_name') or exp.get('company') or '').strip()
+                role = (exp.get('title') or exp.get('role_title') or exp.get('role') or 'Professional').strip()
+                sy = exp.get('startYear') or exp.get('start_year')
+                ey = exp.get('endYear') or exp.get('end_year')
+                
+                if comp:
+                    exists = ExpertExperience.query.filter_by(expert_id=expert.id, company_name=comp[:255], role_title=role[:255]).first()
+                    if not exists:
+                        db.session.add(ExpertExperience(
+                            expert_id=expert.id,
+                            company_name=comp[:255],
+                            role_title=role[:255],
+                            start_year=int(sy) if sy and str(sy).isdigit() else None,
+                            end_year=int(ey) if ey and str(ey).isdigit() else None
+                        ))
             if summary: expert.bio = summary[:1000]
 
         # Capture Current Employer
@@ -280,13 +369,9 @@ def _store_expert_from_profile_final(person, linkedin_url, project_id):
             if not exists:
                 db.session.add(ExpertExperience(expert_id=expert.id, company_name=co, role_title=headline[:250] if headline else None))
         
-        return {
-            'expert_id': expert.expert_id,
-            'name': f"{fn} {ln}".strip(),
-            'headline': headline,
-            'linkedin_url': linkedin_url,
-            'bio': summary[:150] + "..." if len(summary) > 150 else summary
-        }
+        # Ensure relationships are loaded by flushing
+        db.session.flush()
+        return expert.to_dict()
     except Exception as e:
         print(f"[RECOVERY] Rolling back item {linkedin_url} due to: {str(e)}")
         db.session.rollback()
@@ -343,3 +428,50 @@ def _parse_csv(val):
     if isinstance(val, list):
         return [str(x).strip() for x in val if str(x).strip()]
     return [x.strip() for x in str(val).split(',') if x.strip()]
+
+
+def _extract_skills_from_bio(bio):
+    """Fallback: Extracts tech/professional skills from snippet."""
+    if not bio: return []
+    skills = []
+    # Common tech/biz keywords to look for
+    keywords = [
+        'Python', 'Javascript', 'React', 'Angular', 'Java', 'AWS', 'Azure',
+        'Project Management', 'Data Science', 'Machine Learning', 'SQL',
+        'Sales', 'Marketing', 'FinTech', 'HealthTech', 'SAP', 'Oracle', 'Docker'
+    ]
+    for k in keywords:
+        if k.lower() in bio.lower():
+            skills.append(k)
+    
+    # Match specific lists like "Stacks: X, Y, Z"
+    import re
+    match = re.search(r'(?:Stacks|Skills|Tech|Expertise|Proficiency):\s*([^·\n]+)', bio, re.IGNORECASE)
+    if match:
+        found = [s.strip() for s in match.group(1).split(',') if s.strip()]
+        for f in found:
+            if f not in skills: skills.append(f)
+            
+    return list(set(skills))
+
+
+def _extract_experience_history_from_bio(bio, title):
+    """Fallback: Extracts previous companies from snippet."""
+    if not bio: return []
+    exps = []
+    
+    # 1. From Snippet: "Experience: CompanyName"
+    import re
+    match = re.search(r'(?:Experience|Worked at|Previously):\s*([^·\n]+)', bio, re.IGNORECASE)
+    if match:
+        comp = match.group(1).strip()
+        if len(comp) < 100:
+            exps.append({'company': comp, 'role': 'Professional'})
+            
+    # 2. From Title: "Name - Role - Company"
+    if title and ' - ' in title:
+        parts = title.split(' - ')
+        if len(parts) >= 3:
+            exps.append({'company': parts[2].strip(), 'role': parts[1].strip()})
+            
+    return exps

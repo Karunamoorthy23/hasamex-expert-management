@@ -3,9 +3,9 @@ import json
 
 data = {
     "project_id": 1,
-    "project_title": "AI Automation Search",
-    "target_companies": "Google",
-    "target_functions_titles": "Software Engineer"
+    "project_title": "AI/ML Engineer",
+    "target_companies": "Squareshift Technologies",
+    "target_functions_titles": "AI/ML Engineer"
 }
 
 print("\n" + "="*50)

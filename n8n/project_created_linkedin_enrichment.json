@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "url": "http://host.docker.internal:8080/api/v1/n8n/search-experts",
+        "url": "http://host.docker.internal:8080/api/v1/n8n/search-experts?token=hasamex-n8n-service-2026-secret",
         "method": "POST",
         "sendHeaders": true,
         "headerParametersUi": {
@@ -36,7 +36,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ $json.body }}",
         "options": {
-          "timeout": 120000,
+          "timeout": 300000,
           "fullResponse": false
         }
       },

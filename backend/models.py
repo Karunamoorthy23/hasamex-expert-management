@@ -187,7 +187,15 @@ class Expert(db.Model):
     @property
     def salutation(self): return self.rel_salutation.name if self.rel_salutation else None
     @property
-    def location(self): return self.rel_location.display_name if self.rel_location else None
+    def location(self):
+        if self.rel_location:
+            return self.rel_location.display_name
+        # Fallback to the raw location captured in notes if present
+        if self.notes and 'Location: ' in self.notes:
+            return self.notes.split('Location: ')[1].strip()
+        if self.notes and 'Deep Scrape Location: ' in self.notes:
+            return self.notes.split('Deep Scrape Location: ')[1].strip()
+        return None
     @property
     def timezone(self): return self.rel_location.timezone if self.rel_location else None
     @property
