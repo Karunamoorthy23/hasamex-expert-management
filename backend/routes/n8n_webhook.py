@@ -7,10 +7,12 @@ n8n Integration Routes
 """
 import os
 import hashlib
+import threading
 import requests as http_requests
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from extensions import db
-from models import Expert, ExpertExperience, ExpertStrength
+from models import Expert, ExpertExperience, ExpertStrength, Project
+from routes.projects import _bg_send_project_invites
 
 n8n_bp = Blueprint('n8n', __name__, url_prefix='/api/v1/n8n')
 
@@ -217,6 +219,69 @@ def search_experts():
             'traceback': err_msg
         }), 500
 
+# ── Send Emails (Project leads) ───────────────────────────────
+
+@n8n_bp.route('/send-emails', methods=['POST'])
+def send_emails():
+    """Triggered by n8n to send project invitations to lead experts."""
+    db.session.rollback()
+
+    # Reuse auth logic
+    auth_header = request.headers.get('Authorization') or ''
+    query_token = request.args.get('token')
+    expected_token = os.getenv('N8N_SERVICE_TOKEN')
+    
+    received_token = ""
+    if auth_header.startswith('Bearer '):
+        received_token = auth_header.split(' ', 1)[1].strip()
+    elif query_token:
+        received_token = query_token.strip()
+
+    if not received_token or (expected_token and received_token != expected_token):
+        return jsonify({'error': 'Unauthorized: Invalid N8N_SERVICE_TOKEN'}), 401
+
+    data = request.get_json(silent=True) or {}
+    # n8n wrapper unpacking
+    if 'body' in data and isinstance(data['body'], dict):
+        data = data['body']
+
+    project_id = data.get('project_id')
+    if not project_id:
+        return jsonify({'error': 'project_id is required'}), 400
+
+    project = Project.query.get_or_404(project_id)
+
+    expert_ids = project.leads_expert_ids or []
+    if not expert_ids:
+        return jsonify({'message': 'No leads experts found for this project', 'sent_count': 0}), 200
+
+    experts = Expert.query.filter(Expert.id.in_(expert_ids)).all()
+    if not experts:
+        return jsonify({'message': 'Expert records not found', 'sent_count': 0}), 404
+
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip('/')
+    
+    leads_set = set(project.leads_expert_ids or [])
+    invited_set = set(project.invited_expert_ids or [])
+
+    for expert in experts:
+        e_id_str = str(expert.id)
+        if e_id_str in leads_set:
+            leads_set.discard(e_id_str)
+        invited_set.add(e_id_str)
+
+    project.leads_expert_ids = list(leads_set)
+    project.invited_expert_ids = list(invited_set)
+    db.session.commit()
+
+    app = current_app._get_current_object()
+    threading.Thread(target=_bg_send_project_invites, args=(app, project_id, expert_ids, frontend_url, None)).start()
+
+    return jsonify({
+        'message': f'Sending invitations to {len(experts)} lead experts in the background.',
+        'sent_count': len(experts),
+        'project_id': project_id
+    }), 200
 
 # ── Helpers ───────────────────────────────────────────────────
 

@@ -45,6 +45,36 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
       "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:8080/api/v1/n8n/send-emails?token=hasamex-n8n-service-2026-secret",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "Bearer hasamex-n8n-service-2026-secret"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"project_id\": $node[\"Project Created Webhook\"].json[\"body\"][\"project_id\"] } }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "send-emails-node",
+      "name": "Send Invitations to Leads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [800, 300]
     }
   ],
   "connections": {
@@ -53,6 +83,17 @@
         [
           {
             "node": "Search Experts via Backend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Experts via Backend": {
+      "main": [
+        [
+          {
+            "node": "Send Invitations to Leads",
             "type": "main",
             "index": 0
           }
