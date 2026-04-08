@@ -26,6 +26,7 @@ export default function App() {
         },
         { id: 'engagements', label: 'Engagements', iconClass: 'fa-solid fa-phone-volume', to: '/engagements' },
         { id: 'leads', label: 'Leads', iconClass: 'fa-solid fa-crosshairs', to: '/leads' },
+        { id: 'chatbot', label: 'Chatbot', iconClass: 'fa-regular fa-comments', to: '/chatbot' },
         // { id: 'leads', label: 'Leads', iconClass: 'fa-solid fa-crosshairs' },
         // { id: 'candidates', label: 'Candidates', iconClass: 'fa-solid fa-user-plus' },
 
