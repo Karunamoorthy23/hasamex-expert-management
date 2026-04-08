@@ -3,9 +3,16 @@ import json
 
 data = {
     "project_id": 1,
-    "project_title": "AI/ML Engineer",
-    "target_companies": "Squareshift Technologies",
-    "target_functions_titles": "AI/ML Engineer"
+    "project_title": "Artificial Intelligence",
+    "target_companies": [
+        "Infosys",
+        "Accenture"
+    ],
+    "target_functions": [
+        "Senior Engineer",
+        "Director"
+    ],
+    "target_functions_titles": "We are looking to connect with current or former senior professionals from Google who have hands-on experience in Artificial Intelligence."
 }
 
 print("\n" + "="*50)
@@ -27,7 +34,34 @@ try:
     # Set high timeout on the test client
     with urllib.request.urlopen(req, timeout=305) as resp:
         print("\n[COMPLETE] Server Response:")
-        print(json.dumps(json.loads(resp.read().decode()), indent=2))
+        resp_data = json.loads(resp.read().decode())
+        print(json.dumps(resp_data, indent=2))
+        
+        # --- NEW: Automated ContactOut Enrichment Chain ---
+        experts = resp_data.get('experts', [])
+        if experts:
+            print("\n" + "="*50)
+            print("[CONTACTOUT] TRIGGERING AUTOMATED CONTACT ENRICHMENT CHAIN")
+            print("="*50)
+            
+            # Use the enrichment logic from test_vayne.py (now refactored for ContactOut)
+            from test_vayne import enrich_expert_with_contactout, update_expert_in_db
+            
+            for exp in experts:
+                url = exp.get('linkedin_url')
+                # Fixed: Use full_name or first/last fallback to avoid 'None'
+                name = exp.get('full_name') or f"{exp.get('first_name','')} {exp.get('last_name','')}".strip() or "Unknown Expert"
+                
+                if url:
+                    print(f"\n[CONTACTOUT] Processing: {name}")
+                    contact = enrich_expert_with_contactout(url)
+                    if contact and contact.get('status') == 'success':
+                        print(f"[CONTACTOUT] SUCCESS: Found {contact['email']} | {contact['phone']}")
+                        # Persist to database
+                        update_expert_in_db(url, contact['email'], contact['phone'])
+                    else:
+                        print(f"[CONTACTOUT] FAIL: No contact info found for {name}")
+
 except urllib.error.HTTPError as e:
     print(f"\n[ERROR] Test Failed: {e}")
     error_body = e.read().decode('utf-8')

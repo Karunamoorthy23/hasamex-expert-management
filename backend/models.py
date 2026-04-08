@@ -232,11 +232,16 @@ class Expert(db.Model):
             history.append(f"{exp.role_title}, {exp.company_name} ({date_range})")
         return "\n".join(history)
 
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}".strip()
+
     def to_dict(self):
         """Serialize expert to dictionary."""
         return {
             'id': self.id,
             'expert_id': self.expert_id,
+            'full_name': self.full_name,
             'salutation': self.salutation,
             'first_name': self.first_name,
             'last_name': self.last_name,
@@ -596,9 +601,10 @@ class Project(db.Model):
     project_title = db.Column(db.String(255))
     project_type_id = db.Column(db.Integer, db.ForeignKey('lk_project_type.id', ondelete='SET NULL'))
     project_description = db.Column(db.Text)
-    target_companies = db.Column(db.Text)
+    target_companies = db.Column(JSONB, nullable=False, default=list)
     target_region_id = db.Column(db.Integer, db.ForeignKey('lk_regions.id', ondelete='SET NULL'))
     target_functions_titles = db.Column(db.Text)
+    target_functions = db.Column(JSONB, nullable=False, default=list)
     current_former_both = db.Column(db.String(20))
     number_of_calls = db.Column(db.Integer)
     project_questions = db.Column(JSONB, nullable=False, default=list)
@@ -678,10 +684,11 @@ class Project(db.Model):
             'project_title': self.project_title,
             'project_type': self.rel_project_type.name if self.rel_project_type else None,
             'project_description': self.project_description,
-            'target_companies': self.target_companies,
+            'target_companies': self.target_companies or [],
             'target_region': self.rel_target_region.name if self.rel_target_region else None,
             'target_geographies': [g.name for g in self.target_geographies] if self.target_geographies else [],
             'target_functions_titles': self.target_functions_titles,
+            'target_functions': self.target_functions or [],
             'current_former_both': self.current_former_both,
             'number_of_calls': self.number_of_calls,
             'project_questions': self.project_questions or [],

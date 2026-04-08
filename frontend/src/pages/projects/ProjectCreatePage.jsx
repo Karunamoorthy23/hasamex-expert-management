@@ -18,10 +18,11 @@ export default function ProjectCreatePage() {
         project_title: '',
         project_type: '',
         project_description: '',
-        target_companies: '',
+        target_companies: [''],
         target_region: '',
         target_geographies: [],
         target_functions_titles: '',
+        target_functions: [''],
         current_former_both: 'Both',
         number_of_calls: '',
         project_questions: [''],
@@ -103,14 +104,13 @@ export default function ProjectCreatePage() {
                 'project_title',
                 'project_type',
                 'project_description',
-                'target_companies',
                 'target_region',
                 'target_functions_titles',
                 'current_former_both',
                 'compliance_question_1',
                 'project_deadline',
             ];
-            const requiredArrays = ['target_geographies', 'client_solution_owner_ids', 'sales_team_ids'];
+            const requiredArrays = ['target_geographies', 'target_functions', 'client_solution_owner_ids', 'sales_team_ids'];
             const missing = [];
             for (const key of requiredStrings) {
                 if (!String(form[key] ?? '').trim()) missing.push(key);
@@ -122,6 +122,16 @@ export default function ProjectCreatePage() {
             // Check project questions
             if ((form.project_questions || []).some(q => !q.trim())) {
                 missing.push('All project questions must be filled');
+            }
+
+            // Check target companies
+            if ((form.target_companies || []).some(c => !c.trim())) {
+                missing.push('All target companies must be filled');
+            }
+
+            // Check target functions
+            if ((form.target_functions || []).some(f => !f.trim())) {
+                missing.push('All target functions must be filled');
             }
 
             if (missing.length) {
@@ -160,6 +170,40 @@ export default function ProjectCreatePage() {
         const next = [...(form.project_questions || [])];
         next[index] = value;
         setForm(p => ({ ...p, project_questions: next }));
+    };
+
+    const addTargetCompany = () => {
+        setForm(p => ({ ...p, target_companies: [...(p.target_companies || []), ''] }));
+    };
+
+    const removeTargetCompany = (index) => {
+        setForm(p => ({
+            ...p,
+            target_companies: p.target_companies.filter((_, i) => i !== index)
+        }));
+    };
+
+    const updateTargetCompany = (index, value) => {
+        const next = [...(form.target_companies || [])];
+        next[index] = value;
+        setForm(p => ({ ...p, target_companies: next }));
+    };
+
+    const addTargetFunction = () => {
+        setForm(p => ({ ...p, target_functions: [...(p.target_functions || []), ''] }));
+    };
+
+    const removeTargetFunction = (index) => {
+        setForm(p => ({
+            ...p,
+            target_functions: p.target_functions.filter((_, i) => i !== index)
+        }));
+    };
+
+    const updateTargetFunction = (index, value) => {
+        const next = [...(form.target_functions || [])];
+        next[index] = value;
+        setForm(p => ({ ...p, target_functions: next }));
     };
 
     return (
@@ -312,14 +356,50 @@ export default function ProjectCreatePage() {
                             </div>
 
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
-                                <label className="form-label">Target Companies</label>
-                                <textarea
-                                    className="form-textarea"
-                                    rows={2}
-                                    required
-                                    value={form.target_companies}
-                                    onChange={(e) => setForm((p) => ({ ...p, target_companies: e.target.value }))}
-                                />
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                    <label className="form-label" style={{ marginBottom: 0 }}>Target Companies</label>
+                                    <Button type="button" variant="secondary" size="small" onClick={addTargetCompany} style={{ padding: '4px 12px', fontSize: '12px' }}>
+                                        + Add Company
+                                    </Button>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    {(form.target_companies || []).map((c, index) => (
+                                        <div key={index} style={{ position: 'relative' }}>
+                                            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                                <div style={{ flex: 1 }}>
+                                                    <input
+                                                        className="form-input"
+                                                        required
+                                                        placeholder={`Target Company #${index + 1}`}
+                                                        value={c}
+                                                        onChange={(e) => updateTargetCompany(index, e.target.value)}
+                                                    />
+                                                </div>
+                                                {form.target_companies.length > 1 && (
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => removeTargetCompany(index)}
+                                                        style={{ 
+                                                            background: 'none', 
+                                                            border: 'none', 
+                                                            color: '#ff4d4f', 
+                                                            cursor: 'pointer',
+                                                            padding: '8px'
+                                                        }}
+                                                        title="Remove company"
+                                                    >
+                                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                                                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                                                        </svg>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
 
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
@@ -333,7 +413,7 @@ export default function ProjectCreatePage() {
                             </div>
 
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
-                                <label className="form-label">Target Functions / Titles</label>
+                                <label className="form-label">Target Titles</label>
                                 <textarea
                                     className="form-textarea"
                                     rows={2}
@@ -341,6 +421,53 @@ export default function ProjectCreatePage() {
                                     value={form.target_functions_titles}
                                     onChange={(e) => setForm((p) => ({ ...p, target_functions_titles: e.target.value }))}
                                 />
+                            </div>
+
+                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                    <label className="form-label" style={{ marginBottom: 0 }}>Target Functions (Seniority)</label>
+                                    <Button type="button" variant="secondary" size="small" onClick={addTargetFunction} style={{ padding: '4px 12px', fontSize: '12px' }}>
+                                        + Add Function
+                                    </Button>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    {(form.target_functions || []).map((f, index) => (
+                                        <div key={index} style={{ position: 'relative' }}>
+                                            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                                <div style={{ flex: 1 }}>
+                                                    <input
+                                                        className="form-input"
+                                                        required
+                                                        placeholder={`Target Function #${index + 1}`}
+                                                        value={f}
+                                                        onChange={(e) => updateTargetFunction(index, e.target.value)}
+                                                    />
+                                                </div>
+                                                {form.target_functions.length > 1 && (
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => removeTargetFunction(index)}
+                                                        style={{ 
+                                                            background: 'none', 
+                                                            border: 'none', 
+                                                            color: '#ff4d4f', 
+                                                            cursor: 'pointer',
+                                                            padding: '8px'
+                                                        }}
+                                                        title="Remove function"
+                                                    >
+                                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                                                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                                                        </svg>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>

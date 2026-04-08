@@ -764,11 +764,15 @@ export default function ProjectDetails() {
                         <div className="ideal-title">Ideal Candidate Profile</div>
                         <div className="ideal-sub">Target Companies:</div>
                         <ul className="ideal-list">
-                            {(project.target_companies || '').split('\n').join(',').split(',').filter(x => x.trim()).map((c, i) => <li key={i}>{c.trim()}</li>)}
+                            {(Array.isArray(project.target_companies) ? project.target_companies : String(project.target_companies || '').split('\n').join(',').split(',')).filter(x => String(x).trim()).map((c, i) => <li key={i}>{String(c).trim()}</li>)}
                         </ul>
                         <div className="ideal-sub">Target Titles:</div>
                         <ul className="ideal-list">
                             {(project.target_functions_titles || '').split('\n').join(',').split(',').filter(x => x.trim()).map((t, i) => <li key={i}>{t.trim()}</li>)}
+                        </ul>
+                        <div className="ideal-sub">Target Functions (Seniority):</div>
+                        <ul className="ideal-list">
+                            {(Array.isArray(project.target_functions) ? project.target_functions : String(project.target_functions || '').split('\n').join(',').split(',')).filter(x => String(x).trim()).map((c, i) => <li key={i}>{String(c).trim()}</li>)}
                         </ul>
                     </div>
                 </div>
