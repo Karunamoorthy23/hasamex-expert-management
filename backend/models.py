@@ -987,3 +987,51 @@ class ProjectFormSubmission(db.Model):
             'compliance_onboarding': self.compliance_onboarding,
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class ChatSession(db.Model):
+    __tablename__ = 'ai_chat_sessions'
+    id = db.Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    owner_id = db.Column(db.Integer, db.ForeignKey('hasamex_users.id', ondelete='CASCADE'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    message_count = db.Column(db.Integer, default=0)
+    last_message_at = db.Column(db.DateTime)
+    archived = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    owner = db.relationship('HasamexUser', lazy='joined')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'owner_id': self.owner_id,
+            'title': self.title,
+            'message_count': self.message_count,
+            'last_message_at': self.last_message_at.isoformat() if self.last_message_at else None,
+            'archived': self.archived,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ChatMessage(db.Model):
+    __tablename__ = 'ai_chat_messages'
+    id = db.Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    session_id = db.Column(UUID(as_uuid=False), db.ForeignKey('ai_chat_sessions.id', ondelete='CASCADE'), nullable=False)
+    owner_id = db.Column(db.Integer, nullable=False)
+    role = db.Column(db.String(32), nullable=False)
+    content_text = db.Column(db.Text, nullable=False)
+    content_json = db.Column(JSONB)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    session = db.relationship('ChatSession', backref='messages')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'session_id': self.session_id,
+            'owner_id': self.owner_id,
+            'role': self.role,
+            'content_text': self.content_text,
+            'content_json': self.content_json,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }

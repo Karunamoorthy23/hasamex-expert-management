@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { fetchChatSessions, createChatSession, deleteChatSession as apiDeleteChatSession, fetchChatMessages, searchChatMessages, requestAgentReply } from '../../api/chat';
 import './ChatbotPage.css';
 
 const RESPONSES = [
@@ -38,53 +39,105 @@ export default function ChatbotPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+  const [searchMatchesSessions, setSearchMatchesSessions] = useState(null);
 
   const chatAreaRef = useRef(null);
   const inputRef = useRef(null);
   const recognitionRef = useRef(null);
 
   useEffect(() => {
-    // Initial chat creation
-    if (Object.keys(chats).length === 0) {
-      createChat();
-    }
+    (async () => {
+      try {
+        const sessions = await fetchChatSessions();
+        if (sessions.length) {
+          const m = {};
+          sessions.forEach(s => {
+            const created = s.created_at ? Date.parse(s.created_at) : Date.now();
+            m[s.id] = { title: s.title, messages: [], created };
+          });
+          setChats(m);
+          setActiveChatId(sessions.sort((a,b)=> (Date.parse(b.created_at||0)) - (Date.parse(a.created_at||0)))[0].id);
+        } else {
+          await createChat();
+        }
+      } catch {
+        await createChat();
+      }
+    })();
   }, []);
 
   useEffect(() => {
     scrollBottom();
   }, [chats, activeChatId, isTyping]);
 
+  useEffect(() => {
+    let timer = null;
+    const q = String(searchFilter || '').trim();
+    if (!q) {
+      setSearchMatchesSessions(null);
+      return;
+    }
+    timer = setTimeout(async () => {
+      try {
+        const results = await searchChatMessages({ query: q, limit: 100 });
+        const idsSet = new Set(results.map(r => r.session_id));
+        setSearchMatchesSessions(idsSet);
+      } catch {
+        setSearchMatchesSessions(null);
+      }
+    }, 300);
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [searchFilter]);
   const scrollBottom = () => {
     if (chatAreaRef.current) {
       chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
     }
   };
 
-  const createChat = () => {
-    const id = genId();
+  const createChat = async () => {
+    const s = await createChatSession({ title: 'New conversation' });
+    const id = s.id;
     setChats(prev => ({
       ...prev,
-      [id]: { title: 'New conversation', messages: [], created: Date.now() }
+      [id]: { title: s.title, messages: [], created: s.created_at ? Date.parse(s.created_at) : Date.now() }
     }));
     setActiveChatId(id);
     if (inputRef.current) inputRef.current.focus();
     return id;
   };
 
-  const openChat = (id) => {
+  const openChat = async (id) => {
     setActiveChatId(id);
+    if (!chats[id] || (chats[id].messages && chats[id].messages.length)) return;
+    const msgs = await fetchChatMessages(id);
+    const mapped = msgs.map(m => {
+      const role = m.role === 'assistant' ? 'ai' : 'user';
+      return { role, content: m.content_text };
+    });
+    setChats(prev => ({
+      ...prev,
+      [id]: { ...prev[id], messages: mapped }
+    }));
   };
 
-  const deleteChat = (id, e) => {
+  const deleteChat = async (id, e) => {
     e.stopPropagation();
+    try { await apiDeleteChatSession(id); } catch {}
     setChats(prev => {
       const newChats = { ...prev };
       delete newChats[id];
       return newChats;
     });
     if (activeChatId === id) {
-      setActiveChatId(null);
-      createChat();
+      const remaining = Object.keys(chats).filter(x => x !== id);
+      if (remaining.length) {
+        setActiveChatId(remaining[0]);
+      } else {
+        setActiveChatId(null);
+        await createChat();
+      }
     }
   };
 
@@ -93,13 +146,13 @@ export default function ChatbotPage() {
     setTimeout(() => setToastMsg(''), 2200);
   };
 
-  const sendMessage = (text = inputValue) => {
+  const sendMessage = async (text = inputValue) => {
     const trimmed = text.trim();
     if (!trimmed) return;
 
     let chatId = activeChatId;
     if (!chatId || !chats[chatId]) {
-      chatId = createChat();
+      chatId = await createChat();
     }
 
     setChats(prev => {
@@ -123,21 +176,26 @@ export default function ChatbotPage() {
         inputRef.current.style.height = 'auto';
     }
     setIsTyping(true);
-
-    setTimeout(() => {
+    try {
+      const aiMsg = await requestAgentReply(chatId, { content_text: trimmed });
       setIsTyping(false);
-      const reply = RESPONSES[Math.floor(Math.random() * RESPONSES.length)];
-      setChats(prev => {
-        const chat = prev[chatId];
-        return {
-          ...prev,
-          [chatId]: {
-            ...chat,
-            messages: [...chat.messages, { role: 'ai', content: reply }]
-          }
-        };
-      });
-    }, 800 + Math.random() * 900);
+      const reply = aiMsg && aiMsg.content_text ? aiMsg.content_text : '';
+      if (reply) {
+        setChats(prev => {
+          const chat = prev[chatId];
+          return {
+            ...prev,
+            [chatId]: {
+              ...chat,
+              messages: [...chat.messages, { role: 'ai', content: reply }]
+            }
+          };
+        });
+      }
+    } catch {
+      setIsTyping(false);
+      showToast('Failed to get reply');
+    }
   };
 
   const quickSend = (text) => {
@@ -208,7 +266,12 @@ export default function ChatbotPage() {
 
   // History processing
   const ids = Object.keys(chats)
-    .filter(id => !searchFilter || chats[id].title.toLowerCase().includes(searchFilter.toLowerCase()))
+    .filter(id => {
+      if (!searchFilter) return true;
+      const byTitle = chats[id].title.toLowerCase().includes(searchFilter.toLowerCase());
+      const byContent = searchMatchesSessions ? searchMatchesSessions.has(id) : false;
+      return byTitle || byContent;
+    })
     .sort((a, b) => chats[b].created - chats[a].created);
 
   const now = Date.now();
@@ -374,41 +437,41 @@ export default function ChatbotPage() {
               <h1>How can I help?</h1>
               <p>Ask me anything, or pick a suggestion below.</p>
               <div className="suggestion-grid">
-                <div className="sug-card" onClick={() => quickSend('Explain how machine learning works in simple terms')}>
+                <div className="sug-card" onClick={() => quickSend('Create a new project in the app. Required fields: client_id, poc_user_id, received_date (YYYY-MM-DD), project_title, project_type, project_description, target_region, target_geographies[], target_functions_titles, target_functions[], current_former_both, compliance_question_1, project_deadline (YYYY-MM-DD). Also collect client_solution_owner_ids[] and sales_team_ids[]. Ask me for any missing fields and confirm before creating.')}>
                   <div className="sug-icon" style={{ background: 'rgba(25,195,125,.12)' }}>
                     <svg width="15" height="15" fill="none" stroke="#19c37d" strokeWidth="2" viewBox="0 0 24 24">
                       <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
                     </svg>
                   </div>
                   <div className="sug-title">Create Project</div>
-                  <div className="sug-sub">Share project details to create a project</div>
+                  <div className="sug-sub">Provide required fields and create a project</div>
                 </div>
-                <div className="sug-card" onClick={() => quickSend('Write a professional email to reschedule a client meeting')}>
+                <div className="sug-card" onClick={() => quickSend('Help me find experts for a project. Filters: primary_sector=?, expert_function=?, region=?, years_of_experience>=?, availability window=?, and match to target companies if available. Show how to use the Experts page filters and relevant API endpoints.')}>
                   <div className="sug-icon" style={{ background: 'rgba(14,165,233,.12)' }}>
                      <svg width="15" height="15" fill="none" stroke="#0ea5e9" strokeWidth="2" viewBox="0 0 24 24">
                       <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
                     </svg>
                   </div>
                   <div className="sug-title">Find Experts</div>
-                  <div className="sug-sub">Find experts for a project</div>
+                  <div className="sug-sub">Guide filters for project needs</div>
                 </div>
-                <div className="sug-card" onClick={() => quickSend('Write a Python function to fetch and parse JSON from an API')}>
+                <div className="sug-card" onClick={() => quickSend('Show engagement summary by status for a project or client (leads, invited, accepted, declined, scheduled, completed, goal, progress%). Also explain how to update an engagement (method, currencies, notes, payment status).')}>
                    <div className="sug-icon" style={{ background: 'rgba(168,85,247,.12)' }}>
                     <svg width="15" height="15" fill="none" stroke="#a855f7" strokeWidth="2" viewBox="0 0 24 24">
                       <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
                     </svg>
                   </div>
-                  <div className="sug-title">Solve Queries</div>
-                  <div className="sug-sub">Query the database</div>
+                  <div className="sug-title">Engagement Insights</div>
+                  <div className="sug-sub">Leads, Invited, Accepted, Declined, Scheduled, Completed</div>
                 </div>
-                <div className="sug-card" onClick={() => quickSend('Give me 5 creative SaaS startup ideas for 2025')}>
+                <div className="sug-card" onClick={() => quickSend('Find client users by client name, seniority, and location; show how to edit user details and assign client solution/sales team.')}>
                   <div className="sug-icon" style={{ background: 'rgba(245,158,11,.12)' }}>
                     <svg width="15" height="15" fill="none" stroke="#f59e0b" strokeWidth="2" viewBox="0 0 24 24">
                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                     </svg>
                   </div>
-                  <div className="sug-title">Brainstorm ideas</div>
-                  <div className="sug-sub">Creative SaaS startup concepts</div>
+                  <div className="sug-title">Users Queries</div>
+                  <div className="sug-sub">Find and manage client users</div>
                 </div>
               </div>
             </div>
