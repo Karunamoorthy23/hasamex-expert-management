@@ -108,27 +108,17 @@ def search_experts():
                 'experts': []
             })
 
+        # Extract experience requirements from project description
+        project = Project.query.get(project_id) if project_id else None
+        min_years = _extract_min_experience_from_desc(project.project_description) if project else None
+        if min_years:
+            print(f"[FILTER] Extracted Minimum Experience Requirement: {min_years} years")
+
         all_experts = []
         errors = []
         
-        # Build search queries: company + role/seniority combinations
-        queries = []
-        for company in (target_companies or ['']):
-            roles_to_search = target_functions if target_functions else []
-            titles_to_search = target_titles if target_titles else []
-            combined_roles = roles_to_search + titles_to_search if (roles_to_search or titles_to_search) else ['']
-            
-            for role in combined_roles:
-                geo = target_geographies[0] if target_geographies else ""
-                query = f"{role} at {company} {geo}".strip()
-                if query:
-                    queries.append(query)
-
         # ── SINGLE STAGE: harvestapi/linkedin-profile-search ────────────────────
-        # Actor M2FMdjRVeF1HPGFcc searches LinkedIn directly — no Google needed.
-        # Returns full profiles: firstName, lastName, headline, about, location,
-        #   linkedinUrl, experience[{position, companyName, startDate, endDate,
-        #   location, description, employmentType}]
+        # Using Structured Filters for "Filter-First" Efficiency
         SEARCH_ACTOR = "M2FMdjRVeF1HPGFcc"
         SEARCH_API_URL = (
             f"https://api.apify.com/v2/acts/{SEARCH_ACTOR}"
@@ -136,58 +126,87 @@ def search_experts():
         )
 
         print("\n" + "="*50)
-        print(f"[LOADING] LINKEDIN PROFILE SEARCH — harvestapi")
+        print(f"[LOADING] LINKEDIN STRUCTURED SEARCH — harvestapi")
         print(f"[LOADING] Actor: {SEARCH_ACTOR}")
-        print(f"[LOADING] Queries ({len(queries)}): {queries[:3]}")
-        print(f"[LOADING] Mode: Full profiles with experience data")
-        print(f"[LOADING] Estimated time: 60-120 seconds. Please wait...")
+        print(f"[LOADING] Mode: Filter-First (Directly target companies/roles)")
+        print(f"[LOADING] Target Cities/Countries: {target_geographies}")
+        print(f"[LOADING] Target Companies: {target_companies}")
+        print(f"[LOADING] Target Titles: {target_titles + target_functions}")
         print("="*50 + "\n")
 
-        for query in queries[:5]:   # Limit to 5 queries to control cost/time
-            try:
-                search_payload = {
-                    "searchQuery": query,
-                    "profileScraperMode": "Full",   # Full includes experience data
-                    "maxItems": 5,                  # 5 profiles per query
-                    "takePages": 1,
-                }
+        # Combine criteria into structured payloads
+        # We still iterate slightly to ensure we don't hit payload limits and to keep results targeted
+        for company in (target_companies or ['']):
+            for role in (target_titles + target_functions or ['']):
+                try:
+                    search_payload = {
+                        "searchQuery": role if not company else "", # searchQuery is fallback
+                        "currentJobTitles": [role] if role else [],
+                        "currentCompanies": [company] if company else [],
+                        "locations": target_geographies if target_geographies else [],
+                        "profileScraperMode": "Full",   # Full includes experience data for filtration
+                        "maxItems": 5,                 # Fetch more to allow for backend filtering
+                        "takePages": 1,
+                    }
 
-                print(f"[QUERY] Searching: \"{query}\"")
-                resp = http_requests.post(
-                    SEARCH_API_URL,
-                    json=search_payload,
-                    timeout=240
-                )
+                    print(f"[QUERY] Filtering for: \"{role}\" at \"{company}\" in {target_geographies}")
+                    resp = http_requests.post(
+                        SEARCH_API_URL,
+                        json=search_payload,
+                        timeout=300
+                    )
 
-                print(f"[STATUS] Response: {resp.status_code} for query: \"{query}\"")
+                    if resp.ok:
+                        profiles = resp.json() or []
+                        print(f"[DATA] Found {len(profiles)} raw profiles for \"{role} @ {company}\"")
+                        
+                        for profile in profiles:
+                            p_url = (
+                                profile.get('linkedinUrl') or
+                                profile.get('linkedInUrl') or
+                                profile.get('url') or
+                                profile.get('profileUrl') or ''
+                            )
+                            if not p_url: continue
 
-                if resp.ok:
-                    profiles = resp.json() or []
-                    print(f"[DATA] Found {len(profiles)} profiles for: \"{query}\"")
-                    for profile in profiles:
-                        p_url = (
-                            profile.get('linkedinUrl') or
-                            profile.get('linkedInUrl') or
-                            profile.get('url') or
-                            profile.get('profileUrl') or ''
-                        )
-                        if p_url:
+                            # ── FUNNEL STEP 1: Experience Validation ──────────────
+                            # The _store_expert helper now calculates total_exp automatically
                             expert_data = _store_expert_from_profile_final(profile, p_url, project_id)
+                            
                             if expert_data:
+                                exp_years = expert_data.get('years_of_experience', 0)
+                                
+                                # If we have a min_years requirement, apply the hard filter
+                                if min_years and exp_years < min_years:
+                                    print(f"[FUNNEL] Skipping {expert_data['full_name']} - Only {exp_years} yrs exp (Req: {min_years})")
+                                    continue
+                                
+                                # ── FUNNEL STEP 2: Relevance Scoring ─────────────
+                                # (Simple heuristic: matching title keywords in headline/bio)
+                                relevance_score = 0
+                                if project and project.project_description:
+                                    desc_lower = project.project_description.lower()
+                                    bio_lower = (expert_data.get('bio') or "").lower()
+                                    head_lower = (expert_data.get('headline') or "").lower()
+                                    
+                                    # Essential keywords from project title/description
+                                    keywords = (project.project_title or "").split() + (role or "").split()
+                                    match_count = sum(1 for k in keywords if len(k) > 3 and (k.lower() in bio_lower or k.lower() in head_lower))
+                                    relevance_score = match_count
+                                
+                                expert_data['relevance_score'] = relevance_score
                                 all_experts.append(expert_data)
-                else:
-                    err = f"Apify Error {resp.status_code} for query '{query}': {resp.text[:200]}"
-                    print(f"[ERROR] {err}")
-                    errors.append(err)
+                    else:
+                        err = f"Apify Error {resp.status_code}: {resp.text[:200]}"
+                        errors.append(err)
 
-            except http_requests.exceptions.Timeout:
-                msg = f"Timeout for query: '{query}'"
-                print(f"[ERROR] {msg}")
-                errors.append(msg)
-            except Exception as e:
-                msg = f"Exception for query '{query}': {str(e)}"
-                print(f"[ERROR] {msg}")
-                errors.append(msg)
+                except Exception as e:
+                    errors.append(str(e))
+
+        # ── FINAL RANKING ─────────────────────────────────────────────────────
+        # Sort by relevance score and then years of experience
+        all_experts.sort(key=lambda x: (x.get('relevance_score', 0), x.get('years_of_experience', 0)), reverse=True)
+        all_experts = all_experts[:15] # Keep top 15 results
 
         if not all_experts:
             print("[FALLBACK] No real experts processed from cloud. Triggering Mock Fallback...")
@@ -353,6 +372,9 @@ def _store_expert_from_profile_final(person, linkedin_url, project_id):
     if isinstance(raw_experiences, dict):
         raw_experiences = list(raw_experiences.values())
 
+    # ── Calculate Total Experience ──────────────────────────────────────────
+    total_exp = _calculate_total_experience(raw_experiences)
+
     # ── Persist to DB ─────────────────────────────────────────────────────────
     try:
         expert = Expert.query.filter_by(linkedin_url=linkedin_url).first()
@@ -366,6 +388,7 @@ def _store_expert_from_profile_final(person, linkedin_url, project_id):
                 linkedin_url=linkedin_url,
                 title_headline=headline[:250] if headline else None,
                 bio=summary[:2000] if summary else None,
+                years_of_experience=total_exp,
                 notes=f"Location: {location_name}" if location_name else None
             )
             db.session.add(expert)
@@ -374,6 +397,7 @@ def _store_expert_from_profile_final(person, linkedin_url, project_id):
             # Always update fields when re-scraping
             expert.first_name = fn
             expert.last_name = ln
+            expert.years_of_experience = total_exp
             if headline: expert.title_headline = headline[:250]
             if summary: expert.bio = summary[:2000]
             if location_name: expert.notes = f"Location: {location_name}"
@@ -574,3 +598,77 @@ def _extract_experience_history_from_bio(bio, title):
             exps.append({'company': parts[2].strip(), 'role': parts[1].strip()})
             
     return exps
+
+
+def _calculate_total_experience(raw_experiences):
+    """
+    Calculates total years of professional experience from the LinkedIn history.
+    """
+    if not raw_experiences or not isinstance(raw_experiences, list):
+        return 0
+    
+    import datetime
+    current_year = datetime.datetime.now().year
+    intervals = []
+    
+    for exp in raw_experiences:
+        if not isinstance(exp, dict): continue
+        
+        # Helper to get year from dates (harvestapi schema)
+        def _get_y(d):
+            if isinstance(d, dict): return d.get('year')
+            if isinstance(d, int): return d
+            return None
+            
+        sy = _get_y(exp.get('startDate') or exp.get('jobStartedOn') or exp.get('startYear'))
+        ey = _get_y(exp.get('endDate') or exp.get('jobEndedOn') or exp.get('endYear'))
+        
+        # If no start year, we can't calculate this interval
+        if not sy: continue
+        
+        # If no end year, assume it's "Present"
+        if not ey: ey = current_year
+        
+        # Convert to int safely
+        try:
+            sy = int(sy)
+            ey = int(ey)
+            if sy > 0 and ey >= sy:
+                intervals.append((sy, ey))
+        except:
+            continue
+            
+    if not intervals:
+        return 0
+        
+    # Merge overlapping intervals to get unique years
+    intervals.sort()
+    merged = []
+    if intervals:
+        curr_start, curr_end = intervals[0]
+        for next_start, next_end in intervals[1:]:
+            if next_start <= curr_end:
+                curr_end = max(curr_end, next_end)
+            else:
+                merged.append((curr_start, curr_end))
+                curr_start, curr_end = next_start, next_end
+        merged.append((curr_start, curr_end))
+        
+    total_years = sum((end - start) for start, end in merged)
+    return total_years
+
+
+def _extract_min_experience_from_desc(description):
+    """
+    Tries to find mentions of "X years of experience" in the project description.
+    """
+    if not description: return None
+    import re
+    # Match "5 years", "10+ years", "at least 2 years", "min 3 years"
+    match = re.search(r'(\d+)\s*(?:\+|plus)?\s*years?', description, re.IGNORECASE)
+    if match:
+        try:
+            return int(match.group(1))
+        except:
+            pass
+    return None
