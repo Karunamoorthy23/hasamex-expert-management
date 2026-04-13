@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import logo from '/src/assets/hasamex_logo.png';
 import { cn } from '../utils/cn';
@@ -13,6 +13,23 @@ export default function App() {
     const location = useLocation();
     const navigate = useNavigate();
     const [collapsed, setCollapsed] = useState(false);
+    
+    // Theme toggle state
+    const [theme, setTheme] = useState(() => {
+        return localStorage.getItem('app-theme') || 'dark';
+    });
+
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(prev => {
+            const newTheme = prev === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('app-theme', newTheme);
+            return newTheme;
+        });
+    };
 
     const navItems = [
         { id: 'clients', label: 'Clients', iconClass: 'fa-solid fa-desktop', to: '/clients' },
@@ -36,70 +53,112 @@ export default function App() {
         <>
             <style>{`
                 :root {
-                    --bg-dark: #000000;
-                    --bg-dark-2: #0c0c0c;
-                    --text-light: #ffffff;
-                    --text-muted: #d0d0d0;
-                    --border-dark: #222222;
+                    --bg-app: #000000;
+                    --text-app: #ffffff;
+                    --border-app: #222222;
                     --accent: #8b1a1a;
+                    --sidebar-bg: #000000;
+                    --sidebar-hover: #9f9b9bff;
+                    --sidebar-active-bg: #ffffff;
+                    --sidebar-active-text: #000000;
+                    --footer-text: #d0d0d0;
                 }
-                body {
-                    background: var(--bg-dark);
-                    color: var(--text-light);
+                
+                :root[data-theme="light"] {
+                    --bg-app: #ffffff;
+                    --text-app: #000000;
+                    --border-app: #dddddd;
+                    --sidebar-bg: #f8f9fb;
+                    --sidebar-hover: #e8eaed;
+                    --sidebar-active-bg: #e8eaed;
+                    --sidebar-active-text: #000000;
+                    --footer-text: #666666;
+                }
+
+                /* Globals overridden to enforce theme */
+                body, html {
+                    background: var(--bg-app) !important;
+                    color: var(--text-app) !important;
                 }
                 .dashboard {
-                    background: var(--bg-dark);
-                    color: var(--text-light);
+                    background: var(--bg-app);
+                    color: var(--text-app);
                 }
                 .sidebar {
-                    background: var(--bg-dark);
-                    color: var(--text-light);
-                    border-right: 1px solid var(--border-dark);
+                    background: var(--sidebar-bg);
+                    color: var(--text-app);
+                    border-right: 1px solid var(--border-app);
                 }
                 .brand .brand-logo img {
-                    filter: brightness(0) invert(1);
+                    filter: ${theme === 'dark' ? 'brightness(0) invert(1)' : 'none'};
                 }
                 .toggle-btn {
-                    color: var(--text-light);
+                    color: var(--text-app);
                     background: transparent;
                 }
                 .nav-menu .nav-item {
-                    color: var(--text-light);
+                    color: var(--text-app);
                     background: transparent;
                 }
                 .nav-menu .nav-item:hover {
-                    background: #9f9b9bff;
+                    background: var(--sidebar-hover);
                     border-radius: 3px;
                 }
                 .nav-menu .nav-item.active {
-                    background: #ffffff;
-                    color: #000000;
+                    background: var(--sidebar-active-bg);
+                    color: var(--sidebar-active-text);
                     border-radius: 3px;
                 }
                 .main-content {
-                    background: var(--bg-dark);
-                    color: var(--text-light);
+                    background: var(--bg-app);
+                    color: var(--text-app);
                     display: flex;
                     flex-direction: column;
                 }
+                /* Also ensure App-level resets or component backgrounds are synced */
+                .main {
+                    background-color: var(--bg-app) !important;
+                    background-image: none !important; /* overrides components.css background img */
+                }
                 .main-content .container {
                     background: transparent;
-                    color: black;
-                    // padding: 1.5rem; /* 24px / 16 */
+                    color: var(--text-app);
                     width: 100%;
                     max-width: var(--container-max);
                     margin: 0 auto;
                     flex: 1;
                 }
+                .header {
+                    background: var(--bg-app) !important;
+                    color: var(--text-app) !important;
+                    border-bottom: 1px solid var(--border-app);
+                }
+                .logo { color: var(--text-app) !important; }
+                .nav__link { color: var(--text-app) !important; }
+                .page-title, .page-subtitle { color: var(--text-app) !important; }
+                
                 .footer {
-                    background: var(--bg-dark);
-                    border-top: 1px solid var(--border-dark);
+                    background: var(--bg-app);
+                    border-top: 1px solid var(--border-app);
                 }
                 .footer__text {
-                    color: var(--text-muted);
+                    color: var(--footer-text);
                 }
+                
+                /* Component overrides */
+                .card {
+                    background: var(--bg-app) !important;
+                    color: var(--text-app) !important;
+                    border-color: var(--border-app) !important;
+                }
+                .data-table { color: var(--text-app) !important; }
+                .data-table th, .data-table td { border-color: var(--border-app) !important; }
+                .data-table tbody tr:hover { background: var(--sidebar-hover) !important; }
+                .data-table th { background: var(--sidebar-hover) !important; color: var(--text-app) !important; }
+                .expert-name { color: var(--text-app) !important; }
+                
             `}</style>
-            <div className="dashboard">
+            <div className="dashboard" data-theme={theme}>
             <aside className={cn('sidebar', collapsed && 'collapsed')}>
                 <div className="brand">
                     <h2 className="brand-logo">
@@ -152,7 +211,15 @@ export default function App() {
                     })}
                 </nav>
 
-                <div style={{ padding: 'var(--space-4)', marginTop: 'auto' }}>
+                <div style={{ padding: 'var(--space-4)', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <button
+                        type="button"
+                        className="nav-item"
+                        onClick={toggleTheme}
+                    >
+                        <i className={theme === 'dark' ? "fa-solid fa-sun" : "fa-solid fa-moon"} aria-hidden="true" />
+                        <span className="nav-text">{theme === 'dark' ? 'Light Theme' : 'Dark Theme'}</span>
+                    </button>
                     <button
                         type="button"
                         className="nav-item"

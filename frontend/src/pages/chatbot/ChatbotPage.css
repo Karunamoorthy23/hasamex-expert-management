@@ -28,6 +28,21 @@
   position: relative;
 }
 
+:root[data-theme="light"] .chatbot-page-wrapper {
+  --bg:        #f4f5f7;
+  --bg2:       #ffffff;
+  --bg3:       #eef2f6;
+  --bg4:       #e2e8f0;
+  --text:      #111827;
+  --text2:     #4b5563;
+  --text3:     #9ca3af;
+  --border:    rgba(0,0,0,.1);
+  --border2:   rgba(0,0,0,.15);
+  --accent:    #10b981;
+  --accent2:   #0284c7;
+  --user-bubble: #2563eb;
+}
+
 /* ── SCROLLBAR ── */
 .chatbot-page-wrapper ::-webkit-scrollbar { width: 4px; }
 .chatbot-page-wrapper ::-webkit-scrollbar-track { background: transparent; }
