@@ -1,34 +1,290 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchChatSessions, createChatSession, deleteChatSession as apiDeleteChatSession, fetchChatMessages, searchChatMessages, requestAgentReply } from '../../api/chat';
+import { fetchProjectFormLookups } from '../../api/projects';
 import './ChatbotPage.css';
 
-const RESPONSES = [
-  `That's an interesting question. Here's a clear breakdown:\n\nThe core idea revolves around understanding the underlying principles rather than memorizing surface-level facts. When you approach it this way, patterns emerge naturally.\n\nWould you like me to dive deeper into any specific aspect?`,
-  `Great — let me walk you through this step by step.\n\n**First**, we establish the foundation. Every complex system is built on simpler components that interact in predictable ways.\n\n**Second**, we look at how those components relate to each other and what emergent properties arise.\n\nFeel free to ask follow-up questions!`,
-  `Here's what I've got for you:\n\n• The primary consideration here is efficiency — doing the most with the least overhead.\n• Secondary factors include maintainability, readability, and scalability.\n• Finally, always consider the human element — who will use or maintain this?\n\nLet me know if you'd like examples or further elaboration.`,
-  `Absolutely! This is a nuanced topic worth unpacking carefully.\n\nThe short answer: it depends on context. The longer answer involves weighing trade-offs between competing priorities, which is where most of the complexity lives.\n\nI'd suggest starting with the simplest solution that works, then optimizing only where measurements show it's needed.`,
-  `Here's a practical take on this:\n\n\`\`\`python\ndef solve(input_data):\n    # Process the input\n    result = [item for item in input_data if item is not None]\n    return sorted(result, key=lambda x: x.get('priority', 0))\n\`\`\`\n\nThis pattern handles the most common cases cleanly. Adjust the lambda function based on your specific sorting criteria.`,
-];
+// ── Directive parser ──────────────────────────────────────────────────────────
+const DIRECTIVE_RE = /<!--\s*DIRECTIVE:(.*?)\s*-->/gs;
 
-function genId() {
-  return 'c' + Date.now() + Math.random().toString(36).slice(2, 7);
+function parseDirectives(text) {
+  const directives = [];
+  let clean = text;
+  let m;
+  DIRECTIVE_RE.lastIndex = 0;
+  while ((m = DIRECTIVE_RE.exec(text)) !== null) {
+    try {
+      directives.push(JSON.parse(m[1]));
+    } catch {
+      // ignore malformed directive
+    }
+  }
+  clean = text.replace(DIRECTIVE_RE, '').trim();
+  return { clean, directives };
 }
 
+// ── Text formatter ────────────────────────────────────────────────────────────
 function escHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function formatContent(text) {
   let h = escHtml(text);
+  // Code blocks first (before other replacements)
   h = h.replace(/```(\w+)?\n?([\s\S]*?)```/g, (_, lang, code) => `<pre><code>${code.trim()}</code></pre>`);
   h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Headings
+  h = h.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+  h = h.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+  h = h.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+  // Bold / italic
   h = h.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  h = h.replace(/^• (.+)$/gm, '<li>$1</li>');
-  h = h.replace(/(<li>[\s\S]+?<\/li>)/g, '<ul>$1</ul>');
+  h = h.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  h = h.replace(/_([^_]+)_/g, '<em>$1</em>');
+  // Numbered lists
+  h = h.replace(/^(\d+)\. (.+)$/gm, '<li class="ol-item">$2</li>');
+  h = h.replace(/(<li class="ol-item">[\s\S]+?<\/li>(\n|$))+/g, m => `<ol>${m}</ol>`);
+  // Bullet lists
+  h = h.replace(/^[•\-\*] (.+)$/gm, '<li>$1</li>');
+  h = h.replace(/(<li>[^<][\s\S]*?<\/li>(\n|$))+/g, m => `<ul>${m}</ul>`);
+  // Pipe tables
+  h = h.replace(/^\|(.+)\|$/gm, row => {
+    const cells = row.split('|').slice(1, -1);
+    return '<tr>' + cells.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>';
+  });
+  h = h.replace(/^\|[-: |]+\|$/gm, ''); // remove separator rows
+  h = h.replace(/((<tr>.*<\/tr>\n?)+)/g, '<table>$1</table>');
+  // Horizontal rule
+  h = h.replace(/^---+$/gm, '<hr>');
+  // Newlines (after block elements to avoid double spacing)
   h = h.replace(/\n/g, '<br>');
   return { __html: h };
 }
 
+function genId() {
+  return 'c' + Date.now() + Math.random().toString(36).slice(2, 7);
+}
+
+// ── Analysis Block (standalone component to avoid hooks-in-condition) ─────────
+function AnalysisBlock({ directive }) {
+  const [open, setOpen] = useState(false);
+  const { title: blockTitle = '\uD83D\uDCCA SAM Analysis', content = '' } = directive;
+  return (
+    <div className="directive-analysis-block">
+      <button className="analysis-toggle" onClick={() => setOpen(o => !o)}>
+        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{flexShrink:0}}>
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span style={{flex:1, textAlign:'left'}}>{blockTitle}</span>
+        <span className="analysis-toggle-icon">{open ? '\u25B2' : '\u25BC'}</span>
+      </button>
+      {open && (
+        <div
+          className="analysis-content"
+          dangerouslySetInnerHTML={formatContent(content)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Directive Widget ──────────────────────────────────────────────────────────
+function DirectiveWidget({ directive, onRespond, projectLookups }) {
+  const { type, field, label, options = [], multi = true, project_id } = directive;
+
+  const [selected, setSelected] = useState([]);
+  const [search, setSearch] = useState('');
+  const [confirmed, setConfirmed] = useState(false);
+
+  if (type === 'dropdown') {
+    const availableOptions = options.length > 0 ? options : (
+      projectLookups?.lookups?.hasamex_users?.map(u => u.name) || []
+    );
+
+    const filtered = availableOptions.filter(o =>
+      o.toLowerCase().includes(search.toLowerCase())
+    );
+
+    if (confirmed) {
+      return (
+        <div className="directive-confirmed">
+          ✅ <strong>{label}:</strong> {selected.join(', ') || '—'}
+        </div>
+      );
+    }
+
+    // ── Single-select mode (client / PoC) ────────────────────────────────
+    if (!multi) {
+      return (
+        <div className="directive-dropdown">
+          <div className="directive-label">{label}</div>
+          <input
+            type="text"
+            className="directive-search"
+            placeholder={`Search ${label.toLowerCase()}…`}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            autoFocus
+          />
+          <div className="directive-list">
+            {filtered.length === 0 ? (
+              <div className="directive-empty">No options found</div>
+            ) : (
+              filtered.map((opt, i) => (
+                <button
+                  key={`${field}-${i}-${opt}`}
+                  className={`directive-list-item ${selected[0] === opt ? 'selected' : ''}`}
+                  onClick={() => {
+                    setConfirmed(true);
+                    onRespond(opt);
+                  }}
+                >
+                  {opt}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Multi-select mode (analyst / manager) ─────────────────────────────
+    return (
+      <div className="directive-dropdown">
+        <div className="directive-label">{label}</div>
+        <input
+          type="text"
+          className="directive-search"
+          placeholder={`Search ${label.toLowerCase()}…`}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          autoFocus
+        />
+        <div className="directive-list">
+          {filtered.length === 0 ? (
+            <div className="directive-empty">No options found</div>
+          ) : (
+            filtered.map((opt, i) => {
+              const isChk = selected.includes(opt);
+              return (
+                <label
+                  key={`${field}-${i}-${opt}`}
+                  className={`directive-list-item directive-list-item--check ${isChk ? 'selected' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChk}
+                    onChange={() => {
+                      setSelected(prev =>
+                        isChk ? prev.filter(s => s !== opt) : [...prev, opt]
+                      );
+                    }}
+                  />
+                  <span>{opt}</span>
+                </label>
+              );
+            })
+          )}
+        </div>
+        <button
+          className="directive-confirm-btn"
+          disabled={selected.length === 0}
+          onClick={() => {
+            setConfirmed(true);
+            onRespond(selected.join(', '));
+          }}
+        >
+          Confirm Selection ({selected.length} selected)
+        </button>
+      </div>
+    );
+  }
+
+  if (type === 'approve_button') {
+    if (confirmed) {
+      return <div className="directive-confirmed">✅ Project submitted for creation…</div>;
+    }
+    return (
+      <div className="directive-approve">
+        <button
+          className="directive-approve-btn"
+          onClick={() => {
+            setConfirmed(true);
+            onRespond('__approve__');
+          }}
+        >
+          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Approve &amp; Create Project
+        </button>
+      </div>
+    );
+  }
+
+  if (type === 'project_link') {
+    return (
+      <div className="directive-project-link">
+        <a href={`/projects/${project_id}`} target="_blank" rel="noopener noreferrer" className="directive-link-btn">
+          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          View Project #{project_id}
+        </a>
+      </div>
+    );
+  }
+
+  // ── Analysis block (collapsible SAM output) ─────────────────────────────
+  if (type === 'analysis_block') {
+    return <AnalysisBlock directive={directive} />;
+  }
+
+  return null;
+}
+
+// ── Message Bubble ────────────────────────────────────────────────────────────
+function MessageBubble({ msg, onDirectiveRespond, projectLookups, showToast }) {
+  const { clean, directives } = parseDirectives(msg.content || '');
+
+  return (
+    <div className={`msg-row ${msg.role}`}>
+      {msg.role === 'ai' && (
+        <div className="ai-av">
+          <svg width="14" height="14" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+      )}
+      <div className="msg-wrap">
+        <div className="msg-bubble" dangerouslySetInnerHTML={formatContent(clean)} />
+
+        {/* Inline directive widgets */}
+        {msg.role === 'ai' && directives.map((d, i) => (
+          <DirectiveWidget
+            key={i}
+            directive={d}
+            onRespond={onDirectiveRespond}
+            projectLookups={projectLookups}
+          />
+        ))}
+
+        {msg.role === 'ai' && (
+          <div className="msg-actions">
+            <button className="ma-btn" onClick={() => { navigator.clipboard.writeText(msg.content); showToast('Copied to clipboard'); }}>
+              <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              Copy
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Main ChatbotPage ──────────────────────────────────────────────────────────
 export default function ChatbotPage() {
   const [chats, setChats] = useState({});
   const [activeChatId, setActiveChatId] = useState(null);
@@ -40,10 +296,18 @@ export default function ChatbotPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [searchMatchesSessions, setSearchMatchesSessions] = useState(null);
+  const [projectLookups, setProjectLookups] = useState(null);
 
   const chatAreaRef = useRef(null);
   const inputRef = useRef(null);
   const recognitionRef = useRef(null);
+
+  // Pre-load project lookups for dropdown directives
+  useEffect(() => {
+    fetchProjectFormLookups().then(data => {
+      setProjectLookups(data || {});
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -56,7 +320,7 @@ export default function ChatbotPage() {
             m[s.id] = { title: s.title, messages: [], created };
           });
           setChats(m);
-          setActiveChatId(sessions.sort((a,b)=> (Date.parse(b.created_at||0)) - (Date.parse(a.created_at||0)))[0].id);
+          setActiveChatId(sessions.sort((a, b) => (Date.parse(b.created_at || 0)) - (Date.parse(a.created_at || 0)))[0].id);
         } else {
           await createChat();
         }
@@ -86,10 +350,9 @@ export default function ChatbotPage() {
         setSearchMatchesSessions(null);
       }
     }, 300);
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
+    return () => { if (timer) clearTimeout(timer); };
   }, [searchFilter]);
+
   const scrollBottom = () => {
     if (chatAreaRef.current) {
       chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
@@ -112,10 +375,13 @@ export default function ChatbotPage() {
     setActiveChatId(id);
     if (!chats[id] || (chats[id].messages && chats[id].messages.length)) return;
     const msgs = await fetchChatMessages(id);
-    const mapped = msgs.map(m => {
-      const role = m.role === 'assistant' ? 'ai' : 'user';
-      return { role, content: m.content_text };
-    });
+    // Filter out system state messages from display
+    const mapped = msgs
+      .filter(m => m.role !== 'system')
+      .map(m => {
+        const role = m.role === 'assistant' ? 'ai' : 'user';
+        return { role, content: m.content_text };
+      });
     setChats(prev => ({
       ...prev,
       [id]: { ...prev[id], messages: mapped }
@@ -157,10 +423,9 @@ export default function ChatbotPage() {
 
     setChats(prev => {
       const chat = prev[chatId];
-      const newTitle = chat.title === 'New conversation' 
+      const newTitle = chat.title === 'New conversation'
         ? (trimmed.length > 36 ? trimmed.slice(0, 36) + '…' : trimmed)
         : chat.title;
-
       return {
         ...prev,
         [chatId]: {
@@ -172,10 +437,9 @@ export default function ChatbotPage() {
     });
 
     setInputValue('');
-    if (inputRef.current) {
-        inputRef.current.style.height = 'auto';
-    }
+    if (inputRef.current) inputRef.current.style.height = 'auto';
     setIsTyping(true);
+
     try {
       const aiMsg = await requestAgentReply(chatId, { content_text: trimmed });
       setIsTyping(false);
@@ -198,9 +462,12 @@ export default function ChatbotPage() {
     }
   };
 
-  const quickSend = (text) => {
-    sendMessage(text);
-  };
+  // Called when a directive widget produces a user response
+  const handleDirectiveRespond = useCallback((value) => {
+    sendMessage(value);
+  }, [activeChatId, chats]);
+
+  const quickSend = (text) => sendMessage(text);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -217,38 +484,29 @@ export default function ChatbotPage() {
 
   const handleMicClick = () => {
     const SpeechR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechR) {
-      showToast('Voice input requires Chrome or Edge');
-      return;
-    }
-
+    if (!SpeechR) { showToast('Voice input requires Chrome or Edge'); return; }
     if (isRecording) {
       if (recognitionRef.current) recognitionRef.current.stop();
       setIsRecording(false);
       return;
     }
-
     const recognition = new SpeechR();
     recognitionRef.current = recognition;
     recognition.lang = 'en-US';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
-
     recognition.onresult = e => {
       const t = e.results[0][0].transcript;
       setInputValue(prev => (prev + ' ' + t).trim());
     };
-    recognition.onend = recognition.onerror = () => {
-      setIsRecording(false);
-    };
-
+    recognition.onend = recognition.onerror = () => setIsRecording(false);
     recognition.start();
     setIsRecording(true);
   };
 
   const handleShare = () => {
     if (navigator.share) {
-      navigator.share({ title: 'ChatBot conversation', url: window.location.href }).catch(()=>{});
+      navigator.share({ title: 'ChatBot conversation', url: window.location.href }).catch(() => {});
     } else {
       navigator.clipboard.writeText(window.location.href);
       showToast('Link copied to clipboard');
@@ -286,8 +544,7 @@ export default function ChatbotPage() {
           <div className="sb-top">
             <button className="ib" onClick={toggleSidebar} title="Toggle sidebar">
               <svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-                <rect x="3" y="3" width="18" height="18" rx="2.5"/>
-                <line x1="9" y1="3" x2="9" y2="21"/>
+                <rect x="3" y="3" width="18" height="18" rx="2.5"/><line x1="9" y1="3" x2="9" y2="21"/>
               </svg>
             </button>
 
@@ -302,25 +559,24 @@ export default function ChatbotPage() {
 
             <button className="ib" onClick={toggleSearch} title="Search conversations">
               <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-                <circle cx="11" cy="11" r="8"/>
-                <path d="m21 21-4.35-4.35"/>
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
               </svg>
             </button>
           </div>
 
           {searchVisible && (
             <div id="hist-search-wrap" style={{ padding: '0 10px 8px' }}>
-              <input 
-                id="hist-search" 
+              <input
+                id="hist-search"
                 placeholder="Search chats…"
                 value={searchFilter}
                 onChange={e => setSearchFilter(e.target.value)}
                 autoFocus
                 style={{
-                  width: '100%', background: 'var(--bg3)', border: '1px solid var(--border2)', 
-                  borderRadius: '9px', padding: '7px 12px', color: 'var(--text)', 
+                  width: '100%', background: 'var(--bg3)', border: '1px solid var(--border2)',
+                  borderRadius: '9px', padding: '7px 12px', color: 'var(--text)',
                   fontFamily: 'var(--font)', fontSize: '13px', outline: 'none'
-                }} 
+                }}
               />
             </div>
           )}
@@ -353,7 +609,7 @@ export default function ChatbotPage() {
                     <div className="hist-group-label">Earlier</div>
                     {earlierIds.map(id => (
                       <div key={id} className={`hist-item ${id === activeChatId ? 'active' : ''}`} onClick={() => openChat(id)}>
-                         <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" style={{ flexShrink: 0, opacity: .55 }}>
+                        <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" style={{ flexShrink: 0, opacity: .55 }}>
                           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                         </svg>
                         <span>{chats[id].title}</span>
@@ -388,8 +644,7 @@ export default function ChatbotPage() {
         <div className="topbar">
           <button className="ib" onClick={toggleSidebar} title="Open sidebar" style={{ display: isSidebarCollapsed ? 'flex' : 'none' }}>
             <svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-              <rect x="3" y="3" width="18" height="18" rx="2.5"/>
-              <line x1="9" y1="3" x2="9" y2="21"/>
+              <rect x="3" y="3" width="18" height="18" rx="2.5"/><line x1="9" y1="3" x2="9" y2="21"/>
             </svg>
           </button>
 
@@ -405,8 +660,7 @@ export default function ChatbotPage() {
             <button className="share-btn" onClick={handleShare}>
               <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
                 <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
               </svg>
               Share
             </button>
@@ -437,18 +691,19 @@ export default function ChatbotPage() {
               <h1>How can I help?</h1>
               <p>Ask me anything, or pick a suggestion below.</p>
               <div className="suggestion-grid">
-                <div className="sug-card" onClick={() => quickSend('Create a new project in the app. Required fields: client_id, poc_user_id, received_date (YYYY-MM-DD), project_title, project_type, project_description, target_region, target_geographies[], target_functions_titles, target_functions[], current_former_both, compliance_question_1, project_deadline (YYYY-MM-DD). Also collect client_solution_owner_ids[] and sales_team_ids[]. Ask me for any missing fields and confirm before creating.')}>
+                {/* Create Project — triggers the agent workflow */}
+                <div className="sug-card" onClick={() => quickSend('create project')}>
                   <div className="sug-icon" style={{ background: 'rgba(25,195,125,.12)' }}>
                     <svg width="15" height="15" fill="none" stroke="#19c37d" strokeWidth="2" viewBox="0 0 24 24">
                       <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
                     </svg>
                   </div>
                   <div className="sug-title">Create Project</div>
-                  <div className="sug-sub">Provide required fields and create a project</div>
+                  <div className="sug-sub">Auto-extract from email & guided setup</div>
                 </div>
                 <div className="sug-card" onClick={() => quickSend('Help me find experts for a project. Filters: primary_sector=?, expert_function=?, region=?, years_of_experience>=?, availability window=?, and match to target companies if available. Show how to use the Experts page filters and relevant API endpoints.')}>
                   <div className="sug-icon" style={{ background: 'rgba(14,165,233,.12)' }}>
-                     <svg width="15" height="15" fill="none" stroke="#0ea5e9" strokeWidth="2" viewBox="0 0 24 24">
+                    <svg width="15" height="15" fill="none" stroke="#0ea5e9" strokeWidth="2" viewBox="0 0 24 24">
                       <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
                     </svg>
                   </div>
@@ -456,7 +711,7 @@ export default function ChatbotPage() {
                   <div className="sug-sub">Guide filters for project needs</div>
                 </div>
                 <div className="sug-card" onClick={() => quickSend('Show engagement summary by status for a project or client (leads, invited, accepted, declined, scheduled, completed, goal, progress%). Also explain how to update an engagement (method, currencies, notes, payment status).')}>
-                   <div className="sug-icon" style={{ background: 'rgba(168,85,247,.12)' }}>
+                  <div className="sug-icon" style={{ background: 'rgba(168,85,247,.12)' }}>
                     <svg width="15" height="15" fill="none" stroke="#a855f7" strokeWidth="2" viewBox="0 0 24 24">
                       <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
                     </svg>
@@ -467,7 +722,7 @@ export default function ChatbotPage() {
                 <div className="sug-card" onClick={() => quickSend('Find client users by client name, seniority, and location; show how to edit user details and assign client solution/sales team.')}>
                   <div className="sug-icon" style={{ background: 'rgba(245,158,11,.12)' }}>
                     <svg width="15" height="15" fill="none" stroke="#f59e0b" strokeWidth="2" viewBox="0 0 24 24">
-                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                     </svg>
                   </div>
                   <div className="sug-title">Users Queries</div>
@@ -478,49 +733,15 @@ export default function ChatbotPage() {
           ) : (
             <div id="messages" className="visible">
               {activeChat && activeChat.messages.map((m, i) => (
-                <div key={i} className={`msg-row ${m.role}`}>
-                  {m.role === 'ai' && (
-                    <div className="ai-av">
-                      <svg width="14" height="14" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                      </svg>
-                    </div>
-                  )}
-                  <div className="msg-wrap">
-                    <div className="msg-bubble" dangerouslySetInnerHTML={formatContent(m.content)} />
-                    {m.role === 'ai' && (
-                      <div className="msg-actions">
-                        <button className="ma-btn" onClick={() => { navigator.clipboard.writeText(m.content); showToast('Copied to clipboard'); }}>
-                          <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-                            <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                          </svg>
-                          Copy
-                        </button>
-                        <button className="ma-btn" title="Thumbs up">
-                          <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-                            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
-                            <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
-                          </svg>
-                        </button>
-                        <button className="ma-btn" title="Thumbs down">
-                          <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-                            <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/>
-                            <path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/>
-                          </svg>
-                        </button>
-                        <button className="ma-btn" title="Regenerate">
-                          <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-                            <polyline points="1 4 1 10 7 10"/>
-                            <path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
-                          </svg>
-                          Retry
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <MessageBubble
+                  key={i}
+                  msg={m}
+                  onDirectiveRespond={handleDirectiveRespond}
+                  projectLookups={projectLookups}
+                  showToast={showToast}
+                />
               ))}
-              
+
               {isTyping && (
                 <div id="typing" className="typing-row">
                   <div className="ai-av">
@@ -538,10 +759,10 @@ export default function ChatbotPage() {
         {/* input area */}
         <div id="input-area" className={isNewChat ? "new-chat-mode" : ""}>
           <div className="input-wrapper">
-            <textarea 
-              id="msg-input" 
+            <textarea
+              id="msg-input"
               ref={inputRef}
-              rows="1" 
+              rows="1"
               placeholder="Message ChatBot…"
               value={inputValue}
               onChange={handleInputChange}
@@ -556,8 +777,7 @@ export default function ChatbotPage() {
               </button>
               <button className="itool-label" title="Search web">
                 <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="2" y1="12" x2="22" y2="12"/>
+                  <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
                   <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                 </svg>
                 Search
@@ -565,14 +785,12 @@ export default function ChatbotPage() {
               <button className={`itool ${isRecording ? 'recording' : ''}`} onClick={handleMicClick} title="Voice input">
                 <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
                   <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                  <line x1="12" y1="19" x2="12" y2="22"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
                 </svg>
               </button>
               <button id="send-btn" onClick={() => sendMessage()} className={inputValue.trim() ? 'ready' : ''} title="Send">
                 <svg width="15" height="15" fill="none" stroke={inputValue.trim() ? '#111' : '#555'} strokeWidth="2" viewBox="0 0 24 24">
-                  <line x1="22" y1="2" x2="11" y2="13"/>
-                  <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                  <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
                 </svg>
               </button>
             </div>

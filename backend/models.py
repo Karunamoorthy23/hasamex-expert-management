@@ -1023,7 +1023,7 @@ class ChatMessage(db.Model):
     content_text = db.Column(db.Text, nullable=False)
     content_json = db.Column(JSONB)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    session = db.relationship('ChatSession', backref='messages')
+    session = db.relationship('ChatSession', backref=db.backref('messages', cascade='all, delete-orphan'))
 
     def to_dict(self):
         return {

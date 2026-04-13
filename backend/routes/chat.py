@@ -81,6 +81,8 @@ def delete_session(sid):
     session = ChatSession.query.filter_by(id=sid, owner_id=user_id).first()
     if not session:
         return jsonify({'error': 'Not Found'}), 404
+    # Explicitly delete messages first to handle missing DB-level cascade
+    ChatMessage.query.filter_by(session_id=sid).delete()
     db.session.delete(session)
     db.session.commit()
     return jsonify({'data': True}), 200
@@ -168,8 +170,50 @@ def search_messages():
     return jsonify({'data': data}), 200
 
 
+# ── Project-agent state helpers ───────────────────────────────────────────────
+
+def _get_project_state(session_id: str, user_id: int) -> dict:
+    """Load project agent state from the sentinel system message's content_json."""
+    sentinel = (
+        ChatMessage.query
+        .filter_by(session_id=session_id, owner_id=user_id, role='system')
+        .order_by(ChatMessage.created_at.asc())
+        .first()
+    )
+    if sentinel and isinstance(sentinel.content_json, dict):
+        return sentinel.content_json
+    return {}
+
+
+def _save_project_state(session_id: str, user_id: int, state: dict):
+    """Persist project agent state into the sentinel system message."""
+    sentinel = (
+        ChatMessage.query
+        .filter_by(session_id=session_id, owner_id=user_id, role='system')
+        .order_by(ChatMessage.created_at.asc())
+        .first()
+    )
+    if sentinel:
+        sentinel.content_json = state
+        sentinel.content_text = '__project_state__'
+    else:
+        sentinel = ChatMessage(
+            session_id=session_id,
+            owner_id=user_id,
+            role='system',
+            content_text='__project_state__',
+            content_json=state,
+            created_at=datetime.utcnow(),
+        )
+        db.session.add(sentinel)
+
+
+# ── Main agent reply endpoint ─────────────────────────────────────────────────
+
 @chat_bp.route('/sessions/<string:sid>/agent', methods=['POST'])
 def agent_reply(sid):
+    from agents import ProjectAgent
+
     user_id = _current_user_id()
     if not user_id:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -180,8 +224,18 @@ def agent_reply(sid):
     content_text = str(payload.get('content_text') or '').strip()
     if not content_text:
         return jsonify({'error': 'content_text required'}), 400
+
     now = datetime.utcnow()
-    user_msg = ChatMessage(session_id=session.id, owner_id=user_id, role='user', content_text=content_text, content_json=None, created_at=now)
+
+    # Save the user message
+    user_msg = ChatMessage(
+        session_id=session.id,
+        owner_id=user_id,
+        role='user',
+        content_text=content_text,
+        content_json=None,
+        created_at=now,
+    )
     db.session.add(user_msg)
     session.message_count = (session.message_count or 0) + 1
     session.last_message_at = now
@@ -191,22 +245,50 @@ def agent_reply(sid):
         if len(t) > 36:
             t = t[:36] + '…'
         session.title = t
-    msgs = ChatMessage.query.filter_by(session_id=sid, owner_id=user_id).order_by(ChatMessage.created_at.asc()).limit(20).all()
-    lines = []
-    for m in msgs:
-        role = m.role
-        txt = m.content_text or ''
-        lines.append(f"{role}: {txt}")
-    ctx = "\n".join(lines[-20:])
-    agent = BasicQueryAgent()
-    reply_text = agent.answer(content_text, context=ctx) or ""
-    if not reply_text:
-        reply_text = "Sorry, I could not generate a reply."
+
+    # ── Route: Project Agent vs Basic Agent ───────────────────────────────
+    project_state = _get_project_state(sid, user_id)
+    project_mode = project_state.get('project_mode')
+
+    is_active_project = project_mode not in (None, 'done')
+    is_project_intent = ProjectAgent.is_project_intent(content_text)
+
+    if is_active_project or is_project_intent:
+        p_agent = ProjectAgent()
+        reply_text, new_state = p_agent.handle(project_state, content_text, db)
+        _save_project_state(sid, user_id, new_state)
+        if not reply_text:
+            reply_text = "Something went wrong. Please try again."
+    else:
+        # BasicQueryAgent with conversation context (user + assistant messages only)
+        msgs = (
+            ChatMessage.query
+            .filter_by(session_id=sid, owner_id=user_id)
+            .filter(ChatMessage.role.in_(['user', 'assistant']))
+            .order_by(ChatMessage.created_at.asc())
+            .limit(20)
+            .all()
+        )
+        lines = [f"{m.role}: {m.content_text or ''}" for m in msgs]
+        ctx = "\n".join(lines[-20:])
+        basic_agent = BasicQueryAgent()
+        reply_text = basic_agent.answer(content_text, context=ctx) or ""
+        if not reply_text:
+            reply_text = "Sorry, I could not generate a reply."
+
     ai_now = datetime.utcnow()
-    ai_msg = ChatMessage(session_id=session.id, owner_id=user_id, role='assistant', content_text=reply_text, content_json=None, created_at=ai_now)
+    ai_msg = ChatMessage(
+        session_id=session.id,
+        owner_id=user_id,
+        role='assistant',
+        content_text=reply_text,
+        content_json=None,
+        created_at=ai_now,
+    )
     db.session.add(ai_msg)
     session.message_count = (session.message_count or 0) + 1
     session.last_message_at = ai_now
     session.updated_at = ai_now
     db.session.commit()
+
     return jsonify({'data': ai_msg.to_dict()}), 201

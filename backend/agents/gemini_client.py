@@ -1,6 +1,6 @@
 import requests
 
-def generate(api_key: str, model: str, system_prompt: str, user_text: str, temperature: float = 0.7, top_p: float = 0.95, max_output_tokens: int = 2048) -> str:
+def generate(api_key: str, model: str, system_prompt: str, user_text: str, temperature: float = 0.7, top_p: float = 0.95, max_output_tokens: int = 4096) -> str:
     if not api_key or not model or not user_text:
         print("GEMINI_GENERATE_MISSING_INPUT")
         return ""
@@ -18,7 +18,7 @@ def generate(api_key: str, model: str, system_prompt: str, user_text: str, tempe
     if system_prompt:
         payload["systemInstruction"] = {"parts": [{"text": system_prompt}]}
     try:
-        r = requests.post(url, json=payload, timeout=30)
+        r = requests.post(url, json=payload, timeout=60)
         if r.status_code != 200:
             try:
                 j = r.json()
@@ -45,7 +45,7 @@ def generate(api_key: str, model: str, system_prompt: str, user_text: str, tempe
             if isinstance(t, str):
                 texts.append(t)
         return "\n".join(texts).strip()
-    except Exception:
+    except Exception as e:
         print(f"GEMINI_EXCEPTION {e}")
         return ""
 
