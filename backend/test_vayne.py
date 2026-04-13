@@ -28,12 +28,7 @@ def enrich_expert_with_contactout(linkedin_url):
 
     try:
         if "Placeholder" in CONTACTOUT_API_KEY:
-            print("[CONTACTOUT] [MOCK] Using Placeholder Key. Simulating success...")
-            return {
-                "email": "contactout.enriched@professional.com",
-                "phone": "+1-202-555-0199",
-                "status": "success"
-            }
+            print("[CONTACTOUT] [WARNING] Using Placeholder Key. This will likely fail.")
 
         response = requests.get(CONTACTOUT_URL, params=params, headers=headers, timeout=30)
         

@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>N8N Automation based Expert Management System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reset.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/dracula.min.css">
+
+    <style>
+        .reveal h1, .reveal h2 { text-transform: none; }
+        .mermaid { display: flex; justify-content: center; background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; }
+        .highlight { color: #8be9fd; font-weight: bold; }
+        small { font-size: 0.5em !important; opacity: 0.7; }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <section data-background-gradient="linear-gradient(to bottom, #282a36, #44475a)">
+                <h1>N8N Automation based <br><span style="color:#bd93f9">Expert Management System</span></h1>
+                <p>End-to-End Workflow & Integration Guide</p>
+                <p><small>Press Space or Arrow Keys to Navigate</small></p>
+            </section>
+
+            <section>
+                <h2>System Overview</h2>
+                <ul>
+                    <li class="fragment"><strong>Trigger:</strong> New Project creation fires an <span class="highlight">n8n Webhook</span>.</li>
+                    <li class="fragment"><strong>Orchestration:</strong> n8n manages data flow between App and <span class="highlight">Apify</span>.</li>
+                    <li class="fragment"><strong>Outreach:</strong> Automated invitations to lead experts via <span class="highlight">Brevo/Resend</span>.</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>High-Level Architecture</h3>
+                <div class="mermaid">
+                    graph LR
+                        A[Frontend/CMS] -->|1. Create Project| B[Backend API]
+                        B -->|2. Webhook| C{n8n Orchestrator}
+                        C -->|3. Search Request| B
+                        B -->|4. Actor Call| D[Apify LinkedIn]
+                        D -->|5. Profiles| B
+                        B -->|6. Store & Rank| E[(Database)]
+                        C -->|7. Trigger Emails| B
+                        B -->|8. SMTP| F[Experts]
+                </div>
+            </section>
+
+            <section>
+                <h2>Authentication</h2>
+                <p>Securing the n8n ↔ App Handshake</p>
+                <pre><code class="language-bash"># Protected by N8N_SERVICE_TOKEN
+Header: Authorization: Bearer <token>
+Query:  ?token=<token></code></pre>
+                <div style="font-size: 0.8em; text-align: left; padding: 20px; background: #44475a;">
+                    * Validates requests to <code>/api/v1/n8n/search-experts</code><br>
+                    * Validates requests to <code>/api/v1/n8n/send-emails</code>
+                </div>
+            </section>
+
+            <section>
+                <h3>Filter-First Search Process</h3>
+                <div class="mermaid">
+                    sequenceDiagram
+                        participant App
+                        participant n8n
+                        participant Apify
+                        n8n->>App: POST /search-experts
+                        App->>Apify: Execute LinkedIn Actor
+                        Note right of Apify: Uses Structured Filters
+                        Apify-->>App: Raw Profile Data
+                        App->>App: Calculate YoE & Relevance
+                        App->>Database: Upsert & Rank Top 15
+                        App-->>n8n: 200 OK (Success)
+                </div>
+            </section>
+
+            <section>
+                <h3>Intelligent Ranking</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div style="background: #44475a; padding: 15px; border-radius: 10px;">
+                        <h4>Relevance</h4>
+                        <p><small>Title/Description vs. Profile Bio & Headline matching.</small></p>
+                    </div>
+                    <div style="background: #44475a; padding: 15px; border-radius: 10px;">
+                        <h4>Experience</h4>
+                        <p><small>Total years calculated via <code>_calculate_total_experience</code> merging.</small></p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h3>Automated Lead Outreach</h3>
+                <ol>
+                    <li>App loads <code>leads_expert_ids</code>.</li>
+                    <li>Status updates from <span class="highlight">leads → invited</span>.</li>
+                    <li>Background thread spawns <code>_bg_send_project_invites</code>.</li>
+                    <li>Expert receives CTA link with unique <code>expert_code</code>.</li>
+                </ol>
+            </section>
+
+            <section>
+                <h3>Configuration Checklist</h3>
+                <table style="font-size: 0.6em;">
+                    <thead>
+                        <tr>
+                            <th>Key</th>
+                            <th>Purpose</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>N8N_WEBHOOK_URL</td><td>Notify n8n of new projects</td></tr>
+                        <tr><td>N8N_SERVICE_TOKEN</td><td>Security token for callbacks</td></tr>
+                        <tr><td>APIFY_API_TOKEN</td><td>Access LinkedIn Scraper</td></tr>
+                        <tr><td>BREVO_API_KEY</td><td>Transactional Email Delivery</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section>
+                <h3>Troubleshooting</h3>
+                <ul>
+                    <li><span style="color:#ff5555">401 Unauthorized:</span> Verify <code>N8N_SERVICE_TOKEN</code> match.</li>
+                    <li><span style="color:#ffb86c">Mock Results:</span> Check Apify limits; system defaults to mock for demo.</li>
+                    <li><span style="color:#50fa7b">Email Issues:</span> Check <code>EMAIL_PROVIDER</code> in <code>flask.env</code>.</li>
+                </ul>
+            </section>
+
+            <section data-background="#6272a4">
+                <h2>Ready for Automation</h2>
+                <p>The system is optimized for high-fidelity expert sourcing with minimal manual intervention.</p>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        // Initialize Reveal.js
+        Reveal.initialize({
+            hash: true,
+            slideNumber: 'c/t',
+            transition: 'slide'
+        });
+
+        // Initialize Mermaid
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            securityLevel: 'loose',
+        });
+    </script>
+</body>
+</html>

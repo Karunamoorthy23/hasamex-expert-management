@@ -3,16 +3,16 @@ import json
 
 data = {
     "project_id": 1,
-    "project_title": "Artificial Intelligence",
+    "project_title": "Pharmaceutical Supply Chain",
     "target_companies": [
-        "Infosys",
-        "Accenture"
+        "Bayer Consumer Health",
+        "Orifarm"
     ],
     "target_functions": [
-        "Senior Engineer",
-        "Director"
+        "Supply Chain Management (titles like Procurement Manager)",
+        "Senior Strategic Softgel Procurement Director"
     ],
-    "target_functions_titles": "We are looking to connect with current or former senior professionals from Google who have hands-on experience in Artificial Intelligence."
+    "target_functions_titles": "We need people from Bayer Consumer Health who focus on Strategic Sourcing and Procurement."
 }
 
 print("\n" + "="*50)

@@ -315,22 +315,65 @@ def update_expert_fields(expert, data):
             ExpertExperience.query.filter_by(expert_id=expert.id).delete()
         raw_hist = data.get('employment_history')
         if raw_hist and isinstance(raw_hist, str):
-            lines = raw_hist.replace(';', '\n').split('\n')
-            for line in lines:
-                line = line.strip()
-                if not line: continue
-                year_match = re.search(r'\((.*?)\)', line)
-                start_year, end_year = None, None
-                if year_match:
-                    years_str = year_match.group(1).replace('–', '-').replace('—', '-')
-                    years = years_str.split('-')
-                    start_year = years[0][:4] if len(years) > 0 and years[0][:4].isdigit() else None
-                    end_year = years[1][:4] if len(years) > 1 and years[1][:4].isdigit() else None
-                job_info = re.sub(r'\s*\(.*?\)\s*', '', line).strip()
-                job_parts = job_info.split(',', 1)
-                role = job_parts[0].strip() if len(job_parts) > 0 else "Unknown Role"
-                company = job_parts[1].strip() if len(job_parts) > 1 else "Unknown Company"
-                db.session.add(ExpertExperience(expert_id=expert.id, company_name=company, role_title=role, start_year=start_year, end_year=end_year))
+            # --- INTELLIGENT EXPERIENCES EXTRACTION VIA LLM ---
+            import os
+            from agents.gemini_client import generate
+            import json
+            import re
+            
+            api_key = os.getenv('GEMINI_API_KEY')
+            if api_key and len(raw_hist) > 10:
+                system_prompt = (
+                    "Extract an array of JSON objects containing 'position' (string), "
+                    "'companyName' (string), 'startDate' (string) and 'endDate' (string). "
+                    "Parse the LinkedIn text perfectly. Group multiple positions belonging to the same company. "
+                    "If no endDate, assume 'Present'. Dates should be formatted like 'Oct 2023'. "
+                    "Return ONLY a raw JSON array of objects, no markdown block formatting, no explanation."
+                )
+                try:
+                    res = generate(api_key, 'gemini-2.0-flash', system_prompt, f"Parse this:\n{raw_hist}")
+                    # Clean the JSON safely:
+                    res = res.strip()
+                    if res.startswith("```json"):
+                        res = res[7:]
+                    if res.startswith("```"):
+                        res = res[3:]
+                    if res.endswith("```"):
+                        res = res[:-3]
+                    
+                    parsed_jobs = json.loads(res.strip())
+                    for job in parsed_jobs:
+                        comp = (job.get('companyName') or 'Unknown Company').strip()[:255]
+                        role = (job.get('position') or 'Professional').strip()[:255]
+                        
+                        s_year = str(job.get('startDate') or '')
+                        e_year = str(job.get('endDate') or '')
+                        
+                        sy = re.search(r'\b(19|20)\d{2}\b', s_year)
+                        ey = re.search(r'\b(19|20)\d{2}\b', e_year)
+                        
+                        sy_val = int(sy.group()) if sy else None
+                        ey_val = int(ey.group()) if ey else None
+                        if e_year.lower() == 'present' or 'present' in e_year.lower():
+                            ey_val = None
+                            
+                        db.session.add(ExpertExperience(
+                            expert_id=expert.id, 
+                            company_name=comp, 
+                            role_title=role, 
+                            start_year=sy_val, 
+                            end_year=ey_val
+                        ))
+                except Exception as e:
+                    print(f"Fallback UI Parser error: {e}")
+            else:
+                # Fallback purely to random raw comma string parser ...
+                lines = raw_hist.replace(';', '\n').split('\n')
+                for line in lines:
+                    line = line.strip()
+                    if not line or len(line) < 3: continue
+                    role = line[:255]
+                    db.session.add(ExpertExperience(expert_id=expert.id, company_name="LinkedIn", role_title=role))
                 
     return handle_nested
 
