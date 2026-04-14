@@ -113,6 +113,7 @@ export default function UserDetails() {
   .proj-list { list-style: none; margin-bottom: 8px; display: flex; flex-direction: column; gap: 3px; }
   .proj-list li { display: flex; align-items: flex-start; gap: 7px; font-size: 0.83rem; color: #333333; }
   .proj-list li::before { content: '•'; color: #555555; flex-shrink: 0; font-size: 1rem; }
+  .form-label { color: #000 !important; }
   @media (max-width: 700px) { .body-split { grid-template-columns: 1fr; } }
             `}</style>
             <div className="page">
@@ -210,14 +211,14 @@ export default function UserDetails() {
                         {Array.isArray(user.notes) && user.notes.length > 0 ? (
                             <div className="notes-display" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                 {user.notes.map((note, i) => (
-                                    <div key={i} style={{ padding: '10px', background: '#f9f9f9', borderRadius: '4px', borderLeft: '3px solid #1a5ca8' }}>
+                                    <div key={i} style={{ padding: '10px', background: 'var(--table-bg, #f9f9f9)', borderRadius: '4px', borderLeft: '3px solid #1a5ca8', border: '1px solid var(--border-app, transparent)', borderLeftWidth: '3px', borderLeftColor: '#1a5ca8' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                            <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{note.title || 'Untitled Note'}</span>
-                                            <span style={{ fontSize: '0.75rem', color: '#666', whiteSpace: 'nowrap' }}>
+                                            <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-app, #111)' }}>{note.title || 'Untitled Note'}</span>
+                                            <span style={{ fontSize: '0.75rem', color: 'var(--text-app)', opacity: 0.7, whiteSpace: 'nowrap' }}>
                                                 {note.date || 'No date'} {note.type ? `• ${note.type}` : ''}
                                             </span>
                                         </div>
-                                        <div style={{ fontSize: '0.84rem', color: '#333', whiteSpace: 'pre-wrap' }}>{note.description || '—'}</div>
+                                        <div style={{ fontSize: '0.84rem', color: 'var(--text-app, #333)', whiteSpace: 'pre-wrap' }}>{note.description || '—'}</div>
                                     </div>
                                 ))}
                             </div>

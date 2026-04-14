@@ -76,9 +76,9 @@ export default function LeadCandidatesPage() {
                         <p className="empty-state__text">Try adjusting your search</p>
                     </div>
                 ) : view === 'table' ? (
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <table className="data-table">
                         <thead>
-                            <tr style={{ background: '#f3f3f3' }}>
+                            <tr>
                                 <th style={th}>First Name</th>
                                 <th style={th}>Last Name</th>
                                 <th style={th}>City</th>
@@ -93,7 +93,7 @@ export default function LeadCandidatesPage() {
                         </thead>
                         <tbody>
                             {rows.map((r) => (
-                                <tr key={r.id} style={{ borderTop: '1px solid #eee' }}>
+                                <tr key={r.id} style={{ borderTop: '1px solid var(--border-app)' }}>
                                     <td style={td}>{r.first_name}</td>
                                     <td style={td}>{r.last_name}</td>
                                     <td style={td}>{r.city}</td>

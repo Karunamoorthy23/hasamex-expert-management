@@ -55,13 +55,17 @@ export default function App() {
                 :root {
                     --bg-app: #000000;
                     --text-app: #ffffff;
-                    --border-app: #222222;
+                    --border-app: #3a3a3a;
                     --accent: #8b1a1a;
                     --sidebar-bg: #000000;
-                    --sidebar-hover: #9f9b9bff;
+                    --sidebar-hover: #1e1e1e;
                     --sidebar-active-bg: #ffffff;
                     --sidebar-active-text: #000000;
                     --footer-text: #d0d0d0;
+                    --table-bg: #0c0c0c;
+                    --table-th-bg: #111111;
+                    --table-hover: #1a1a1a;
+                    --filter-panel-bg: #0c0c0c;
                 }
                 
                 :root[data-theme="light"] {
@@ -73,6 +77,10 @@ export default function App() {
                     --sidebar-active-bg: #e8eaed;
                     --sidebar-active-text: #000000;
                     --footer-text: #666666;
+                    --table-bg: #ffffff;
+                    --table-th-bg: #f5f5f5;
+                    --table-hover: #f9fafb;
+                    --filter-panel-bg: #fafafa;
                 }
 
                 /* Globals overridden to enforce theme */
@@ -147,15 +155,136 @@ export default function App() {
                 
                 /* Component overrides */
                 .card {
-                    background: var(--bg-app) !important;
+                    background: var(--table-bg) !important;
                     color: var(--text-app) !important;
                     border-color: var(--border-app) !important;
                 }
-                .data-table { color: var(--text-app) !important; }
-                .data-table th, .data-table td { border-color: var(--border-app) !important; }
-                .data-table tbody tr:hover { background: var(--sidebar-hover) !important; }
-                .data-table th { background: var(--sidebar-hover) !important; color: var(--text-app) !important; }
+                .data-table { 
+                    color: var(--text-app) !important; 
+                    background: var(--table-bg) !important; 
+                }
+                .data-table th, .data-table td { 
+                    border-color: var(--border-app) !important; 
+                    background: transparent !important;
+                }
+                .data-table tbody tr {
+                    background: var(--table-bg) !important;
+                }
+                .data-table tbody tr:hover, .data-table tbody tr:hover td { 
+                    background: var(--table-hover) !important; 
+                }
+                .data-table th { 
+                    background: var(--table-th-bg) !important; 
+                    color: var(--text-app) !important; 
+                }
                 .expert-name { color: var(--text-app) !important; }
+
+                /* Filter and Actions bar overrides */
+                .action-bar, .bulk-bar, .view-toggle-row {
+                    background: var(--table-bg) !important;
+                    border-color: var(--border-app) !important;
+                }
+                .filters-panel {
+                    background: var(--filter-panel-bg) !important;
+                    border-color: var(--border-app) !important;
+                }
+                .fd__trigger, .filter-input, .ms__search, .ms__list {
+                    background: var(--table-bg) !important;
+                    color: var(--text-app) !important;
+                    border-color: var(--border-app) !important;
+                }
+                .ms__item:hover {
+                    background: var(--table-hover) !important;
+                }
+                .ms__value, .filters-panel__title, .filters-panel__subtitle, .fd__label {
+                    color: var(--text-app) !important;
+                }
+                .filters-panel__close {
+                    background: var(--table-bg) !important;
+                    color: var(--text-app) !important;
+                    border-color: var(--border-app) !important;
+                }
+                .filters-panel__close:hover {
+                    background: var(--table-hover) !important;
+                }
+                .fd__popover {
+                    background: var(--table-bg) !important;
+                    color: var(--text-app) !important;
+                    border-color: var(--border-app) !important;
+                }
+                .pagination {
+                    background: var(--table-bg) !important;
+                    border-color: var(--border-app) !important;
+                }
+                .pagination__btn {
+                    background: var(--table-th-bg) !important;
+                    color: var(--text-app) !important;
+                    border-color: var(--border-app) !important;
+                }
+                .pagination__btn:hover:not(:disabled) {
+                    background: var(--table-hover) !important;
+                }
+                .pagination__info {
+                    color: var(--text-app) !important;
+                }
+                
+                /* Form Overrides for Create/Edit Pages */
+                .form-section {
+                    border-bottom-color: var(--border-app) !important;
+                }
+                .form-section__title {
+                    color: var(--text-app) !important;
+                }
+                .form-section__title::before {
+                    background: var(--text-app) !important;
+                }
+                .form-label {
+                    color: var(--text-app) !important;
+                }
+                .form-input, .form-select, .form-textarea {
+                    background: var(--table-bg) !important;
+                    color: var(--text-app) !important;
+                    border-color: var(--border-app) !important;
+                }
+                .form-input:focus, .form-select:focus, .form-textarea:focus {
+                    border-color: #3b82f6 !important; /* soft blue for focus ring */
+                }
+                
+                /* Timezone Select Overrides */
+                .tz-select__trigger, .tz-select__search, .tz-select__dropdown, .tz-select__list {
+                    background: var(--table-bg) !important;
+                    color: var(--text-app) !important;
+                    border-color: var(--border-app) !important;
+                }
+                .tz-select__item:hover {
+                    background: var(--table-hover) !important;
+                }
+                .tz-select__value, .tz-select__placeholder, .tz-select__group-label, .tz-select__item-label {
+                    color: var(--text-app) !important;
+                }
+                
+                /* File Upload Overrides */
+                .file-upload-wrapper, .file-preview, .file-upload-label {
+                    background: var(--table-bg) !important;
+                    color: var(--text-app) !important;
+                    border-color: var(--border-app) !important;
+                }
+
+                /* Employment History Builder Overrides */
+                .eh-card {
+                    background: var(--table-bg) !important;
+                    border: 1px solid var(--border-app) !important;
+                }
+                .eh-card-header {
+                    border-bottom: 1px solid var(--border-app) !important;
+                }
+                .eh-card-title {
+                    color: var(--text-app) !important;
+                }
+                .empty-state__text {
+                    color: var(--text-app) !important;
+                    border-color: var(--border-app) !important;
+                }
                 
             `}</style>
             <div className="dashboard" data-theme={theme}>
