@@ -1,4 +1,4 @@
-import { SearchIcon, FilterIcon, PlusIcon, UploadIcon, DownloadIcon, XIcon, ChevronDownIcon } from '../icons/Icons';
+import { SearchIcon, FilterIcon, PlusIcon, UploadIcon, DownloadIcon, XIcon, ChevronDownIcon, TableIcon, CardsIcon } from '../icons/Icons';
 import Button from '../ui/Button';
 
 /**
@@ -24,6 +24,8 @@ export default function ExpertsActionBar({
     onAdd,
     onImport,
     onExport,
+    view,
+    onViewChange,
 }) {
     return (
         <div className="action-bar">
@@ -67,6 +69,24 @@ export default function ExpertsActionBar({
                     )}
                     <ChevronDownIcon className="chev" />
                 </button>
+                <div className="view-toggle">
+                    <button
+                        type="button"
+                        className={`view-btn ${view === 'table' ? 'active' : ''}`}
+                        title="Table view"
+                        onClick={() => onViewChange('table')}
+                    >
+                        <TableIcon />
+                    </button>
+                    <button
+                        type="button"
+                        className={`view-btn ${view === 'cards' ? 'active' : ''}`}
+                        title="Card view"
+                        onClick={() => onViewChange('cards')}
+                    >
+                        <CardsIcon />
+                    </button>
+                </div>
             </div>
 
             {/* Divider */}

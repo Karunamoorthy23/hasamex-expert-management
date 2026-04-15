@@ -239,6 +239,24 @@ export function UsersIcon({ className = '', width = 16, height = 16 }) {
     );
 }
 
+export function ClockIcon({ className = '', width = 16, height = 16 }) {
+    return (
+        <svg className={className} width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+        </svg>
+    );
+}
+
+export function VideoIcon({ className = '', width = 16, height = 16 }) {
+    return (
+        <svg className={className} width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="23 7 16 12 23 17 23 7" />
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+        </svg>
+    );
+}
+
 export function SortIcon({ className = '', width = 12, height = 12, direction = null, active = false }) {
     // direction: 'asc', 'desc', or null
     return (
@@ -253,6 +271,14 @@ export function SortIcon({ className = '', width = 12, height = 12, direction = 
                     <path d="M7 9l5-5 5 5" />
                 </>
             )}
+        </svg>
+    );
+}
+
+export function LinkedInIcon({ className = '', width = 16, height = 16 }) {
+    return (
+        <svg className={className} width={width} height={height} viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.238 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
         </svg>
     );
 }

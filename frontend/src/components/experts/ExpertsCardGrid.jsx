@@ -13,6 +13,8 @@ export default function ExpertsCardGrid({
     selectedIds,
     onSelectExpert,
     onViewExpert,
+    onEditExpert,
+    onDeleteExpert,
 }) {
     return (
         <div className="expert-wide-card-list">
@@ -30,6 +32,8 @@ export default function ExpertsCardGrid({
                     selected={selectedIds.has(expert.id)}
                     onSelect={() => onSelectExpert(expert.id)}
                     onView={() => onViewExpert(expert.id)}
+                    onEdit={() => onEditExpert(expert.id)}
+                    onDelete={() => onDeleteExpert(expert)}
                 />
             ))}
         </div>

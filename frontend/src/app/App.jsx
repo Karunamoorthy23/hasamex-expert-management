@@ -38,7 +38,7 @@ export default function App() {
         {
             id: 'experts',
             label: 'Experts',
-            iconClass: 'fa-solid fa-cube',
+            iconClass: 'fa-solid fa-database',
             to: '/',
         },
         { id: 'engagements', label: 'Engagements', iconClass: 'fa-solid fa-phone-volume', to: '/engagements' },
@@ -196,8 +196,14 @@ export default function App() {
                 .ms__item:hover {
                     background: var(--table-hover) !important;
                 }
-                .ms__value, .filters-panel__title, .filters-panel__subtitle, .fd__label {
+                .ms__value, .filters-panel__title, .filters-panel__subtitle, .fd__label, .bulk-bar__count {
                     color: var(--text-app) !important;
+                }
+                .btn--ghost {
+                    color: var(--text-app) !important;
+                }
+                .btn--ghost:hover {
+                    color: #000000 !important;
                 }
                 .filters-panel__close {
                     background: var(--table-bg) !important;

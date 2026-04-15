@@ -1,6 +1,6 @@
 import Checkbox from '../ui/Checkbox';
 import { truncate } from '../../utils/format';
-import { EditIcon, TrashIcon, LinkIcon, MailIcon, SortIcon } from '../icons/Icons';
+import { EditIcon, TrashIcon, LinkedInIcon, MailIcon, SortIcon } from '../icons/Icons';
 import { Link } from 'react-router-dom';
 
 /**
@@ -81,7 +81,7 @@ export default function ExpertsTable({
                                 <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
                                     {expert.linkedin_url && (
                                         <a href={expert.linkedin_url} target="_blank" rel="noopener noreferrer" className="action-btn" title="LinkedIn">
-                                            <LinkIcon />
+                                            <LinkedInIcon />
                                         </a>
                                     )}
                                     <button type="button" className="action-btn" title="Email Info" onClick={() => onEmailExpert(expert.id)}>

@@ -8,8 +8,9 @@ import ProjectsTable from '../../components/projects/ProjectsTable';
 import BulkDeleteBar from '../../components/ui/BulkDeleteBar';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import Modal from '../../components/ui/Modal';
-import { FilterIcon, ChevronDownIcon, XIcon } from '../../components/icons/Icons';
+import { FilterIcon, ChevronDownIcon, XIcon, TableIcon, CardsIcon } from '../../components/icons/Icons';
 import ProjectsFiltersPanel from '../../components/projects/ProjectsFiltersPanel';
+import ProjectsCardGrid from '../../components/projects/ProjectsCardGrid';
 
 export default function ProjectsPage() {
     const LIMIT = 20;
@@ -25,6 +26,7 @@ export default function ProjectsPage() {
     const [confirmIds, setConfirmIds] = useState([]);
     const [isDeleting, setIsDeleting] = useState(false);
     const [filtersPanelOpen, setFiltersPanelOpen] = useState(false);
+    const [viewMode, setViewMode] = useState('table');
 
     // Filters hold the human-readable names
     const [filters, setFilters] = useState({ clients: [], ra: [], months: [], years: [] });
@@ -315,6 +317,24 @@ export default function ProjectsPage() {
                             {activeFiltersCount > 0 && <span className="filters-count">{activeFiltersCount}</span>}
                             <ChevronDownIcon className="chev" />
                         </button>
+                        <div className="view-toggle">
+                            <button
+                                type="button"
+                                className={`view-btn ${viewMode === 'table' ? 'active' : ''}`}
+                                onClick={() => setViewMode('table')}
+                                title="Table View"
+                            >
+                                <TableIcon />
+                            </button>
+                            <button
+                                type="button"
+                                className={`view-btn ${viewMode === 'cards' ? 'active' : ''}`}
+                                onClick={() => setViewMode('cards')}
+                                title="Card View"
+                            >
+                                <CardsIcon />
+                            </button>
+                        </div>
                     </div>
 
                     <div className="action-bar__divider" aria-hidden="true" />
@@ -351,15 +371,25 @@ export default function ProjectsPage() {
                                         onDelete={() => openConfirmForIds(Array.from(selectedIds))}
                                         onClear={() => setSelectedIds(new Set())}
                                     />
-                                    <ProjectsTable
-                                        projects={projects}
-                                        selectedIds={selectedIds}
-                                        onSelectProject={onSelectProject}
-                                        onSelectAll={onSelectAll}
-                                        allSelected={allSelected}
-                                        onDeleteProject={(p) => openConfirmForIds([p.project_id])}
-                                        onOpenStatusModal={onOpenStatusModal}
-                                    />
+                                    {viewMode === 'table' ? (
+                                        <ProjectsTable
+                                            projects={projects}
+                                            selectedIds={selectedIds}
+                                            onSelectProject={onSelectProject}
+                                            onSelectAll={onSelectAll}
+                                            allSelected={allSelected}
+                                            onDeleteProject={(p) => openConfirmForIds([p.project_id])}
+                                            onOpenStatusModal={onOpenStatusModal}
+                                        />
+                                    ) : (
+                                        <ProjectsCardGrid
+                                            projects={projects}
+                                            selectedIds={selectedIds}
+                                            onSelectProject={onSelectProject}
+                                            onDeleteProject={(p) => openConfirmForIds([p.project_id])}
+                                            onOpenStatusModal={onOpenStatusModal}
+                                        />
+                                    )}
                                     <Pagination
                                         page={meta.current_page}
                                         totalPages={meta.total_pages}

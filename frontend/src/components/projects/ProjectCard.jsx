@@ -1,7 +1,8 @@
 import Checkbox from '../ui/Checkbox';
 import Badge from '../ui/Badge';
 import { getInitials } from '../../utils/format';
-import { BriefcaseIcon, PhoneIcon, LinkedInIcon, MailIcon, EditIcon, TrashIcon } from '../icons/Icons';
+import { EditIcon, TrashIcon, CalendarIcon, UsersIcon, BriefcaseIcon } from '../icons/Icons';
+import { Link } from 'react-router-dom';
 
 function MoreDotsIcon() {
     return (
@@ -13,25 +14,16 @@ function MoreDotsIcon() {
     );
 }
 
-export default function ExpertCard({ expert, selected, onSelect, onView, onEdit, onDelete }) {
-    const initials = getInitials(expert.first_name, expert.last_name);
-    
-    // Attempt robust parsing of skills across different delimiting formats (comma, newline, semicolon)
-    let skills = [];
-    if (expert.strength_topics) {
-        skills = expert.strength_topics
-            .split(/[\n,;]+/)
-            .map(s => s.replace(/^[•\-\*]\s*/, '').trim())
-            .filter(Boolean)
-            .slice(0, 3);
-        
-        // Final fallback: if it's still a massive single string, just truncate it so it doesn't break the UI
-        if (skills.length === 1 && skills[0].length > 40) {
-            skills = [
-                skills[0].slice(0, 37) + '...'
-            ];
-        }
-    }
+export default function ProjectCard({ project, selected, onSelect, onDelete, onOpenStatusModal }) {
+    const title = project.project_title || project.title || `Project #${project.project_id}`;
+    const initials = title ? title.slice(0, 2).toUpperCase() : 'PR';
+
+    const totalExperts = 
+        (project.leads_count || 0) + 
+        (project.invited_count || 0) + 
+        (project.accepted_count || 0) + 
+        (project.expert_scheduled_count || 0) + 
+        (project.expert_call_completed_count || 0);
 
     return (
         <div className="expert-wide-card">
@@ -65,7 +57,7 @@ export default function ExpertCard({ expert, selected, onSelect, onView, onEdit,
                     width: 56px;
                     height: 56px;
                     border-radius: 50%;
-                    background: linear-gradient(135deg, #6C38FF 0%, #A25FFF 100%);
+                    background: linear-gradient(135deg, #1A5CA8 0%, #0099FF 100%);
                     color: white;
                     display: flex;
                     align-items: center;
@@ -85,12 +77,17 @@ export default function ExpertCard({ expert, selected, onSelect, onView, onEdit,
                     display: flex;
                     align-items: center;
                     gap: 8px;
+                    flex-wrap: wrap;
                 }
                 .expert-wide-name {
                     font-size: 1.15rem;
                     font-weight: 700;
                     color: var(--text-app, #000);
                     margin: 0;
+                    text-decoration: none;
+                }
+                .expert-wide-name:hover {
+                    text-decoration: underline;
                 }
                 .expert-wide-headline {
                     font-size: 0.9rem;
@@ -130,6 +127,10 @@ export default function ExpertCard({ expert, selected, onSelect, onView, onEdit,
                     font-size: 0.7rem;
                     font-weight: 600;
                     border: 1px solid var(--border-app);
+                    cursor: pointer;
+                }
+                .expert-wide-skill-pill:hover {
+                    background: var(--table-hover);
                 }
                 .expert-wide-footer {
                     display: flex;
@@ -152,6 +153,16 @@ export default function ExpertCard({ expert, selected, onSelect, onView, onEdit,
                     gap: 10px;
                     margin-top: 2px;
                 }
+                .expert-btn-danger {
+                    color: #e53e3e !important;
+                    border-color: #fc8181 !important;
+                }
+                .expert-btn-danger:hover {
+                    background: #fff5f5 !important;
+                }
+                :root[data-theme="dark"] .expert-btn-danger:hover {
+                    background: #742a2a !important;
+                }
                 .expert-wide-btn {
                     display: flex;
                     align-items: center;
@@ -170,26 +181,6 @@ export default function ExpertCard({ expert, selected, onSelect, onView, onEdit,
                 .expert-wide-btn:hover {
                     background: var(--table-hover, #f5f5f5);
                 }
-                .expert-wide-btn--danger:hover {
-                    color: #e53e3e;
-                    background: #fff5f5;
-                }
-                :root[data-theme="dark"] .expert-wide-btn--danger:hover {
-                    background: #2d1a1a;
-                }
-                .expert-wide-dots {
-                    background: transparent;
-                    border: none;
-                    cursor: pointer;
-                    color: var(--text-app, #000);
-                    padding: 6px;
-                    display: flex;
-                    border-radius: 50%;
-                    transition: background 0.2s;
-                }
-                .expert-wide-dots:hover {
-                    background: var(--table-hover);
-                }
             `}</style>
 
             <div className="expert-wide-avatar-wrap">
@@ -199,69 +190,56 @@ export default function ExpertCard({ expert, selected, onSelect, onView, onEdit,
 
             <div className="expert-wide-content">
                 <div className="expert-wide-header">
-                    <h3 className="expert-wide-name">{expert.first_name} {expert.last_name}</h3>
-                    <Badge variant="neutral">{expert.primary_sector || 'General'}</Badge>
+                    <Link to={`/projects/${project.project_id}`} className="expert-wide-name">{title}</Link>
+                    {project.client_id ? (
+                        <Link to={`/clients/${project.client_id}`} style={{ textDecoration: 'none' }}>
+                            <Badge variant="neutral" style={{ cursor: 'pointer' }}>{project.client_name || 'No Client'}</Badge>
+                        </Link>
+                    ) : (
+                        <Badge variant="neutral">{project.client_name || 'No Client'}</Badge>
+                    )}
                 </div>
 
                 <p className="expert-wide-headline">
-                    {expert.title_headline || 'Expertise Title Missing'}
+                    Research Analyst: {Array.isArray(project.client_solution_owner_names) && project.client_solution_owner_names.length ? project.client_solution_owner_names.join(', ') : '—'} • Account Manager: {Array.isArray(project.sales_team_names) && project.sales_team_names.length ? project.sales_team_names.join(', ') : '—'}
                 </p>
 
                 <div className="expert-wide-contacts">
-                    {expert.primary_email && (
+                    {project.target_region && (
                         <div className="expert-wide-contact-item">
-                            <MailIcon width={14} height={14} />
-                            {expert.primary_email}
+                            <BriefcaseIcon width={14} height={14} />
+                            Region: {project.target_region}
                         </div>
                     )}
-                    {expert.primary_phone && (
-                        <div className="expert-wide-contact-item">
-                            <PhoneIcon width={14} height={14} />
-                            {expert.primary_phone}
-                        </div>
-                    )}
+                    <div className="expert-wide-contact-item">
+                        <UsersIcon width={14} height={14} />
+                        Total Experts: {totalExperts}
+                    </div>
                 </div>
 
-                {skills.length > 0 && (
-                    <div className="expert-wide-skills">
-                        {skills.map((skill, idx) => (
-                            <span key={idx} className="expert-wide-skill-pill">{skill}</span>
-                        ))}
-                    </div>
-                )}
+                <div className="expert-wide-skills">
+                    {/* Utilizing the status pills requested by user */}
+                    <span onClick={() => onOpenStatusModal?.(project)} className="expert-wide-skill-pill" title="View Leads">Leads: {project.leads_count ?? 0}</span>
+                    <span onClick={() => onOpenStatusModal?.(project)} className="expert-wide-skill-pill" title="View Invited">Invited: {project.invited_count ?? 0}</span>
+                    <span onClick={() => onOpenStatusModal?.(project)} className="expert-wide-skill-pill" title="View Accepted">Accepted: {project.accepted_count ?? 0}</span>
+                    <span onClick={() => onOpenStatusModal?.(project)} className="expert-wide-skill-pill" title="View Scheduled">Scheduled: {(project.expert_scheduled_count ?? 0)}/{(project.scheduled_calls_count ?? 0)}</span>
+                    <span onClick={() => onOpenStatusModal?.(project)} className="expert-wide-skill-pill" title="View Completed">Completed: {(project.expert_call_completed_count ?? 0)}/{(project.completed_calls_count ?? 0)}</span>
+                </div>
 
                 <div className="expert-wide-footer">
                     <div className="expert-wide-footer-item">
-                        <BriefcaseIcon width={14} height={14} />
-                        {expert.project_count || 0} projects
-                    </div>
-                    <div className="expert-wide-footer-item">
-                        <PhoneIcon width={14} height={14} />
-                        {expert.total_calls_completed || 0} calls completed
-                    </div>
-                    <div className="expert-wide-footer-item" style={{marginLeft: '24px'}}>
-                        Last engaged: {expert.updated_at ? new Date(expert.updated_at).toLocaleDateString('en-GB') : 'N/A'}
+                        <CalendarIcon width={14} height={14} />
+                        Deadline: {project.project_deadline ? new Date(project.project_deadline).toLocaleDateString() : 'N/A'}
                     </div>
                 </div>
             </div>
 
             <div className="expert-wide-actions">
-                <a href={expert.linkedin_url || '#'} target="_blank" rel="noopener noreferrer" className="expert-wide-btn">
-                    <LinkedInIcon width={14} height={14} /> LinkedIn
-                </a>
-                <a href={`mailto:${expert.primary_email}`} className="expert-wide-btn">
-                    <MailIcon width={14} height={14} /> Email
-                </a>
-                
-                <button type="button" className="expert-wide-btn" onClick={onEdit} title="Edit Expert">
-                    <EditIcon width={14} height={14} />
-                </button>
-                <button type="button" className="expert-wide-btn expert-wide-btn--danger" onClick={onDelete} title="Delete Expert">
-                    <TrashIcon width={14} height={14} />
-                </button>
-
-                <button onClick={onView} className="expert-wide-dots" title="View Options">
-                    <MoreDotsIcon />
+                <Link to={`/projects/${project.project_id}/edit`} className="expert-wide-btn">
+                    <EditIcon width={14} height={14} /> Edit
+                </Link>
+                <button type="button" onClick={() => onDelete(project)} className="expert-wide-btn expert-btn-danger">
+                    <TrashIcon width={14} height={14} /> Delete
                 </button>
             </div>
         </div>

@@ -125,7 +125,12 @@ export default function EngagementEditPage() {
                 setForm(prev => {
                     if (!prev) return prev;
                     const next = { ...prev };
-                    if (!prev.expert_id || prev.project_id !== pid) next.expert_id = autoId;
+                    // If project changed, reset selection or auto-select first logical expert
+                    if (prev.project_id !== pid) {
+                        next.expert_id = autoId;
+                    } else if (!prev.expert_id) {
+                        next.expert_id = autoId;
+                    }
                     if (proj.client_id) next.client_id = proj.client_id;
                     if (proj.poc_user_id) next.poc_user_id = proj.poc_user_id;
                     return next;
@@ -145,6 +150,17 @@ export default function EngagementEditPage() {
             const url = id ? `/engagements/${id}` : '/engagements';
             const method = id ? 'PUT' : 'POST';
             const { gross_margin_percent, gross_profit_usd, ...payload } = form;
+
+            // Simple client-side check for required fields as per backend rules
+            const required = ['project_id', 'expert_id', 'client_id', 'call_date'];
+            for (const r of required) {
+                if (!payload[r]) {
+                    alert(`Required field missing: ${r.replace('_id', '').replace('_', ' ')}`);
+                    setIsSaving(false);
+                    return;
+                }
+            }
+
             await http(url, {
                 method,
                 body: JSON.stringify(payload),
@@ -152,6 +168,8 @@ export default function EngagementEditPage() {
             navigate('/engagements');
         } catch (error) {
             console.error('Failed to save engagement', error);
+            const msg = error.data?.error || error.message || 'Unknown error occurred';
+            alert(`Failed to save: ${msg}`);
         } finally {
             setIsSaving(false);
         }
@@ -188,22 +206,18 @@ export default function EngagementEditPage() {
     };
 
     const selectableExperts = useMemo(() => {
+        const a = (projectExperts?.accepted || []);
         const s = (projectExperts?.scheduled || []);
         const c = (projectExperts?.completed || []);
         const seen = new Set();
         const list = [];
-        for (const x of s) {
+        // Priority: Scheduled > Completed > Accepted
+        [...s, ...c, ...a].forEach(x => {
             if (!seen.has(x.id)) {
                 seen.add(x.id);
                 list.push(x);
             }
-        }
-        for (const x of c) {
-            if (!seen.has(x.id)) {
-                seen.add(x.id);
-                list.push(x);
-            }
-        }
+        });
         return list;
     }, [projectExperts]);
 
@@ -221,7 +235,7 @@ export default function EngagementEditPage() {
                         <h2 className="form-section__title">Core Details</h2>
                         <div className="form-grid">
                             <div className="form-field">
-                                <label className="form-label">Project</label>
+                                <label className="form-label">Project *</label>
                                 <FilterDropdown
                                     label={findNameById(lookups.projects, form.project_id) || 'Select project'}
                                     options={(lookups.projects || []).map((x) => x.name)}
@@ -230,7 +244,7 @@ export default function EngagementEditPage() {
                                 />
                             </div>
                             <div className="form-field">
-                                <label className="form-label">Expert</label>
+                                <label className="form-label">Expert *</label>
                                 <FilterDropdown
                                     label={findNameById(selectableExperts, form.expert_id) || 'Select expert'}
                                     options={selectableExperts.map((x) => x.name)}
@@ -239,16 +253,23 @@ export default function EngagementEditPage() {
                                 />
                             </div>
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
-                                <label className="form-label">Project Experts</label>
-                                <div style={{ fontSize: 13.5, border: '1px solid #e0e0e0', borderRadius: 4, padding: 10, background: '#fafafa' }}>
+                                <label className="form-label">Project Experts Overview</label>
+                                <div style={{ 
+                                    fontSize: 13.5, 
+                                    border: '1px solid var(--table-border)', 
+                                    borderRadius: 4, 
+                                    padding: 10, 
+                                    background: 'var(--table-bg)',
+                                    color: 'var(--text-app)'
+                                }}>
                                     {projectExperts ? (
                                         <div style={{ display: 'grid', gap: 8 }}>
                                             <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 8, alignItems: 'flex-start' }}>
-                                                <div style={{ fontWeight: 700, color: 'var(--text-strong)' }}>Accepted</div>
+                                                <div style={{ fontWeight: 700, color: 'var(--text-app)' }}>Accepted</div>
                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                                                     {(projectExperts.accepted || []).length
                                                         ? (projectExperts.accepted || []).map((e) => (
-                                                            <span key={`acc-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid #c8c8c8', borderRadius: 12, background: '#ffffff', fontSize: 12.5 }}>
+                                                            <span key={`acc-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid var(--table-border)', borderRadius: 12, background: 'var(--table-bg-hover)', fontSize: 12.5 }}>
                                                                 {e.name}
                                                             </span>
                                                         ))
@@ -256,11 +277,11 @@ export default function EngagementEditPage() {
                                                 </div>
                                             </div>
                                             <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 8, alignItems: 'flex-start' }}>
-                                                <div style={{ fontWeight: 700, color: 'var(--text-strong)' }}>Invited</div>
+                                                <div style={{ fontWeight: 700, color: 'var(--text-app)' }}>Invited</div>
                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                                                     {(projectExperts.invited || []).length
                                                         ? (projectExperts.invited || []).map((e) => (
-                                                            <span key={`inv-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid #c8c8c8', borderRadius: 12, background: '#ffffff', fontSize: 12.5 }}>
+                                                            <span key={`inv-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid var(--table-border)', borderRadius: 12, background: 'var(--table-bg-hover)', fontSize: 12.5 }}>
                                                                 {e.name}
                                                             </span>
                                                         ))
@@ -268,11 +289,11 @@ export default function EngagementEditPage() {
                                                 </div>
                                             </div>
                                             <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 8, alignItems: 'flex-start' }}>
-                                                <div style={{ fontWeight: 700, color: 'var(--text-strong)' }}>Leads</div>
+                                                <div style={{ fontWeight: 700, color: 'var(--text-app)' }}>Leads</div>
                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                                                     {(projectExperts.leads || []).length
                                                         ? (projectExperts.leads || []).map((e) => (
-                                                            <span key={`lead-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid #c8c8c8', borderRadius: 12, background: '#ffffff', fontSize: 12.5 }}>
+                                                            <span key={`lead-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid var(--table-border)', borderRadius: 12, background: 'var(--table-bg-hover)', fontSize: 12.5 }}>
                                                                 {e.name}
                                                             </span>
                                                         ))
@@ -280,11 +301,11 @@ export default function EngagementEditPage() {
                                                 </div>
                                             </div>
                                             <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 8, alignItems: 'flex-start' }}>
-                                                <div style={{ fontWeight: 700, color: 'var(--text-strong)' }}>Scheduled</div>
+                                                <div style={{ fontWeight: 700, color: 'var(--text-app)' }}>Scheduled</div>
                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                                                     {(projectExperts.scheduled || []).length
                                                         ? (projectExperts.scheduled || []).map((e) => (
-                                                            <span key={`sched-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid #c8c8c8', borderRadius: 12, background: '#ffffff', fontSize: 12.5 }}>
+                                                            <span key={`sched-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid var(--table-border)', borderRadius: 12, background: 'var(--table-bg-hover)', fontSize: 12.5 }}>
                                                                 {e.name}
                                                             </span>
                                                         ))
@@ -292,11 +313,11 @@ export default function EngagementEditPage() {
                                                 </div>
                                             </div>
                                             <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 8, alignItems: 'flex-start' }}>
-                                                <div style={{ fontWeight: 700, color: 'var(--text-strong)' }}>Completed</div>
+                                                <div style={{ fontWeight: 700, color: 'var(--text-app)' }}>Completed</div>
                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                                                     {(projectExperts.completed || []).length
                                                         ? (projectExperts.completed || []).map((e) => (
-                                                            <span key={`comp-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid #c8c8c8', borderRadius: 12, background: '#ffffff', fontSize: 12.5 }}>
+                                                            <span key={`comp-${e.id}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', border: '1px solid var(--table-border)', borderRadius: 12, background: 'var(--table-bg-hover)', fontSize: 12.5 }}>
                                                                 {e.name}
                                                             </span>
                                                         ))
@@ -308,7 +329,7 @@ export default function EngagementEditPage() {
                                 </div>
                             </div>
                             <div className="form-field">
-                                <label className="form-label">Client</label>
+                                <label className="form-label">Client *</label>
                                 <FilterDropdown
                                     label={findNameById(lookups.clients, form.client_id) || 'Select client'}
                                     options={(lookups.clients || []).map((x) => x.name)}
@@ -335,7 +356,7 @@ export default function EngagementEditPage() {
                                 />
                             </div>
                             <div className="form-field">
-                                <label className="form-label">Call Date & Time</label>
+                                <label className="form-label">Call Date & Time *</label>
                                 <input className="form-input" type="datetime-local" value={dtValue(form.call_date)} onChange={(e) => handleFormChange('call_date', e.target.value)} />
                             </div>
                             <div className="form-field">

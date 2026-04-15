@@ -10,7 +10,14 @@ export default function ClientsCardGrid({
     onEditClient,
 }) {
     return (
-        <div className="card-grid">
+        <div className="expert-wide-card-list">
+            <style>{`
+                .expert-wide-card-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0;
+                }
+            `}</style>
             {clients.map((client) => (
                 <ClientCard
                     key={client.client_id}
