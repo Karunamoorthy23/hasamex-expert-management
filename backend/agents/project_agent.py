@@ -579,7 +579,7 @@ class ProjectAgent:
     # Phase: create project
     # ─────────────────────────────────────────────────────────────────────────
     def _create_project(self, state: dict, db) -> tuple[str, dict]:
-        from models import Project, LkProjectType, LkRegion, LkProjectTargetGeography
+        from models import Project, LkProjectType, LkRegion, LkProjectTargetGeography, OutreachMessage
         from datetime import date
 
         fields = state.get("fields", {})
@@ -705,7 +705,82 @@ class ProjectAgent:
             f"<!-- DIRECTIVE:{outreach_directive} -->\n\n"
             f'<!-- DIRECTIVE:{{"type":"project_link","project_id":{new_project.project_id}}} -->'
         )
+
+        # Save Outreach Messages to DB
+        parsed = self._parse_outreach_pack(outreach_pack)
+        outreach_msg_row = OutreachMessage(
+            project_id=new_project.project_id,
+            email_content=parsed.get("email"),
+            linkedin_content=parsed.get("linkedin_connection"),
+            whatsapp_sms_content=parsed.get("whatsapp_sms"),
+            linkedin_inmail_content=parsed.get("linkedin_inmail"),
+        )
+        db.session.add(outreach_msg_row)
+        db.session.commit()
+
         return reply, state
+
+    def _parse_outreach_pack(self, raw_pack: str) -> dict:
+        """
+        Parses the raw SAM outreach pack text into a dictionary of:
+        { email, linkedin_inmail, linkedin_connection, whatsapp_sms }
+        Excludes the titles/headers from the extracted content.
+        """
+        out = {
+            "email": None,
+            "linkedin_inmail": None,
+            "linkedin_connection": None,
+            "whatsapp_sms": None,
+        }
+        
+        # Regex to find sections:
+        # 1. Matches a common header pattern (digits, dots, stars, hashes)
+        # 2. Captures the header text (to identify the type)
+        # 3. Captures everything following it until the next header or end
+        pattern = r"(?i)(?:^|\n)(?:-|\*|###|\d+\.|\*\*)+\s*(.*?)\s*\n([\s\S]*?)(?=\n(?:-|\*|###|\d+\.|\*\*)|$)"
+        matches = re.finditer(pattern, raw_pack)
+        
+        found_any = False
+        for match in matches:
+            header = match.group(1).lower()
+            content = match.group(2).strip()
+            if not content: continue
+            
+            # Map headers to keys
+            if "inmail" in header:
+                out["linkedin_inmail"] = content
+                found_any = True
+            elif "connection" in header or "request" in header:
+                out["linkedin_connection"] = content
+                found_any = True
+            elif "email" in header:
+                out["email"] = content
+                found_any = True
+            elif "whatsapp" in header or "sms" in header:
+                out["whatsapp_sms"] = content
+                found_any = True
+        
+        # Fallback: if the sophisticated regex found nothing, try the old split method
+        # but try to strip the first line if it looks like a header
+        if not found_any:
+            sections = re.split(r"(?i)\n(?:-|\*|###|\d+\.|\*\*)\s*", "\n" + raw_pack)
+            for sec in sections:
+                lines = sec.strip().split('\n', 1)
+                if len(lines) < 2: continue
+                
+                header = lines[0].lower()
+                content = lines[1].strip()
+                
+                if "inmail" in header:
+                    out["linkedin_inmail"] = content
+                elif "connection" in header or "request" in header:
+                    out["linkedin_connection"] = content
+                elif "email" in header:
+                    out["email"] = content
+                elif "whatsapp" in header or "sms" in header:
+                    out["whatsapp_sms"] = content
+
+        return out
 
     # ─────────────────────────────────────────────────────────────────────────
     # LLM helpers

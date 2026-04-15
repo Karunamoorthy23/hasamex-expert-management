@@ -14,6 +14,18 @@ import { updateExpert } from '../../api/experts';
 import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
 import Checkbox from '../../components/ui/Checkbox';
+import './ProjectDetails.css'; // New Styles
+import { 
+    LinkedInIcon, 
+    LinkedInInMailIcon, 
+    WhatsAppIcon, 
+    MailIcon, 
+    CopyIcon, 
+    CheckIcon,
+    XIcon,
+    EditIcon
+} from '../../components/icons/Icons';
+import { updateOutreachMessage } from '../../api/projects';
 
 function DetailItem({ label, value, full }) {
     return (
@@ -248,6 +260,13 @@ export default function ProjectDetails() {
     const [submissionCache, setSubmissionCache] = useState({}); // {expertId: data}
     const [isFetchingSubmission, setIsFetchingSubmission] = useState(false);
 
+    // Outreach Message States
+    const [outreachModalContent, setOutreachModalContent] = useState(null); // { type, content, id }
+    const [isEditingOutreach, setIsEditingOutreach] = useState(false);
+    const [tempOutreachContent, setTempOutreachContent] = useState('');
+    const [isSavingOutreach, setIsSavingOutreach] = useState(false);
+    const [copySuccess, setCopySuccess] = useState(false);
+
     const loadParticipants = async () => {
         try {
             const status = await fetchProjectExpertStatus(id);
@@ -448,11 +467,63 @@ export default function ProjectDetails() {
         setSelectedIds(newSelectedIds);
     };
 
-    const handleSelectAll = () => {
-        if (selectedIds.size === filteredParticipants.length) {
-            setSelectedIds(new Set());
+    const handleSelectAll = (e) => {
+        if (e.target.checked) {
+            setSelectedIds(new Set(filteredParticipants.map(ex => ex.id || ex.expert_id)));
         } else {
-            setSelectedIds(new Set(filteredParticipants.map(p => p.id || p.expert_id)));
+            setSelectedIds(new Set());
+        }
+    };
+
+    const handleOpenOutreach = (type) => {
+        const msg = project.outreach_messages?.[0];
+        if (!msg) return;
+
+        let content = '';
+        let title = '';
+        if (type === 'email') { content = msg.email_content; title = 'Email Template'; }
+        if (type === 'linkedin_conn') { content = msg.linkedin_content; title = 'LinkedIn Connection'; }
+        if (type === 'linkedin_inmail') { content = msg.linkedin_inmail_content; title = 'LinkedIn InMail'; }
+        if (type === 'whatsapp') { content = msg.whatsapp_sms_content; title = 'WhatsApp/SMS'; }
+
+        setOutreachModalContent({ type, content, id: msg.id, title });
+        setTempOutreachContent(content || '');
+        setIsEditingOutreach(false);
+    };
+
+    const handleCopyOutreach = () => {
+        navigator.clipboard.writeText(tempOutreachContent);
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+    };
+
+    const handleSaveOutreach = async () => {
+        if (!outreachModalContent) return;
+        setIsSavingOutreach(true);
+        try {
+            const fieldMap = {
+                'email': 'email_content',
+                'linkedin_conn': 'linkedin_content',
+                'linkedin_inmail': 'linkedin_inmail_content',
+                'whatsapp': 'whatsapp_sms_content'
+            };
+            const payload = { [fieldMap[outreachModalContent.type]]: tempOutreachContent };
+            await updateOutreachMessage(id, outreachModalContent.id, payload);
+            
+            // Update local state
+            setProject(prev => ({
+                ...prev,
+                outreach_messages: prev.outreach_messages.map(m => 
+                    m.id === outreachModalContent.id ? { ...m, ...payload } : m
+                )
+            }));
+            setOutreachModalContent(prev => ({ ...prev, content: tempOutreachContent }));
+            setIsEditingOutreach(false);
+        } catch (error) {
+            console.error('Failed to save outreach:', error);
+            alert('Failed to save changes.');
+        } finally {
+            setIsSavingOutreach(false);
         }
     };
 
@@ -950,6 +1021,95 @@ export default function ProjectDetails() {
                     })}
                 </div>
             </div>
+
+            {/* Outreach Messages FAB */}
+            {project?.outreach_messages?.length > 0 && (
+                <div className="outreach-fab-container">
+                    <div className="outreach-fab">
+                        <MailIcon width={28} height={28} />
+                    </div>
+                    <div className="outreach-flyout">
+                        <button className="outreach-icon-btn" title="Email Template" onClick={() => handleOpenOutreach('email')}>
+                            <MailIcon width={22} height={22} />
+                        </button>
+                        <button className="outreach-icon-btn" title="LinkedIn Connection" onClick={() => handleOpenOutreach('linkedin_conn')}>
+                            <LinkedInIcon width={22} height={22} />
+                        </button>
+                        <button className="outreach-icon-btn" title="LinkedIn InMail" onClick={() => handleOpenOutreach('linkedin_inmail')}>
+                            <LinkedInInMailIcon width={22} height={22} />
+                        </button>
+                        <button className="outreach-icon-btn" title="WhatsApp/SMS" onClick={() => handleOpenOutreach('whatsapp')}>
+                            <WhatsAppIcon width={22} height={22} />
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Outreach Modal */}
+            <Modal
+                open={!!outreachModalContent}
+                onClose={() => { setOutreachModalContent(null); setIsEditingOutreach(false); }}
+                title={outreachModalContent?.title || 'Outreach Message'}
+                width="600px"
+            >
+                <div className="outreach-modal-header">
+                    <div className="outreach-modal-title">
+                        {outreachModalContent?.type === 'email' && <MailIcon />}
+                        {outreachModalContent?.type === 'linkedin_conn' && <LinkedInIcon />}
+                        {outreachModalContent?.type === 'linkedin_inmail' && <LinkedInInMailIcon />}
+                        {outreachModalContent?.type === 'whatsapp' && <WhatsAppIcon />}
+                        {outreachModalContent?.title}
+                    </div>
+                    <div className="outreach-modal-actions">
+                        <Button 
+                            variant="secondary" 
+                            size="small" 
+                            onClick={handleCopyOutreach}
+                            disabled={!tempOutreachContent}
+                        >
+                            {copySuccess ? <CheckIcon /> : <CopyIcon />}
+                            {copySuccess ? 'Copied' : 'Copy'}
+                        </Button>
+                        {!isEditingOutreach ? (
+                            <Button variant="secondary" size="small" onClick={() => setIsEditingOutreach(true)}>
+                                <EditIcon /> Edit
+                            </Button>
+                        ) : (
+                            <Button variant="secondary" size="small" onClick={() => { setIsEditingOutreach(false); setTempOutreachContent(outreachModalContent.content); }}>
+                                <XIcon /> Cancel
+                            </Button>
+                        )}
+                    </div>
+                </div>
+
+                {isEditingOutreach ? (
+                    <textarea 
+                        className="outreach-content-area"
+                        value={tempOutreachContent}
+                        onChange={(e) => setTempOutreachContent(e.target.value)}
+                        placeholder="Type your message here..."
+                    />
+                ) : (
+                    <div className="outreach-content-area">
+                        {tempOutreachContent || <span style={{color: '#999', fontStyle: 'italic'}}>No content generated for this platform.</span>}
+                    </div>
+                )}
+
+                <div className="outreach-modal-footer">
+                    <Button variant="secondary" onClick={() => { setOutreachModalContent(null); setIsEditingOutreach(false); }}>
+                        Close
+                    </Button>
+                    {isEditingOutreach && (
+                        <Button 
+                            variant="primary" 
+                            onClick={handleSaveOutreach}
+                            loading={isSavingOutreach}
+                        >
+                            Save Changes
+                        </Button>
+                    )}
+                </div>
+            </Modal>
         </>
     );
 }

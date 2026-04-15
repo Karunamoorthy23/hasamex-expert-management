@@ -138,4 +138,10 @@ export async function sendProjectInvites(projectId, expertIds) {
 export async function fetchExpertSubmission(projectId, expertId) {
     return await http(`/projects/${projectId}/expert-submission/${expertId}`);
 }
-
+export async function updateOutreachMessage(projectId, messageId, payload) {
+    const result = await http(`/projects/${projectId}/outreach/${messageId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+    });
+    return result.data;
+}

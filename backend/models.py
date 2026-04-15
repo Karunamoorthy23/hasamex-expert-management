@@ -720,6 +720,7 @@ class Project(db.Model):
             'declined_expert_ids': declined,
             'expert_scheduled': scheduled_assigned,
             'expert_call_completed': completed_assigned,
+            'outreach_messages': [m.to_dict() for m in self.outreach_messages] if self.outreach_messages else [],
         }
 
 class ProjectTargetGeography(db.Model):
@@ -986,6 +987,35 @@ class ProjectFormSubmission(db.Model):
             'project_qns_ans': self.project_qns_ans,
             'compliance_onboarding': self.compliance_onboarding,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class OutreachMessage(db.Model):
+    __tablename__ = "outreach_messages"
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(
+        db.Integer, db.ForeignKey("projects.project_id", ondelete="CASCADE"), nullable=False
+    )
+    email_content = db.Column(db.Text)
+    linkedin_content = db.Column(db.Text)
+    whatsapp_sms_content = db.Column(db.Text)
+    linkedin_inmail_content = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    project = db.relationship(
+        "Project", backref=db.backref("outreach_messages", cascade="all, delete-orphan")
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "project_id": self.project_id,
+            "email_content": self.email_content,
+            "linkedin_content": self.linkedin_content,
+            "whatsapp_sms_content": self.whatsapp_sms_content,
+            "linkedin_inmail_content": self.linkedin_inmail_content,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
 

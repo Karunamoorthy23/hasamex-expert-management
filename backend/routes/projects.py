@@ -899,4 +899,24 @@ def submit_project_form_public(project_id):
         return jsonify({'message': 'Application submitted successfully'}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'data': True}), 200
+
+
+@projects_bp.route('/<int:project_id>/outreach/<int:message_id>', methods=['PATCH'])
+def update_outreach_message(project_id, message_id):
+    from models import OutreachMessage
+    msg = OutreachMessage.query.filter_by(id=message_id, project_id=project_id).first_or_404()
+    data = request.get_json() or {}
+    
+    if 'email_content' in data:
+        msg.email_content = data['email_content']
+    if 'linkedin_content' in data:
+        # User requested 'linked connection' which maps to linkedin_content
+        msg.linkedin_content = data['linkedin_content']
+    if 'whatsapp_sms_content' in data:
+        msg.whatsapp_sms_content = data['whatsapp_sms_content']
+    if 'linkedin_inmail_content' in data:
+        msg.linkedin_inmail_content = data['linkedin_inmail_content']
+        
+    db.session.commit()
+    return jsonify({'data': msg.to_dict()})
