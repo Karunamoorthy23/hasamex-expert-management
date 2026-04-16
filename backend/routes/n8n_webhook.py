@@ -10,6 +10,7 @@ WATERFALL ENRICHMENT PIPELINE (3-Stage):
            N2 profiles → email + phone (async via callbackUrl)
 """
 import os
+import json
 import hashlib
 import threading
 import time
@@ -116,16 +117,14 @@ def search_experts():
     try:
         data = request.get_json(silent=True)
         if not data:
-            import json as json_lib
             try:
-                data = json_lib.loads(request.data)
+                data = json.loads(request.data)
             except Exception:
                 data = {}
 
-        import json as json_lib
         if isinstance(data, str):
             try:
-                data = json_lib.loads(data)
+                data = json.loads(data)
             except Exception:
                 pass
 
@@ -243,15 +242,15 @@ def search_experts():
 
         # ═══════════════════════════════════════════════════════
         # STAGE 2: LinkedIn Deep Profile Enrichment → N2 full data
-        # Uses apify/linkedin-profile-scraper (official / high quality)
-        # Schema: multiple (handled by _store_expert_from_profile_final)
+        # Uses dev_fusion/linkedin-profile-scraper (No-Cookie, with email)
+        # Schema: profileUrls[], cookie (string, optional)
         # ═══════════════════════════════════════════════════════
         print("\n" + "=" * 60)
-        print("[STAGE 2] Deep LinkedIn Profile Enrichment (Apify Official)")
+        print("[STAGE 2] Deep LinkedIn Profile Enrichment (dev_fusion)")
         print("=" * 60)
 
         LI_ACTOR_URL = (
-            "https://api.apify.com/v2/acts/apify~linkedin-profile-scraper"
+            "https://api.apify.com/v2/acts/dev_fusion~linkedin-profile-scraper"
             f"/run-sync-get-dataset-items?token={apify_token}&timeout=300"
         )
 
@@ -262,15 +261,14 @@ def search_experts():
 
         try:
             payload = {
-                "urls": n1_urls,
-                "proxyConfiguration": {"useApifyProxy": True},
+                "profileUrls": n1_urls,
             }
             if li_cookie:
-                # Official scraper requires array format
-                payload["cookie"] = [{"name": "li_at", "value": li_cookie, "domain": ".linkedin.com"}]
+                # dev_fusion actor accepts cookie as a plain string
+                payload["cookie"] = li_cookie
                 
-            print(f"[STAGE 2] Enriching {len(n1_urls)} profiles via apify official actor...")
-            print(f"[STAGE 2 DEBUG] Payload: {json.dumps(payload, indent=2)}")
+            print(f"[STAGE 2] Enriching {len(n1_urls)} profiles via dev_fusion actor...")
+            print(f"[STAGE 2 DEBUG] Payload URLs: {n1_urls}")
             resp2 = http_requests.post(LI_ACTOR_URL, json=payload, timeout=360)
 
             print(f"[STAGE 2] Scraper Response Status: {resp2.status_code}")
@@ -280,7 +278,8 @@ def search_experts():
                 print(f"[STAGE 2] Received {len(results)} enriched profiles")
                 for profile in results:
                     purl = (
-                        profile.get('url') or profile.get('linkedinUrl') or ''
+                        profile.get('url') or profile.get('linkedinUrl') or
+                        profile.get('profileUrl') or ''
                     ).strip().rstrip('/')
                     if purl:
                         exps = profile.get('positions') or profile.get('experience') or profile.get('experiences') or []
@@ -751,6 +750,15 @@ def _store_expert_from_profile_final(person, linkedin_url, project_id, source='s
                             ))
 
         # ── Store Strength/Skill topics ───────────────────────
+        raw_skills = (
+            person.get('skills') or person.get('skill_endorsements') or
+            person.get('endorsements') or []
+        )
+        if isinstance(raw_skills, dict):
+            raw_skills = list(raw_skills.values())
+        # Fallback: extract skills from bio text
+        if not raw_skills and summary:
+            raw_skills = _extract_skills_from_bio(summary)
         if raw_skills:
             from models import ExpertStrength
             for skill in raw_skills:
