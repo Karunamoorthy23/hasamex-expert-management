@@ -37,30 +37,16 @@ try:
         resp_data = json.loads(resp.read().decode())
         print(json.dumps(resp_data, indent=2))
         
-        # --- NEW: Automated ContactOut Enrichment Chain ---
+        # --- Automated Contact Enrichment Chain ---
         experts = resp_data.get('experts', [])
         if experts:
             print("\n" + "="*50)
-            print("[CONTACTOUT] TRIGGERING AUTOMATED CONTACT ENRICHMENT CHAIN")
+            print("[STAGE 2] SIGNALHIRE ASYNC ENRICHMENT QUEUED")
             print("="*50)
-            
-            # Use the enrichment logic from test_vayne.py (now refactored for ContactOut)
-            from test_vayne import enrich_expert_with_contactout, update_expert_in_db
-            
-            for exp in experts:
-                url = exp.get('linkedin_url')
-                # Fixed: Use full_name or first/last fallback to avoid 'None'
-                name = exp.get('full_name') or f"{exp.get('first_name','')} {exp.get('last_name','')}".strip() or "Unknown Expert"
-                
-                if url:
-                    print(f"\n[CONTACTOUT] Processing: {name}")
-                    contact = enrich_expert_with_contactout(url)
-                    if contact and contact.get('status') == 'success':
-                        print(f"[CONTACTOUT] SUCCESS: Found {contact['email']} | {contact['phone']}")
-                        # Persist to database
-                        update_expert_in_db(url, contact['email'], contact['phone'])
-                    else:
-                        print(f"[CONTACTOUT] FAIL: No contact info found for {name}")
+            print(f"[INFO] The backend has successfully queued {len(experts)} profiles.")
+            print("[INFO] SignalHire will perform deep profile scraping and contact enrichment")
+            print("[INFO] in the background. The detailed data (bio, experience, skills, email, phone)")
+            print("[INFO] will arrive asynchronously at /api/v1/n8n/signalhire-callback")
 
 except urllib.error.HTTPError as e:
     print(f"\n[ERROR] Test Failed: {e}")

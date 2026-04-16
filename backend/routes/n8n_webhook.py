@@ -15,6 +15,8 @@ import hashlib
 import threading
 import time
 import requests as http_requests
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 from flask import Blueprint, request, jsonify, current_app
 from extensions import db
 from models import Expert, ExpertExperience, ExpertStrength, Project
@@ -39,47 +41,127 @@ def n8n_status():
     })
 
 
-# ── SignalHire async callback ─────────────────────────────────
+def _normalize_linkedin_url(url):
+    """Normalize LinkedIn URL for consistent matching (strip protocol, subdomains, slashes, case)."""
+    if not url: return ""
+    url = url.strip().lower().rstrip('/')
+    url = url.replace('https://', '').replace('http://', '')
+    
+    # Remove all subdomains (www, in, pk, uk, etc.) to get just 'linkedin.com/in/user'
+    if 'linkedin.com' in url:
+        parts = url.split('linkedin.com')
+        if len(parts) > 1:
+            return 'linkedin.com' + parts[1]
+            
+    return url.replace('www.', '')
+
+# ── SignalHire Callback ───────────────────────────────────────
 
 @n8n_bp.route('/signalhire-callback', methods=['POST'])
 def signalhire_callback():
     """
-    POST /api/v1/n8n/signalhire-callback
-    Receives async contact data from SignalHire after Stage 3 enrichment.
-    Payload: { "items": [{ "linkedin": "...", "contacts": [...] }] }
+    POST /api/v1/n8n/signalhire-callback?project_id=1
+    Receives async candidate and contact data from SignalHire.
+    Creates the Expert and maps them to the project after deep scrape.
     """
+    project_id = request.args.get('project_id')
+    if not project_id:
+        print("[SIGNALHIRE CB ERROR] Missing project_id in URL.")
+        return jsonify({'error': 'project_id required'}), 400
+
     data = request.get_json(silent=True) or {}
-    items = data.get('items') or []
+    
+    # Robust logging to a file since terminal output can be tricky
+    with open('signalhire_callback_debug.log', 'a') as f:
+        f.write(f"\n[{datetime.utcnow().isoformat()}] Received callback for project {project_id}\n")
+        f.write(f"Data type: {type(data)}\n")
+        try:
+            # Use repr for safety if json.dumps fails
+            f.write(f"Data Summary: {str(data)[:500]}...\n") 
+        except:
+            f.write("Could not log data summary\n")
+
+    # Handle both {"items": [...]} and a direct list [...]
+    if isinstance(data, list):
+        items = data
+    else:
+        items = data.get('items') or [data] if data else []
 
     enriched = 0
     for item in items:
-        linkedin_url = (item.get('linkedin') or item.get('linkedin_url') or '').strip()
+        # If item is not a dict (e.g. empty or scalar), skip it
+        if not isinstance(item, dict):
+            continue
+
+        raw_url = (item.get('linkedin') or item.get('linkedin_url') or '').strip()
+        linkedin_url = _normalize_linkedin_url(raw_url)
+        
         if not linkedin_url:
-            continue
-
-        contacts = item.get('contacts') or []
-        emails = [c.get('value') for c in contacts if c.get('type') == 'email' and c.get('value')]
-        phones = [c.get('value') for c in contacts if c.get('type') == 'phone' and c.get('value')]
-
-        email = emails[0] if emails else None
-        phone = phones[0] if phones else None
-
-        if not email and not phone:
-            continue
+             # Check if outer payload HAS a candidate block (SignalHire solo payload)
+             if isinstance(item, dict) and (item.get('candidate') or item.get('personalInfo')):
+                 # Fallback to the item itself if it looks like a candidate
+                 pass
+             else:
+                 continue
 
         try:
-            expert = Expert.query.filter_by(linkedin_url=linkedin_url).first()
-            if expert:
-                if email and not expert.primary_email:
-                    expert.primary_email = email[:255]
-                if phone and not expert.primary_phone:
-                    expert.primary_phone = phone[:50]
-                db.session.commit()
-                enriched += 1
-                print(f"[SIGNALHIRE CB] Updated {linkedin_url}: {email} | {phone}")
+            # SignalHire solo payloads might put 'candidate' at root or inside an item
+            candidate = item.get('candidate') or item
+            if not isinstance(candidate, dict):
+                continue
+
+            # Ensure we have a linkedin_url even in solo format
+            if not linkedin_url:
+                c_url = (candidate.get('linkedin_url') or candidate.get('linkedin') or '').strip()
+                linkedin_url = _normalize_linkedin_url(c_url)
+            
+            if not linkedin_url:
+                continue
+
+            # The SignalHire payload structure serves perfectly as input
+            # This will now FIND and UPDATE the placeholder expert created in Stage 1
+            expert_data = _store_expert_from_profile_final(candidate, raw_url, project_id, source='signalhire')
+            if not expert_data:
+                continue
+                
+            # Fetch the DB record just updated to append contact details
+            # SEARCH BY NORMALIZED URL LOGIC
+            expert = None
+            all_experts = Expert.query.all() # Small list? No, better use filter
+            # Since our DB stores raw URLs, we'll try to find any that normalize to this
+            for e in Expert.query.order_by(Expert.created_at.desc()).limit(100).all():
+                if _normalize_linkedin_url(e.linkedin_url) == linkedin_url:
+                    expert = e
+                    break
+
+            if not expert:
+                with open('signalhire_callback_debug.log', 'a') as f:
+                    f.write(f"  [MISS] Could not find placeholder for normalized URL: {linkedin_url}\n")
+                continue
+
+            # Contact parsing
+            contacts = item.get('contacts') or candidate.get('contacts') or []
+            emails = [c.get('value') for c in contacts if c.get('type') == 'email' and c.get('value')]
+            phones = [c.get('value') for c in contacts if c.get('type') == 'phone' and c.get('value')]
+            email = emails[0] if emails else None
+            phone = phones[0] if phones else None
+
+            if email:
+                expert.primary_email = email[:255]
+            if phone:
+                expert.primary_phone = phone[:50]
+
+            db.session.commit()
+            enriched += 1
+            with open('signalhire_callback_debug.log', 'a') as f:
+                f.write(f"  [SUCCESS] Updated expert: {expert.full_name}\n")
+
         except Exception as e:
             db.session.rollback()
-            print(f"[SIGNALHIRE CB ERROR] {e}")
+            import traceback
+            err = traceback.format_exc()
+            with open('signalhire_callback_debug.log', 'a') as f:
+                f.write(f"  [ERROR] {str(e)}\n{err}\n")
 
     return jsonify({'enriched': enriched}), 200
 
@@ -89,10 +171,9 @@ def signalhire_callback():
 @n8n_bp.route('/search-experts', methods=['POST'])
 def search_experts():
     """
-    3-Stage Waterfall:
+    2-Stage Pipeline:
       1. Google X-Ray  → N1 profiles (name, url, location, snippet)
-      2. Anchor Enrichment → N2 profiles (experience, skills, full bio)
-      3. SignalHire    → emails + phone (async callback)
+      2. SignalHire    → deep profile (bio, experiences, skills) + contact (email, phone)
     """
     db.session.rollback()
 
@@ -241,146 +322,92 @@ def search_experts():
             })
 
         # ═══════════════════════════════════════════════════════
-        # STAGE 2: LinkedIn Deep Profile Enrichment → N2 full data
-        # Uses dev_fusion/linkedin-profile-scraper (No-Cookie, with email)
-        # Schema: profileUrls[], cookie (string, optional)
+        # PREPARE EXPERTS FOR SIGNALHIRE ENRICHMENT
+        # (Skip old Apify Stage 2 - send N1 profiles directly to Stage 2 SignalHire)
         # ═══════════════════════════════════════════════════════
         print("\n" + "=" * 60)
-        print("[STAGE 2] Deep LinkedIn Profile Enrichment (dev_fusion)")
+        print("[STAGE 2] Preparation (Saving Snippets & Filtering)")
         print("=" * 60)
 
-        LI_ACTOR_URL = (
-            "https://api.apify.com/v2/acts/dev_fusion~linkedin-profile-scraper"
-            f"/run-sync-get-dataset-items?token={apify_token}&timeout=300"
-        )
-
-        n1_urls = [p['url'] for p in n1_profiles][:10] # Batch size of 10 for performance/reliability
-        n2_profiles = {}
-
-        li_cookie = os.getenv('LINKEDIN_LI_AT_COOKIE')
-
-        try:
-            payload = {
-                "profileUrls": n1_urls,
-            }
-            if li_cookie:
-                # dev_fusion actor accepts cookie as a plain string
-                payload["cookie"] = li_cookie
-                
-            print(f"[STAGE 2] Enriching {len(n1_urls)} profiles via dev_fusion actor...")
-            print(f"[STAGE 2 DEBUG] Payload URLs: {n1_urls}")
-            resp2 = http_requests.post(LI_ACTOR_URL, json=payload, timeout=360)
-
-            print(f"[STAGE 2] Scraper Response Status: {resp2.status_code}")
-            print(f"[STAGE 2 DEBUG] Raw Response (first 1000): {resp2.text[:1000]}")
-            if resp2.ok:
-                results = resp2.json() or []
-                print(f"[STAGE 2] Received {len(results)} enriched profiles")
-                for profile in results:
-                    purl = (
-                        profile.get('url') or profile.get('linkedinUrl') or
-                        profile.get('profileUrl') or ''
-                    ).strip().rstrip('/')
-                    if purl:
-                        exps = profile.get('positions') or profile.get('experience') or profile.get('experiences') or []
-                        print(f"[STAGE 2] Got deep data for: {purl} (exp rows: {len(exps)})")
-                        n2_profiles[purl] = profile
-            else:
-                print(f"[STAGE 2] Scraper error {resp2.status_code}: {resp2.text[:500]}")
-
-        except Exception as e:
-            print(f"[STAGE 2 ERROR] {e}")
-
-        # ── Merge and Store ──────────────────────────────────
         all_experts = []
 
-        def normalize_url(u):
-            return u.lower().replace('https://', '').replace('http://', '').replace('www.', '').strip().rstrip('/')
-
-        n2_keys = {normalize_url(k): v for k, v in n2_profiles.items()}
-
         for n1 in n1_profiles:
-            raw_url = n1['url']
-            n2 = n2_keys.get(normalize_url(raw_url))
-
-            if n2:
-                # Merge: N2 takes precedence, fill gaps from N1 snippet
-                merged = {**n1, **n2}
-                source = 'deep'
-            else:
-                # No Stage 2 match — fall back to snippet data only
-                merged = n1.copy()
-                source = 'snippet'
-
-            expert_data = _store_expert_from_profile_final(merged, raw_url, project_id, source=source)
-            if not expert_data:
+            raw_url = n1.get('url') or ''
+            if not raw_url:
                 continue
-
-            exp_years = expert_data.get('years_of_experience', 0) or 0
-            if min_years and exp_years < min_years:
-                print(f"[FUNNEL] Skipping {expert_data.get('full_name')} — {exp_years} yrs < {min_years}")
-                continue
-
-            # Relevance scoring
+                
+            n1['linkedin_url'] = raw_url
+            
+            # Simple relevance check strictly in-memory temporarily 
             relevance = 0
             if project and project.project_description:
-                bio_text = ((expert_data.get('bio') or '') + ' ' + (expert_data.get('title_headline') or '')).lower()
+                bio_text = ((n1.get('snippet') or '') + ' ' + (n1.get('title') or '')).lower()
                 for kw in (project.project_title or '').split():
                     if len(kw) > 3 and kw.lower() in bio_text:
                         relevance += 1
+            n1['relevance_score'] = relevance
+            n1['enrichment_source'] = 'queued'
+            all_experts.append(n1)
 
-            expert_data['relevance_score'] = relevance
-            expert_data['enrichment_source'] = source
-            all_experts.append(expert_data)
-
-        # Rank by relevance + experience
-        all_experts.sort(key=lambda x: (x.get('relevance_score', 0), x.get('years_of_experience', 0)), reverse=True)
+        # Rank by basic relevance
+        all_experts.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
         all_experts = all_experts[:15]
 
-        if not all_experts:
-            print("[WARNING] No experts survived after filtering/enrichment.")
-            errors.append("Pipeline returned 0 qualified experts after enrichment.")
+        # ── IMMEDIATE SAVE ───────────────────────────────────────
+        # Save placeholder experts to DB right away (Stage 1)
+        # ──────────────────────────────────────────────────────────
+        print(f"[PREP] Persisting {len(all_experts)} placeholder experts to DB immediately...")
+        for exp in all_experts:
+            try:
+                # Use normalized URL matching inside the storage helper
+                _store_expert_from_profile_final(exp, exp['linkedin_url'], project_id, source='snippet')
+            except Exception as e:
+                print(f"[PREP ERROR] Failed to save placeholder {exp.get('linkedin_url')}: {e}")
+        db.session.commit()
+        db.session.flush()
 
-        # ── Commit Stage 1+2 results ──────────────────────────
-        try:
-            db.session.commit()
-            print(f"[DB] Committed {len(all_experts)} experts for project {project_id}")
-        except Exception as e:
-            db.session.rollback()
-            print(f"[DATABASE ERROR] {e}")
-            return jsonify({'error': f'Database commit failed: {str(e)}'}), 500
+        if not all_experts:
+            print("[WARNING] No experts survived after initial Google text filtering.")
+            errors.append("Pipeline returned 0 qualified experts for enrichment.")
+        else:
+            print(f"[PREP] Queued {len(all_experts)} raw profiles for async database storage.")
 
         # ═══════════════════════════════════════════════════════
-        # STAGE 3: SignalHire Contact Enrichment (async)
+        # STAGE 2 (formerly 3): SignalHire Deep Profile & Contact Enrichment (async)
         # Fires off a background request; results arrive at /signalhire-callback
         # ═══════════════════════════════════════════════════════
         print("\n" + "=" * 60)
-        print("[STAGE 3] SignalHire Contact Enrichment (async)")
+        print("[STAGE 2] SignalHire Deep Profile Enrichment (async)")
         print("=" * 60)
 
         signalhire_key = os.getenv('SIGNALHIRE_API_KEY')
-        # Build a public callback URL that SignalHire can POST back to
-        host = os.getenv('BACKEND_PUBLIC_URL', 'http://localhost:8080')
-        callback_url = f"{host}/api/v1/n8n/signalhire-callback"
+        # Build a public callback URL containing the exact project_id via query parameter
+        host = os.getenv('BACKEND_PUBLIC_URL', 'http://localhost:8080').rstrip('/')
+        callback_url = f"{host}/api/v1/n8n/signalhire-callback?project_id={project_id}"
+
+        print(f"[DEBUG] SignalHire Key: {'***' if signalhire_key else 'MISSING'}")
+        print(f"[DEBUG] Experts to dispatch: {len(all_experts)}")
 
         if signalhire_key and all_experts:
             app_ctx = current_app._get_current_object()
-            threading.Thread(
+            print(f"[STAGE 3] Dispatching {len(all_experts)} profiles to SignalHire...")
+            thread = threading.Thread(
                 target=_bg_signalhire_enrich,
                 args=(app_ctx, signalhire_key, all_experts, callback_url),
                 daemon=True
-            ).start()
-            print(f"[STAGE 3] Dispatched {len(all_experts)} profiles to SignalHire (callback: {callback_url})")
+            )
+            thread.start()
+            print(f"[STAGE 3] Background thread started: {thread.name}")
+            print(f"[STAGE 3] Callback will arrive at: {callback_url}")
         else:
             missing = "SIGNALHIRE_API_KEY" if not signalhire_key else "no experts"
             print(f"[STAGE 3] Skipping — {missing} not available")
 
         return jsonify({
-            'message': f'Pipeline complete: {len(all_experts)} experts found and stored',
+            'message': f'Pipeline complete: {len(all_experts)} experts found and queued for enrichment',
             'experts_found': len(all_experts),
             'experts': all_experts,
             'stage1_n1': len(n1_profiles),
-            'stage2_n2': len(n2_profiles),
             'signalhire_dispatched': bool(signalhire_key and all_experts),
             'errors': errors if errors else None,
             'project_id': project_id
@@ -463,50 +490,51 @@ def send_emails():
 # BACKGROUND HELPERS
 # ═══════════════════════════════════════════════════════════════
 
+def _bg_signalhire_single_dispatch(li_url, api_key, callback_url, signal_url, headers, i, total):
+    """Helper to dispatch a single profile to SignalHire (used in parallel)."""
+    payload = {
+        "items": [{"linkedin": li_url}],
+        "callbackUrl": callback_url
+    }
+    try:
+        resp = http_requests.post(signal_url, json=payload, headers=headers, timeout=30)
+        if resp.status_code in (200, 201, 202):
+            print(f"[SIGNALHIRE] Profile {i+1}/{total} queued: {li_url} (status {resp.status_code})")
+        else:
+            print(f"[SIGNALHIRE ERROR] Profile {i+1} failed ({resp.status_code}): {resp.text[:200]}")
+    except Exception as e:
+        print(f"[SIGNALHIRE TECHNICAL ERROR] Profile {i+1} failed: {e}")
+
 def _bg_signalhire_enrich(app, api_key, experts, callback_url):
-    """
-    Background task: sends N2 profiles to SignalHire for contact enrichment.
-    SignalHire will POST results back to callback_url asynchronously.
-    """
-    with app.app_context():
+    # Log to file since terminal output from daemon threads can be unreliable
+    with open('signalhire_callback_debug.log', 'a') as f:
+        f.write(f"[{datetime.utcnow().isoformat()}] [BG] Background thread entering: {len(experts)} items.\n")
+
+    try:
         SIGNALHIRE_URL = "https://www.signalhire.com/api/v1/candidate/search"
         headers = {
             "Content-Type": "application/json",
             "apikey": api_key
         }
 
-        # SignalHire processes up to 25 items per request
-        BATCH = 25
-        for i in range(0, len(experts), BATCH):
-            batch = experts[i:i+BATCH]
-            items = []
-            for exp in batch:
+        with open('signalhire_callback_debug.log', 'a') as f:
+            f.write(f"[{datetime.utcnow().isoformat()}] [BG] Dispatching {len(experts)} profiles in PARALLEL...\n")
+
+        # Use 8 workers to dispatch quickly
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            for i, exp in enumerate(experts):
                 li_url = exp.get('linkedin_url') or ''
-                if li_url:
-                    items.append({"linkedin": li_url})
+                if not li_url: continue
+                executor.submit(_bg_signalhire_single_dispatch, li_url, api_key, callback_url, SIGNALHIRE_URL, headers, i, len(experts))
+        
+        with open('signalhire_callback_debug.log', 'a') as f:
+            f.write(f"[{datetime.utcnow().isoformat()}] [BG] All profile dispatch jobs submitted.\n")
 
-            if not items:
-                continue
-
-            payload = {
-                "items": items,
-                "callbackUrl": callback_url
-            }
-
-            try:
-                resp = http_requests.post(SIGNALHIRE_URL, json=payload, headers=headers, timeout=30)
-                if resp.status_code in (200, 201, 202):
-                    print(f"[SIGNALHIRE] Batch {i//BATCH+1}: {len(items)} profiles queued (status {resp.status_code})")
-                else:
-                    print(f"[SIGNALHIRE] Error {resp.status_code}: {resp.text[:200]}")
-            except Exception as e:
-                print(f"[SIGNALHIRE] Request failed: {e}")
-
-            # Polite delay between batches
-            if i + BATCH < len(experts):
-                time.sleep(1)
-
-
+    except Exception as e:
+        import traceback
+        err = traceback.format_exc()
+        with open('signalhire_callback_debug.log', 'a') as f:
+            f.write(f"[{datetime.utcnow().isoformat()}] [BG ERROR] Parallel dispatch failed: {e}\n{err}\n")
 # ═══════════════════════════════════════════════════════════════
 # LLM REFINEMENT
 # ═══════════════════════════════════════════════════════════════
@@ -592,7 +620,12 @@ def _simple_boolean_fallback(companies, titles):
 # ═══════════════════════════════════════════════════════════════
 
 def _store_expert_from_profile_final(person, linkedin_url, project_id, source='snippet'):
-    """Final storage of expert to DB with mapped fields."""
+    """
+    Final storage of expert to DB with mapped fields.
+    Now handles 'Immediate Save' by checking for existing LinkedIn URLs
+    and updating instead of duplicating.
+    """
+    from models import ProjectExpert
     try:
         # ── Name ──────────────────────────────────────────────────
         fn   = (person.get('firstName') or person.get('first_name') or '').strip()
@@ -653,7 +686,14 @@ def _store_expert_from_profile_final(person, linkedin_url, project_id, source='s
         total_exp = _calculate_total_experience(raw_experiences)
 
         # ── Persist to DB ─────────────────────────────────────────
-        expert = Expert.query.filter_by(linkedin_url=linkedin_url).first()
+        # Normalize for searching existing records
+        norm_url = _normalize_linkedin_url(linkedin_url)
+        expert = None
+        # We look for ANY expert that normalizes to this URL to prevent duplicates
+        for e in Expert.query.order_by(Expert.created_at.desc()).limit(100).all():
+            if _normalize_linkedin_url(e.linkedin_url) == norm_url:
+                expert = e
+                break
 
         if not expert:
             import uuid
@@ -670,12 +710,31 @@ def _store_expert_from_profile_final(person, linkedin_url, project_id, source='s
             db.session.add(expert)
             db.session.flush()
         else:
-            expert.first_name = fn
-            expert.last_name  = ln
-            expert.years_of_experience = total_exp
-            if headline:      expert.title_headline = headline[:250]
-            if summary:       expert.bio = summary[:2000]
-            if location_name: expert.notes = f"Location: {location_name}"
+            # Always update if we are getting data from SignalHire. 
+            # Or update if the placeholder still has the generic 'LinkedIn Expert' name.
+            if source == 'signalhire' or expert.first_name == "LinkedIn":
+                if fn: expert.first_name = fn
+                if ln: expert.last_name  = ln
+                if total_exp:     expert.years_of_experience = total_exp
+                if headline:      expert.title_headline = headline[:250]
+                if summary:       expert.bio = summary[:2000]
+                if location_name: expert.notes = f"Location: {location_name}"
+
+        # ── Project Mapping ───────────────────────────────────────
+        if project_id:
+            from models import Project, ProjectExpert
+            project = Project.query.get(project_id)
+            if project:
+                # 1. Update ProjectExpert join table
+                mapping = ProjectExpert.query.filter_by(project_id=project_id, expert_id=expert.id).first()
+                if not mapping:
+                    db.session.add(ProjectExpert(project_id=project_id, expert_id=expert.id, stage='Leads'))
+                
+                # 2. Update leads_expert_ids JSONB list
+                leads = list(project.leads_expert_ids or [])
+                if expert.id not in leads:
+                    leads.append(expert.id)
+                    project.leads_expert_ids = leads
 
         # ── Store Experience entries ──────────────────────────
         if raw_experiences:
@@ -861,8 +920,7 @@ def _calculate_total_experience(raw_experiences):
     if not raw_experiences or not isinstance(raw_experiences, list):
         return 0
 
-    import datetime
-    current_year = datetime.datetime.now().year
+    current_year = datetime.now().year
     intervals = []
 
     for exp in raw_experiences:
