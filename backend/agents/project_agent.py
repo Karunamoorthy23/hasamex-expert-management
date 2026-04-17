@@ -77,7 +77,11 @@ Sub-task 3 – Expert Recruiting Outreach Messaging Pack (GENERATE ONLY WHEN REQ
   - LinkedIn Connection Request (<40 words)
   - Email (<120 words)
   - SMS/WhatsApp (<80 words)
-  Guidelines: Mention client type, general focus, Hasamex positioning, compliance, invite to receive form link.
+  Guidelines:
+    - FILL IN all project-specific details (Sector, Client Type, Region, general aim, Target Titles) using actual data from the provided project fields.
+    - NEVER use generic or descriptive placeholders like [Sector], [Client Type, e.g. Consulting], or [Topics].
+    - USE ONLY these 3 specific placeholders for expert-level variables: [Expert Name], [Company Name], [Link to Form].
+    - Mention Hasamex positioning, compliance, and invite to receive form link.
 
 TASK 2: CLIENT DELIVERY PACKAGE (GENERATE ONLY AFTER EXPERT INTERACTION)
   - Email body to client

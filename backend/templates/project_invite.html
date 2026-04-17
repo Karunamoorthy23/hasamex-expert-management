@@ -83,28 +83,34 @@
     <div class="container">
       <div class="logo">HASA<span>MEX</span></div>
       
-      <p>Dear {{ expert_name }},</p>
-      
-      <p>We are pleased to invite you to participate in a new consultation project:</p>
-      
-      <h2>{{ project_title }}</h2>
-      
-      <p>{{ project_description }}</p>
-      
-      <!-- <div class="project-info"> -->
+      {% if custom_body %}
+        <div style="margin-bottom: 25px;">
+          {{ custom_body | safe }}
+        </div>
+      {% else %}
+        <p>Dear {{ expert_name }},</p>
+        
+        <p>We are pleased to invite you to participate in a new consultation project:</p>
+        
+        <h2>{{ project_title }}</h2>
+        
+        <p>{{ project_description }}</p>
+        
         <div class="info-row"><span class="info-label">Project ID:</span> {{ project_code }}</div>
         <div class="info-row"><span class="info-label">Estimated Start:</span> {{ project_start }}</div>
         <div class="info-row"><span class="info-label">Region:</span> {{ project_region }}</div>
         <div class="info-row"><span class="info-label">Type:</span> {{ project_type }}</div>
-      <!-- </div> -->
-      
-      <p style="margin-top: 30px;">If You need any clarification regarding the project, feel free to contact us through the email address: {{ sender_email or "info@hasamex.com" }}</p>
+        
+        <p style="margin-top: 30px;">If You need any clarification regarding the project, feel free to contact us through the email address: {{ sender_email or "info@hasamex.com" }}</p>
+      {% endif %}
 
       <center>
         <a href="{{ cta_link }}" class="cta-button">Accept Project & View Details</a>
       </center>
       
+      {% if not custom_body %}
       <p style="margin-top: 30px;">If you are interested, please click the button above to view full details and submit your availability. If you have any questions, feel free to reply to this email.</p>
+      {% endif %}
 
       <div class="footer">
         Best regards,<br>

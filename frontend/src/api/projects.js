@@ -145,3 +145,10 @@ export async function updateOutreachMessage(projectId, messageId, payload) {
     });
     return result.data;
 }
+
+export async function generateOutreachMessages(projectId) {
+    const result = await http(`/projects/${projectId}/generate-outreach`, {
+        method: 'POST',
+    });
+    return result;
+}

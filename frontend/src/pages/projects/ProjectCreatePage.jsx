@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createProject, fetchProjectFormLookups } from '../../api/projects';
+import { http } from '../../api/http';
 import FilterDropdown from '../../components/experts/FilterDropdown';
 import Button from '../../components/ui/Button';
 
@@ -10,6 +11,9 @@ export default function ProjectCreatePage() {
     const [clients, setClients] = useState([]);
     const [users, setUsers] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
+    const [isGeneratingOutreach, setIsGeneratingOutreach] = useState(false);
+    const [outreachToast, setOutreachToast] = useState(null);
+    const [pendingOutreach, setPendingOutreach] = useState(null); // saved for after project creation
 
     const [form, setForm] = useState({
         client_id: '',
@@ -587,6 +591,92 @@ export default function ProjectCreatePage() {
                                 />
                             </div>
                         </div>
+                    </div>
+
+                    <div className="form-section" style={{ border: '2px dashed #1a6e3c', borderRadius: 8, padding: '20px 24px', background: '#f0faf4' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                            <div>
+                                <h2 className="form-section__title" style={{ color: '#1a6e3c', marginBottom: 4 }}>📩 Generate Outreach Messages</h2>
+                                <p style={{ fontSize: '0.82rem', color: '#555', margin: 0 }}>
+                                    Optional — generate AI-powered outreach templates (Email, LinkedIn, WhatsApp) based on the project details above.
+                                    You can also generate these from the Project Details page after saving.
+                                </p>
+                            </div>
+                        </div>
+                        {outreachToast && (
+                            <div style={{
+                                marginBottom: 16, padding: '10px 18px', borderRadius: 6, fontWeight: 600, fontSize: '0.85rem',
+                                background: outreachToast === 'success' ? '#1a6e3c' : '#b91c1c',
+                                color: '#fff', display: 'flex', alignItems: 'center', gap: 8
+                            }}>
+                                {outreachToast === 'success'
+                                    ? <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Outreach templates generated! They will be saved when you create the project.</>  
+                                    : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Could not generate outreach. Fill in project details first.</>}
+                            </div>
+                        )}
+                        {pendingOutreach && (
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                                {[{ key: 'email', label: '📧 Email', color: '#1a5ca8' }, { key: 'linkedin_connection', label: '🔗 LinkedIn Connection', color: '#0a66c2' }, { key: 'linkedin_inmail', label: '💼 LinkedIn InMail', color: '#004182' }, { key: 'whatsapp_sms', label: '💬 WhatsApp/SMS', color: '#25d366' }].map(({ key, label, color }) => pendingOutreach[key] ? (
+                                    <div key={key} style={{ background: '#fff', border: `1px solid ${color}30`, borderRadius: 6, padding: 12 }}>
+                                        <div style={{ fontWeight: 700, fontSize: '0.78rem', color, marginBottom: 6 }}>{label}</div>
+                                        <div style={{ fontSize: '0.78rem', color: '#333', lineHeight: 1.55, whiteSpace: 'pre-wrap', maxHeight: 80, overflow: 'hidden' }}>{pendingOutreach[key]}</div>
+                                    </div>
+                                ) : null)}
+                            </div>
+                        )}
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            loading={isGeneratingOutreach}
+                            disabled={isGeneratingOutreach}
+                            onClick={async () => {
+                                if (!form.project_title || !form.project_description) {
+                                    setOutreachToast('error');
+                                    setTimeout(() => setOutreachToast(null), 3500);
+                                    return;
+                                }
+                                setIsGeneratingOutreach(true);
+                                setOutreachToast(null);
+                                try {
+                                    // Use a special endpoint that just generates using fields without saving a project
+                                    // We simulate by calling the backend with a fake project id — instead we
+                                    // call generate-outreach-preview which accepts fields directly.
+                                    const res = await http('/projects/generate-outreach-preview', {
+                                        method: 'POST',
+                                        body: JSON.stringify({
+                                            project_title: form.project_title,
+                                            project_description: form.project_description,
+                                            target_companies: form.target_companies.filter(Boolean),
+                                            target_functions_titles: form.target_functions_titles,
+                                            target_functions: form.target_functions.filter(Boolean),
+                                            target_region: form.target_region,
+                                            target_geographies: form.target_geographies,
+                                            current_former_both: form.current_former_both,
+                                            project_questions: form.project_questions.filter(Boolean),
+                                            compliance_question_1: form.compliance_question_1,
+                                        }),
+                                    });
+                                    if (res?.data) {
+                                        setPendingOutreach(res.data);
+                                        setOutreachToast('success');
+                                        setTimeout(() => setOutreachToast(null), 4000);
+                                    }
+                                } catch (err) {
+                                    console.error(err);
+                                    setOutreachToast('error');
+                                    setTimeout(() => setOutreachToast(null), 4000);
+                                } finally {
+                                    setIsGeneratingOutreach(false);
+                                }
+                            }}
+                            style={{ borderColor: '#1a6e3c', color: '#1a6e3c', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                <polyline points="22,6 12,13 2,6"/>
+                            </svg>
+                            {isGeneratingOutreach ? 'Generating Outreach Messages…' : pendingOutreach ? 'Regenerate Outreach Messages' : 'Generate Outreach Messages'}
+                        </Button>
                     </div>
 
                     <div className="form-actions">

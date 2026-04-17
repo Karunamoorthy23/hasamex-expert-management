@@ -25,7 +25,7 @@ import {
     XIcon,
     EditIcon
 } from '../../components/icons/Icons';
-import { updateOutreachMessage } from '../../api/projects';
+import { updateOutreachMessage, generateOutreachMessages } from '../../api/projects';
 
 function DetailItem({ label, value, full }) {
     return (
@@ -266,6 +266,8 @@ export default function ProjectDetails() {
     const [tempOutreachContent, setTempOutreachContent] = useState('');
     const [isSavingOutreach, setIsSavingOutreach] = useState(false);
     const [copySuccess, setCopySuccess] = useState(false);
+    const [isGeneratingOutreach, setIsGeneratingOutreach] = useState(false);
+    const [outreachToast, setOutreachToast] = useState(null); // 'success' | 'error'
 
     const loadParticipants = async () => {
         try {
@@ -527,6 +529,28 @@ export default function ProjectDetails() {
         }
     };
 
+    const handleGenerateOutreach = async () => {
+        setIsGeneratingOutreach(true);
+        setOutreachToast(null);
+        try {
+            const res = await generateOutreachMessages(id);
+            if (res?.data) {
+                setProject(prev => ({
+                    ...prev,
+                    outreach_messages: [res.data],
+                }));
+                setOutreachToast('success');
+                setTimeout(() => setOutreachToast(null), 4000);
+            }
+        } catch (err) {
+            console.error('Failed to generate outreach:', err);
+            setOutreachToast('error');
+            setTimeout(() => setOutreachToast(null), 4000);
+        } finally {
+            setIsGeneratingOutreach(false);
+        }
+    };
+
     const receivedDate = useMemo(
         () => (project?.received_date ? new Date(project.received_date).toLocaleDateString() : '—'),
         [project?.received_date]
@@ -711,6 +735,32 @@ export default function ProjectDetails() {
                         <div className="hdr-title">{project.project_title || project.title || 'Project'}</div>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                             <button className="btn-edit" style={{ background: '#0d1b3e' }} onClick={() => window.open(`/project-form/${project.project_id}`, '_blank')}>View Project Form</button>
+                            <button
+                                className="btn-edit"
+                                style={{ background: isGeneratingOutreach ? '#555' : '#1a6e3c', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                                onClick={handleGenerateOutreach}
+                                disabled={isGeneratingOutreach}
+                                title="Generate AI outreach message templates for this project"
+                            >
+                                {isGeneratingOutreach ? (
+                                    <>
+                                        <svg width="14" height="14" viewBox="0 0 50 50" style={{ animation: 'spin-anim 1s linear infinite' }}>
+                                            <circle cx="25" cy="25" r="20" stroke="currentColor" strokeWidth="6" fill="none" strokeDasharray="31.4 31.4">
+                                                <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+                                            </circle>
+                                        </svg>
+                                        Generating…
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                            <polyline points="22,6 12,13 2,6"/>
+                                        </svg>
+                                        Generate Outreach
+                                    </>
+                                )}
+                            </button>
                             <button className="btn-edit" onClick={() => navigate(`/projects/${project.project_id}/edit`)}>Edit Project</button>
                         </div>
                     </div>
@@ -1021,6 +1071,24 @@ export default function ProjectDetails() {
                     })}
                 </div>
             </div>
+
+            {/* Outreach Toast Notification */}
+            {outreachToast && (
+                <div style={{
+                    position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+                    zIndex: 9999, padding: '12px 24px', borderRadius: 6, fontWeight: 600,
+                    fontSize: '0.88rem', boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+                    background: outreachToast === 'success' ? '#1a6e3c' : '#b91c1c',
+                    color: '#fff', display: 'flex', alignItems: 'center', gap: 8,
+                    animation: 'slideDown 0.3s ease-out'
+                }}>
+                    {outreachToast === 'success' ? (
+                        <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Outreach messages generated successfully!</>
+                    ) : (
+                        <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Failed to generate outreach. Please try again.</>
+                    )}
+                </div>
+            )}
 
             {/* Outreach Messages FAB */}
             {project?.outreach_messages?.length > 0 && (
