@@ -1,6 +1,6 @@
 import Checkbox from '../ui/Checkbox';
 import { truncate } from '../../utils/format';
-import { EditIcon, TrashIcon, LinkIcon, MailIcon, SortIcon } from '../icons/Icons';
+import { EditIcon, TrashIcon, LinkedInIcon, MailIcon, SortIcon } from '../icons/Icons';
 import { Link } from 'react-router-dom';
 
 /**
@@ -49,7 +49,6 @@ export default function ExpertsTable({
                                 ariaLabel="Select all"
                             />
                         </th>
-                        {renderHeader('Expert ID', 'expert_id', 'col-id')}
                         {renderHeader('Name', 'first_name', 'col-name')}
                         {renderHeader('Title / Headline', 'title_headline', 'col-title')}
                         {renderHeader('Sector', 'primary_sector', 'col-sector')}
@@ -68,7 +67,6 @@ export default function ExpertsTable({
                                     onChange={() => onSelectExpert(expert.id)}
                                 />
                             </td>
-                            <td className="col-id">{expert.expert_id}</td>
                             <td className="col-name">
                                 <Link to={`/experts/${expert.id}`} className="expert-name">
                                     {expert.first_name} {expert.last_name}
@@ -83,7 +81,7 @@ export default function ExpertsTable({
                                 <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
                                     {expert.linkedin_url && (
                                         <a href={expert.linkedin_url} target="_blank" rel="noopener noreferrer" className="action-btn" title="LinkedIn">
-                                            <LinkIcon />
+                                            <LinkedInIcon />
                                         </a>
                                     )}
                                     <button type="button" className="action-btn" title="Email Info" onClick={() => onEmailExpert(expert.id)}>

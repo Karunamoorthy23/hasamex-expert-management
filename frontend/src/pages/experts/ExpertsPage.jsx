@@ -290,6 +290,8 @@ export default function ExpertsPage() {
                     onAdd={handleAdd}
                     onImport={handleImport}
                     onExport={handleExport}
+                    view={view}
+                    onViewChange={setView}
                 />
 
                 {/* Filters Panel */}
@@ -311,31 +313,7 @@ export default function ExpertsPage() {
                     onClear={handleClearSelection}
                 />
 
-                {/* View Toggle */}
-                <div className="view-toggle-row">
-                    <div className="view-toggle">
-                        <button
-                            type="button"
-                            className={cn('view-btn', view === 'table' && 'view-btn--active')}
-                            title="Table view"
-                            aria-pressed={view === 'table'}
-                            onClick={() => setView('table')}
-                        >
-                            <TableIcon />
-                            Table
-                        </button>
-                        <button
-                            type="button"
-                            className={cn('view-btn', view === 'cards' && 'view-btn--active')}
-                            title="Card view"
-                            aria-pressed={view === 'cards'}
-                            onClick={() => setView('cards')}
-                        >
-                            <CardsIcon />
-                            Cards
-                        </button>
-                    </div>
-                </div>
+
 
                 {/* Content Area */}
                 <div className="content-area">
@@ -370,6 +348,8 @@ export default function ExpertsPage() {
                             selectedIds={selectedIds}
                             onSelectExpert={handleSelectExpert}
                             onViewExpert={handleViewExpert}
+                            onEditExpert={handleEditExpert}
+                            onDeleteExpert={handleDeleteClick}
                         />
                     )}
                 </div>

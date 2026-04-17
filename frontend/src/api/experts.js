@@ -1,4 +1,5 @@
 import { http } from './http';
+import { getToken } from '../auth/token';
 
 /**
  * Sample expert data for development fallback.
@@ -120,8 +121,10 @@ export async function deleteExperts(ids) {
  */
 export async function downloadImportTemplate() {
     try {
+        const token = getToken();
         const response = await fetch(`${import.meta.env.VITE_API_URL}/import/template`, {
             method: 'GET',
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (!response.ok) throw new Error('Failed to download template');
 
@@ -146,9 +149,11 @@ export async function downloadImportTemplate() {
 export async function previewImport(file) {
     const formData = new FormData();
     formData.append('file', file);
-
+    
+    const token = getToken();
     const response = await fetch(`${import.meta.env.VITE_API_URL}/import/preview`, {
         method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
     });
 
@@ -195,7 +200,10 @@ export async function exportExperts(params = {}) {
 
     const url = `${import.meta.env.VITE_API_URL}/experts/export?${query.toString()}`;
 
-    const response = await fetch(url);
+    const token = getToken();
+    const response = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     if (!response.ok) {
         throw new Error('Failed to export experts');
     }
@@ -219,9 +227,13 @@ export async function exportExperts(params = {}) {
  * @param {Array<string>} expertIds - List of expert IDs to export
  */
 export async function fetchEmailExport(expertIds) {
+    const token = getToken();
     const response = await fetch(`${import.meta.env.VITE_API_URL}/experts/email-export`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ expert_ids: expertIds }),
     });
 

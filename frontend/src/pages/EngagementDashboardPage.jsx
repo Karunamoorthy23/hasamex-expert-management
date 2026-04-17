@@ -6,8 +6,9 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import Loader from '../components/ui/Loader';
 import Pagination from '../components/experts/Pagination';
 import Button from '../components/ui/Button';
-import { FilterIcon, ChevronDownIcon, XIcon } from '../components/icons/Icons';
+import { FilterIcon, ChevronDownIcon, XIcon, TableIcon, CardsIcon } from '../components/icons/Icons';
 import { http } from '../api/http';
+import EngagementCard from '../components/engagements/EngagementCard';
 
 export default function EngagementDashboardPage() {
     const navigate = useNavigate();
@@ -20,6 +21,7 @@ export default function EngagementDashboardPage() {
     const [sort, setSort] = useState({ field: 'call_date', order: 'desc' });
     const [page, setPage] = useState(1);
     const [filtersPanelOpen, setFiltersPanelOpen] = useState(false);
+    const [viewMode, setViewMode] = useState('table');
 
     const fetchLookups = async () => {
         try {
@@ -130,6 +132,24 @@ export default function EngagementDashboardPage() {
                             {activeFiltersCount > 0 && <span className="filters-count">{activeFiltersCount}</span>}
                             <ChevronDownIcon className="chev" />
                         </button>
+                        <div className="view-toggle">
+                            <button
+                                type="button"
+                                className={`view-btn ${viewMode === 'table' ? 'active' : ''}`}
+                                onClick={() => setViewMode('table')}
+                                title="Table View"
+                            >
+                                <TableIcon />
+                            </button>
+                            <button
+                                type="button"
+                                className={`view-btn ${viewMode === 'cards' ? 'active' : ''}`}
+                                onClick={() => setViewMode('cards')}
+                                title="Card View"
+                            >
+                                <CardsIcon />
+                            </button>
+                        </div>
                     </div>
 
                     <div className="action-bar__divider" aria-hidden="true" />
@@ -155,15 +175,36 @@ export default function EngagementDashboardPage() {
                                 onFilterChange={handleFilterChange}
                                 lookups={lookups}
                             />
-                            <EngagementTable
-                                engagements={engagements}
-                                onEdit={(id) => navigate(`/engagements/${id}/edit`)}
-                                onDelete={handleDelete}
-                                onRowClick={(id) => navigate(`/engagements/${id}`)}
-                                sortBy={sort.field}
-                                sortOrder={sort.order}
-                                onSort={handleSort}
-                            />
+                            {viewMode === 'table' ? (
+                                <EngagementTable
+                                    engagements={engagements}
+                                    onEdit={(id) => navigate(`/engagements/${id}/edit`)}
+                                    onDelete={handleDelete}
+                                    onRowClick={(id) => navigate(`/engagements/${id}`)}
+                                    sortBy={sort.field}
+                                    sortOrder={sort.order}
+                                    onSort={handleSort}
+                                />
+                            ) : (
+                                <div className="card-grid">
+                                    <style>{`
+                                        .card-grid {
+                                            display: flex;
+                                            flex-direction: column;
+                                            gap: 0;
+                                            margin-top: 10px;
+                                        }
+                                    `}</style>
+                                    {engagements.map(eng => (
+                                        <EngagementCard 
+                                            key={eng.id} 
+                                            engagement={eng} 
+                                            onEdit={(id) => navigate(`/engagements/${id}/edit`)}
+                                            onDelete={handleDelete}
+                                        />
+                                    ))}
+                                </div>
+                            )}
                             {engagements.length > 0 && (
                                 <Pagination
                                     page={meta.current_page}

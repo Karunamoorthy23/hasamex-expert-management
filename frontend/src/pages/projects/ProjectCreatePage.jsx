@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createProject, fetchProjectFormLookups } from '../../api/projects';
+import { http } from '../../api/http';
 import FilterDropdown from '../../components/experts/FilterDropdown';
 import Button from '../../components/ui/Button';
 
@@ -10,6 +11,9 @@ export default function ProjectCreatePage() {
     const [clients, setClients] = useState([]);
     const [users, setUsers] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
+    const [isGeneratingOutreach, setIsGeneratingOutreach] = useState(false);
+    const [outreachToast, setOutreachToast] = useState(null);
+    const [pendingOutreach, setPendingOutreach] = useState(null); // saved for after project creation
 
     const [form, setForm] = useState({
         client_id: '',
@@ -18,21 +22,20 @@ export default function ProjectCreatePage() {
         project_title: '',
         project_type: '',
         project_description: '',
-        target_companies: '',
+        target_companies: [''],
         target_region: '',
         target_geographies: [],
         target_functions_titles: '',
+        target_functions: [''],
         current_former_both: 'Both',
         number_of_calls: '',
-        profile_question_1: '',
-        profile_question_2: '',
-        profile_question_3: '',
+        project_questions: [''],
         compliance_question_1: '',
         project_deadline: '',
         project_created_by: '',
         client_solution_owner_ids: [],
         sales_team_ids: [],
-        invited_expert_ids: [],
+        leads_expert_ids: [],
         scheduled_calls_count: 0,
         completed_calls_count: 0,
         goal_calls_count: 0,
@@ -105,18 +108,13 @@ export default function ProjectCreatePage() {
                 'project_title',
                 'project_type',
                 'project_description',
-                'target_companies',
                 'target_region',
                 'target_functions_titles',
                 'current_former_both',
-                'number_of_calls',
-                'profile_question_1',
-                'profile_question_2',
-                'profile_question_3',
                 'compliance_question_1',
                 'project_deadline',
             ];
-            const requiredArrays = ['target_geographies', 'client_solution_owner_ids', 'sales_team_ids'];
+            const requiredArrays = ['target_geographies', 'target_functions', 'client_solution_owner_ids', 'sales_team_ids'];
             const missing = [];
             for (const key of requiredStrings) {
                 if (!String(form[key] ?? '').trim()) missing.push(key);
@@ -125,6 +123,21 @@ export default function ProjectCreatePage() {
                 const val = form[key];
                 if (!Array.isArray(val) || val.length === 0) missing.push(key);
             }
+            // Check project questions
+            if ((form.project_questions || []).some(q => !q.trim())) {
+                missing.push('All project questions must be filled');
+            }
+
+            // Check target companies
+            if ((form.target_companies || []).some(c => !c.trim())) {
+                missing.push('All target companies must be filled');
+            }
+
+            // Check target functions
+            if ((form.target_functions || []).some(f => !f.trim())) {
+                missing.push('All target functions must be filled');
+            }
+
             if (missing.length) {
                 alert('Please fill all required fields: ' + missing.join(', '));
                 return;
@@ -137,7 +150,7 @@ export default function ProjectCreatePage() {
                 scheduled_calls_count: form.scheduled_calls_count ? Number(form.scheduled_calls_count) : 0,
                 completed_calls_count: form.completed_calls_count ? Number(form.completed_calls_count) : 0,
                 goal_calls_count: form.goal_calls_count ? Number(form.goal_calls_count) : 0,
-                invited_expert_ids: form.invited_expert_ids || [],
+                leads_expert_ids: form.leads_expert_ids || [],
             };
             await createProject(payload);
             navigate('/projects');
@@ -145,6 +158,57 @@ export default function ProjectCreatePage() {
             setIsSaving(false);
         }
     }
+
+    const addQuestion = () => {
+        setForm(p => ({ ...p, project_questions: [...(p.project_questions || []), ''] }));
+    };
+
+    const removeQuestion = (index) => {
+        setForm(p => ({
+            ...p,
+            project_questions: p.project_questions.filter((_, i) => i !== index)
+        }));
+    };
+
+    const updateQuestion = (index, value) => {
+        const next = [...(form.project_questions || [])];
+        next[index] = value;
+        setForm(p => ({ ...p, project_questions: next }));
+    };
+
+    const addTargetCompany = () => {
+        setForm(p => ({ ...p, target_companies: [...(p.target_companies || []), ''] }));
+    };
+
+    const removeTargetCompany = (index) => {
+        setForm(p => ({
+            ...p,
+            target_companies: p.target_companies.filter((_, i) => i !== index)
+        }));
+    };
+
+    const updateTargetCompany = (index, value) => {
+        const next = [...(form.target_companies || [])];
+        next[index] = value;
+        setForm(p => ({ ...p, target_companies: next }));
+    };
+
+    const addTargetFunction = () => {
+        setForm(p => ({ ...p, target_functions: [...(p.target_functions || []), ''] }));
+    };
+
+    const removeTargetFunction = (index) => {
+        setForm(p => ({
+            ...p,
+            target_functions: p.target_functions.filter((_, i) => i !== index)
+        }));
+    };
+
+    const updateTargetFunction = (index, value) => {
+        const next = [...(form.target_functions || [])];
+        next[index] = value;
+        setForm(p => ({ ...p, target_functions: next }));
+    };
 
     return (
         <>
@@ -267,14 +331,14 @@ export default function ProjectCreatePage() {
                                 />
                             </div>
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
-                                <label className="form-label">Invited Experts (IDs)</label>
+                                <label className="form-label">Leads Experts (IDs)</label>
                                 <FilterDropdown
                                     label="Select experts"
                                     options={(lookups.experts_codes || []).map((e) => `${e.code} — ${e.name}`)}
-                                    selected={(form.invited_expert_ids || []).map((id) => expertLabelById[id]).filter(Boolean)}
+                                    selected={(form.leads_expert_ids || []).map((id) => expertLabelById[id]).filter(Boolean)}
                                     onChange={(labels) => {
                                         const ids = labels.map((lbl) => expertIdByLabel[lbl]).filter(Boolean);
-                                        setForm((p) => ({ ...p, invited_expert_ids: ids }));
+                                        setForm((p) => ({ ...p, leads_expert_ids: ids }));
                                     }}
                                 />
                             </div>
@@ -296,14 +360,50 @@ export default function ProjectCreatePage() {
                             </div>
 
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
-                                <label className="form-label">Target Companies</label>
-                                <textarea
-                                    className="form-textarea"
-                                    rows={2}
-                                    required
-                                    value={form.target_companies}
-                                    onChange={(e) => setForm((p) => ({ ...p, target_companies: e.target.value }))}
-                                />
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                    <label className="form-label" style={{ marginBottom: 0 }}>Target Companies</label>
+                                    <Button type="button" variant="secondary" size="small" onClick={addTargetCompany} style={{ padding: '4px 12px', fontSize: '12px' }}>
+                                        + Add Company
+                                    </Button>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    {(form.target_companies || []).map((c, index) => (
+                                        <div key={index} style={{ position: 'relative' }}>
+                                            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                                <div style={{ flex: 1 }}>
+                                                    <input
+                                                        className="form-input"
+                                                        required
+                                                        placeholder={`Target Company #${index + 1}`}
+                                                        value={c}
+                                                        onChange={(e) => updateTargetCompany(index, e.target.value)}
+                                                    />
+                                                </div>
+                                                {form.target_companies.length > 1 && (
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => removeTargetCompany(index)}
+                                                        style={{ 
+                                                            background: 'none', 
+                                                            border: 'none', 
+                                                            color: '#ff4d4f', 
+                                                            cursor: 'pointer',
+                                                            padding: '8px'
+                                                        }}
+                                                        title="Remove company"
+                                                    >
+                                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                                                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                                                        </svg>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
 
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
@@ -317,7 +417,7 @@ export default function ProjectCreatePage() {
                             </div>
 
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
-                                <label className="form-label">Target Functions / Titles</label>
+                                <label className="form-label">Target Titles</label>
                                 <textarea
                                     className="form-textarea"
                                     rows={2}
@@ -325,6 +425,53 @@ export default function ProjectCreatePage() {
                                     value={form.target_functions_titles}
                                     onChange={(e) => setForm((p) => ({ ...p, target_functions_titles: e.target.value }))}
                                 />
+                            </div>
+
+                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                    <label className="form-label" style={{ marginBottom: 0 }}>Target Functions (Seniority)</label>
+                                    <Button type="button" variant="secondary" size="small" onClick={addTargetFunction} style={{ padding: '4px 12px', fontSize: '12px' }}>
+                                        + Add Function
+                                    </Button>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    {(form.target_functions || []).map((f, index) => (
+                                        <div key={index} style={{ position: 'relative' }}>
+                                            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                                <div style={{ flex: 1 }}>
+                                                    <input
+                                                        className="form-input"
+                                                        required
+                                                        placeholder={`Target Function #${index + 1}`}
+                                                        value={f}
+                                                        onChange={(e) => updateTargetFunction(index, e.target.value)}
+                                                    />
+                                                </div>
+                                                {form.target_functions.length > 1 && (
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => removeTargetFunction(index)}
+                                                        style={{ 
+                                                            background: 'none', 
+                                                            border: 'none', 
+                                                            color: '#ff4d4f', 
+                                                            cursor: 'pointer',
+                                                            padding: '8px'
+                                                        }}
+                                                        title="Remove function"
+                                                    >
+                                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                                                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                                                        </svg>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -385,34 +532,52 @@ export default function ProjectCreatePage() {
                             </div>
 
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
-                                <label className="form-label">Profile Question 1</label>
-                                <textarea
-                                    className="form-textarea"
-                                    rows={2}
-                                    required
-                                    value={form.profile_question_1}
-                                    onChange={(e) => setForm((p) => ({ ...p, profile_question_1: e.target.value }))}
-                                />
-                            </div>
-                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
-                                <label className="form-label">Profile Question 2</label>
-                                <textarea
-                                    className="form-textarea"
-                                    rows={2}
-                                    required
-                                    value={form.profile_question_2}
-                                    onChange={(e) => setForm((p) => ({ ...p, profile_question_2: e.target.value }))}
-                                />
-                            </div>
-                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
-                                <label className="form-label">Profile Question 3</label>
-                                <textarea
-                                    className="form-textarea"
-                                    rows={2}
-                                    required
-                                    value={form.profile_question_3}
-                                    onChange={(e) => setForm((p) => ({ ...p, profile_question_3: e.target.value }))}
-                                />
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                    <label className="form-label" style={{ marginBottom: 0 }}>Project Profile Questions</label>
+                                    <Button type="button" variant="secondary" size="small" onClick={addQuestion} style={{ padding: '4px 12px', fontSize: '12px' }}>
+                                        + Add Question
+                                    </Button>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    {(form.project_questions || []).map((q, index) => (
+                                        <div key={index} style={{ position: 'relative' }}>
+                                            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                                                <div style={{ flex: 1 }}>
+                                                    <textarea
+                                                        className="form-textarea"
+                                                        rows={2}
+                                                        required
+                                                        placeholder={`Project Question #${index + 1}`}
+                                                        value={q}
+                                                        onChange={(e) => updateQuestion(index, e.target.value)}
+                                                    />
+                                                </div>
+                                                {form.project_questions.length > 1 && (
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => removeQuestion(index)}
+                                                        style={{ 
+                                                            background: 'none', 
+                                                            border: 'none', 
+                                                            color: '#ff4d4f', 
+                                                            cursor: 'pointer',
+                                                            padding: '8px',
+                                                            marginTop: '4px'
+                                                        }}
+                                                        title="Remove question"
+                                                    >
+                                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                                                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                                                        </svg>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
 
                             <div className="form-field" style={{ gridColumn: 'span 2' }}>
@@ -426,6 +591,92 @@ export default function ProjectCreatePage() {
                                 />
                             </div>
                         </div>
+                    </div>
+
+                    <div className="form-section" style={{ border: '2px dashed #1a6e3c', borderRadius: 8, padding: '20px 24px', background: '#f0faf4' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                            <div>
+                                <h2 className="form-section__title" style={{ color: '#1a6e3c', marginBottom: 4 }}>📩 Generate Outreach Messages</h2>
+                                <p style={{ fontSize: '0.82rem', color: '#555', margin: 0 }}>
+                                    Optional — generate AI-powered outreach templates (Email, LinkedIn, WhatsApp) based on the project details above.
+                                    You can also generate these from the Project Details page after saving.
+                                </p>
+                            </div>
+                        </div>
+                        {outreachToast && (
+                            <div style={{
+                                marginBottom: 16, padding: '10px 18px', borderRadius: 6, fontWeight: 600, fontSize: '0.85rem',
+                                background: outreachToast === 'success' ? '#1a6e3c' : '#b91c1c',
+                                color: '#fff', display: 'flex', alignItems: 'center', gap: 8
+                            }}>
+                                {outreachToast === 'success'
+                                    ? <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Outreach templates generated! They will be saved when you create the project.</>  
+                                    : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Could not generate outreach. Fill in project details first.</>}
+                            </div>
+                        )}
+                        {pendingOutreach && (
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                                {[{ key: 'email', label: '📧 Email', color: '#1a5ca8' }, { key: 'linkedin_connection', label: '🔗 LinkedIn Connection', color: '#0a66c2' }, { key: 'linkedin_inmail', label: '💼 LinkedIn InMail', color: '#004182' }, { key: 'whatsapp_sms', label: '💬 WhatsApp/SMS', color: '#25d366' }].map(({ key, label, color }) => pendingOutreach[key] ? (
+                                    <div key={key} style={{ background: '#fff', border: `1px solid ${color}30`, borderRadius: 6, padding: 12 }}>
+                                        <div style={{ fontWeight: 700, fontSize: '0.78rem', color, marginBottom: 6 }}>{label}</div>
+                                        <div style={{ fontSize: '0.78rem', color: '#333', lineHeight: 1.55, whiteSpace: 'pre-wrap', maxHeight: 80, overflow: 'hidden' }}>{pendingOutreach[key]}</div>
+                                    </div>
+                                ) : null)}
+                            </div>
+                        )}
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            loading={isGeneratingOutreach}
+                            disabled={isGeneratingOutreach}
+                            onClick={async () => {
+                                if (!form.project_title || !form.project_description) {
+                                    setOutreachToast('error');
+                                    setTimeout(() => setOutreachToast(null), 3500);
+                                    return;
+                                }
+                                setIsGeneratingOutreach(true);
+                                setOutreachToast(null);
+                                try {
+                                    // Use a special endpoint that just generates using fields without saving a project
+                                    // We simulate by calling the backend with a fake project id — instead we
+                                    // call generate-outreach-preview which accepts fields directly.
+                                    const res = await http('/projects/generate-outreach-preview', {
+                                        method: 'POST',
+                                        body: JSON.stringify({
+                                            project_title: form.project_title,
+                                            project_description: form.project_description,
+                                            target_companies: form.target_companies.filter(Boolean),
+                                            target_functions_titles: form.target_functions_titles,
+                                            target_functions: form.target_functions.filter(Boolean),
+                                            target_region: form.target_region,
+                                            target_geographies: form.target_geographies,
+                                            current_former_both: form.current_former_both,
+                                            project_questions: form.project_questions.filter(Boolean),
+                                            compliance_question_1: form.compliance_question_1,
+                                        }),
+                                    });
+                                    if (res?.data) {
+                                        setPendingOutreach(res.data);
+                                        setOutreachToast('success');
+                                        setTimeout(() => setOutreachToast(null), 4000);
+                                    }
+                                } catch (err) {
+                                    console.error(err);
+                                    setOutreachToast('error');
+                                    setTimeout(() => setOutreachToast(null), 4000);
+                                } finally {
+                                    setIsGeneratingOutreach(false);
+                                }
+                            }}
+                            style={{ borderColor: '#1a6e3c', color: '#1a6e3c', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                <polyline points="22,6 12,13 2,6"/>
+                            </svg>
+                            {isGeneratingOutreach ? 'Generating Outreach Messages…' : pendingOutreach ? 'Regenerate Outreach Messages' : 'Generate Outreach Messages'}
+                        </Button>
                     </div>
 
                     <div className="form-actions">

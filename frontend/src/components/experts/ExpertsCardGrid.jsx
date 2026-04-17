@@ -1,9 +1,7 @@
 import ExpertCard from './ExpertCard';
 
 /**
- * ExpertsCardGrid — card-based grid view for expert list.
- * Maps from: <div id="cardView" class="card-grid"> in index.html
- *
+ * ExpertsCardGrid — list view for expert wide horizontal cards.
  * @param {Object} props
  * @param {Array} props.experts - Array of expert objects
  * @param {Set} props.selectedIds - Set of selected expert IDs
@@ -15,9 +13,18 @@ export default function ExpertsCardGrid({
     selectedIds,
     onSelectExpert,
     onViewExpert,
+    onEditExpert,
+    onDeleteExpert,
 }) {
     return (
-        <div className="card-grid">
+        <div className="expert-wide-card-list">
+            <style>{`
+                .expert-wide-card-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0;
+                }
+            `}</style>
             {experts.map((expert) => (
                 <ExpertCard
                     key={expert.id}
@@ -25,6 +32,8 @@ export default function ExpertsCardGrid({
                     selected={selectedIds.has(expert.id)}
                     onSelect={() => onSelectExpert(expert.id)}
                     onView={() => onViewExpert(expert.id)}
+                    onEdit={() => onEditExpert(expert.id)}
+                    onDelete={() => onDeleteExpert(expert)}
                 />
             ))}
         </div>

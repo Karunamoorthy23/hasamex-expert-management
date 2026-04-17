@@ -97,7 +97,7 @@ def create_app():
             return None
 
         # Public endpoints
-        if path.startswith('/api/v1/auth/') or path == '/api/v1/health':
+        if path.startswith('/api/v1/auth/') or path == '/api/v1/health' or path.startswith('/api/v1/public/') or path.startswith('/api/v1/n8n/'):
             return None
 
         auth_header = request.headers.get('Authorization') or ''
@@ -106,6 +106,12 @@ def create_app():
         token = auth_header.split(' ', 1)[1].strip()
         if not token:
             return jsonify({'error': 'Unauthorized'}), 401
+
+        # n8n service token bypass (machine-to-machine auth)
+        service_token = os.getenv('N8N_SERVICE_TOKEN')
+        if service_token and token == service_token:
+            request.jwt_claims = {'service': 'n8n', 'user_id': None}  # type: ignore[attr-defined]
+            return None
 
         try:
             claims = decode_token(token)
@@ -132,25 +138,32 @@ def create_app():
     from routes.lookups import lookups_bp
     from routes.import_experts import import_experts_bp
     from routes.clients import clients_bp
-    from routes.projects import projects_bp
+    from routes.projects import projects_bp, public_projects_bp
     from routes.users import users_bp
     from routes.auth import auth_bp
     from routes.engagements import engagements_bp
     from routes.employees import employees_bp
     from routes.locations import locations_bp
     from routes.leads import leads_bp
+    from routes.ingest import ingest_bp
+    from routes.n8n_webhook import n8n_bp
+    from routes.chat import chat_bp
 
     app.register_blueprint(experts_bp)
     app.register_blueprint(lookups_bp)
     app.register_blueprint(import_experts_bp)
     app.register_blueprint(clients_bp)
     app.register_blueprint(projects_bp)
+    app.register_blueprint(public_projects_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(engagements_bp)
     app.register_blueprint(employees_bp)
     app.register_blueprint(locations_bp)
     app.register_blueprint(leads_bp)
+    app.register_blueprint(ingest_bp)
+    app.register_blueprint(n8n_bp)
+    app.register_blueprint(chat_bp)
 
     # Configure and create uploads folder for expert PDFs
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'expert_pdf')

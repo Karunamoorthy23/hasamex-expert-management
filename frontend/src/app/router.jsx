@@ -36,6 +36,8 @@ import LeadExpertEdit from '../pages/leads/LeadExpertEdit';
 import LeadCandidatesPage from '../pages/leads/LeadCandidatesPage';
 import LeadCandidateCreate from '../pages/leads/LeadCandidateCreate';
 import LeadCandidateEdit from '../pages/leads/LeadCandidateEdit';
+import ProjectForm from '../pages/projects/ProjectForm';
+import ChatbotPage from '../pages/chatbot/ChatbotPage';
 
 /**
  * Application router configuration.
@@ -53,6 +55,10 @@ const router = createBrowserRouter([
     {
         path: '/reset-password',
         element: <ResetPasswordPage />,
+    },
+    {
+        path: '/project-form/:id',
+        element: <ProjectForm />,
     },
     {
         path: '/',
@@ -180,6 +186,10 @@ const router = createBrowserRouter([
                     { path: 'candidates/new', element: <LeadCandidateCreate /> },
                     { path: 'candidates/:id/edit', element: <LeadCandidateEdit /> },
                 ]
+            },
+            {
+                path: 'chatbot',
+                element: <ChatbotPage />,
             },
         ],
     },

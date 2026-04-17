@@ -127,4 +127,28 @@ export async function setProjectCallAssignment(projectId, { expert_id, category,
     return result.data;
 }
 
+export async function sendProjectInvites(projectId, expertIds) {
+    const result = await http(`/projects/${projectId}/send-invite`, {
+        method: 'POST',
+        body: JSON.stringify({ expert_ids: expertIds }),
+    });
+    return result;
+}
 
+export async function fetchExpertSubmission(projectId, expertId) {
+    return await http(`/projects/${projectId}/expert-submission/${expertId}`);
+}
+export async function updateOutreachMessage(projectId, messageId, payload) {
+    const result = await http(`/projects/${projectId}/outreach/${messageId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+    });
+    return result.data;
+}
+
+export async function generateOutreachMessages(projectId) {
+    const result = await http(`/projects/${projectId}/generate-outreach`, {
+        method: 'POST',
+    });
+    return result;
+}

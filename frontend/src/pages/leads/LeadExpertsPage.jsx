@@ -78,9 +78,9 @@ export default function LeadExpertsPage() {
                         <p className="empty-state__text">Try adjusting your search</p>
                     </div>
                 ) : view === 'table' ? (
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <table className="data-table">
                         <thead>
-                            <tr style={{ background: '#f3f3f3' }}>
+                            <tr>
                                 <th style={{ ...th, width: '13%' }}>First Name</th>
                                 <th style={{ ...th, width: '13%' }}>Last Name</th>
                                 <th style={{ ...th, width: '16%' }}>City</th>
@@ -97,7 +97,7 @@ export default function LeadExpertsPage() {
                                 <>
                                     <tr
                                         key={r.id}
-                                        style={{ borderTop: '1px solid #eee', cursor: 'pointer' }}
+                                        style={{ borderTop: '1px solid var(--border-app)', cursor: 'pointer' }}
                                         onClick={() => setExpandedId((prev) => (prev === r.id ? null : r.id))}
                                     >
                                         <td style={td}>{r.first_name}</td>
@@ -137,8 +137,8 @@ export default function LeadExpertsPage() {
                                     </tr>
                                     {expandedId === r.id && (
                                         <tr>
-                                            <td colSpan={9} style={{ padding: '10px 12px', background: '#fafafa' }}>
-                                                <div style={{ fontSize: '0.86rem', color: '#333', whiteSpace: 'pre-wrap' }}>
+                                            <td colSpan={9} style={{ padding: '10px 12px', background: 'var(--table-bg)' }}>
+                                                <div style={{ fontSize: '0.86rem', color: 'var(--text-app)', whiteSpace: 'pre-wrap' }}>
                                                     {r.description || '—'}
                                                 </div>
                                             </td>

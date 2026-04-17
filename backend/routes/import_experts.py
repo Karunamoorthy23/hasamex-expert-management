@@ -12,7 +12,6 @@ from sqlalchemy import or_
 import_experts_bp = Blueprint('import_experts', __name__, url_prefix='/api/v1/import')
 
 EXCEL_COLUMNS_MAPPING = {
-    'Expert ID': 'expert_id',
     'First Name': 'first_name',
     'Last Name': 'last_name',
     'Primary Email 1': 'primary_email',
@@ -20,8 +19,6 @@ EXCEL_COLUMNS_MAPPING = {
     'Primary Phone 1': 'primary_phone',
     'Secondary Phone 1': 'secondary_phone',
     'LinkedIn URL': 'linkedin_url',
-    'Location': 'location',
-    'Timezone': 'timezone',
     'Years of Experience': 'years_of_experience',
     'Title / Headline': 'title_headline',
     'BIO': 'bio',
@@ -47,7 +44,7 @@ LOOKUP_MAPPING = {
     'Expert Status': (LkExpertStatus, 'expert_status_id'),
 }
 
-REQUIRED_COLUMNS = ['Expert ID', 'First Name', 'Last Name', 'Primary Email 1']
+REQUIRED_COLUMNS = ['First Name', 'Last Name', 'Primary Email 1']
 
 
 @import_experts_bp.route('/template', methods=['GET'])
@@ -103,11 +100,9 @@ def preview_import():
         preview_data = []
         emails = df['Primary Email 1'].dropna().unique().tolist()
         linkedin_urls = df['LinkedIn URL'].dropna().unique().tolist() if 'LinkedIn URL' in df.columns else []
-        expert_ids = df['Expert ID'].dropna().unique().tolist() if 'Expert ID' in df.columns else []
         
         existing_by_email = {e.primary_email: e for e in Expert.query.filter(Expert.primary_email.in_(emails)).all()}
         existing_by_linkedin = {e.linkedin_url: e for e in Expert.query.filter(Expert.linkedin_url.in_(linkedin_urls)).all()} if linkedin_urls else {}
-        existing_by_eid = {e.expert_id: e for e in Expert.query.filter(Expert.expert_id.in_(expert_ids)).all()} if expert_ids else {}
 
         for index, row in df.iterrows():
             if pd.isna(row.get('First Name')) or pd.isna(row.get('Last Name')) or pd.isna(row.get('Primary Email 1')):
@@ -116,16 +111,10 @@ def preview_import():
             row_data = {k: (None if pd.isna(v) else v) for k, v in row.to_dict().items()}
             email = row_data.get('Primary Email 1')
             linkedin = row_data.get('LinkedIn URL')
-            eid = row_data.get('Expert ID')
             
             by_email_link = existing_by_email.get(email) or existing_by_linkedin.get(linkedin)
-            by_eid = existing_by_eid.get(eid)
 
-            if by_eid and by_email_link and by_eid.id != by_email_link.id:
-                preview_data.append({ 'id': index, 'status': 'Error', 'message': f"Expert ID '{eid}' is already assigned", 'data': row_data })
-                continue
-
-            existing = by_email_link or by_eid
+            existing = by_email_link
             
             status = 'New'
             if existing:
@@ -156,7 +145,7 @@ def preview_import():
                     return v
 
                 PREVIEW_COLUMN_MAPPING = {
-                    'Salutation': 'salutation', 'Expert ID': 'expert_id', 'First Name': 'first_name',
+                    'Salutation': 'salutation', 'First Name': 'first_name',
                     'Last Name': 'last_name', 'Primary Email 1': 'primary_email', 'Secondary Email ': 'secondary_email',
                     'Primary Phone 1': 'primary_phone', 'Secondary Phone 1': 'secondary_phone', 'LinkedIn URL': 'linkedin_url',
                     'Location': 'location', 'Timezone': 'timezone', 'Region': 'region',
@@ -251,6 +240,9 @@ def confirm_import():
     results = {'inserted': 0, 'updated': 0, 'ignored': 0, 'errors': []}
 
     try:
+        from sqlalchemy import text
+        res = db.session.execute(text("SELECT COALESCE(MAX(CAST(SUBSTRING(expert_id FROM '\\\\d+$') AS INTEGER)), 0) FROM experts WHERE expert_id ~ '^EX-\\\\d+$'"))
+        current_max_id = res.scalar() or 0
         # Pre-load all lookups locally into a dictionary structure to prevent thousands of small DB queries
         lookups_cache = {}
         for col_name, (model_class, _) in LOOKUP_MAPPING.items():
@@ -262,14 +254,16 @@ def confirm_import():
             existing_id = item.get('existing_id')
 
             try:
-                row_expert_id = str(data_row.get('Expert ID', '')).strip()
-                if not row_expert_id:
-                    results['errors'].append(f"Missing Expert ID for row '{data_row.get('First Name', '')}'")
-                    continue
-
-                expert = Expert.query.get(existing_id) if existing_id else Expert(expert_id=row_expert_id)
                 if status == 'New':
+                    while True:
+                        current_max_id += 1
+                        eid = f"EX-{current_max_id:05d}"
+                        if not Expert.query.filter_by(expert_id=eid).first():
+                            break
+                    expert = Expert(expert_id=eid)
                     db.session.add(expert)
+                else:
+                    expert = Expert.query.get(existing_id)
                 
                 # Assign Direct Columns
                 for excel_col, model_attr in EXCEL_COLUMNS_MAPPING.items():
@@ -316,6 +310,24 @@ def confirm_import():
                         setattr(expert, fk_col, None)
 
                 db.session.flush() # So we can get the ID for relations if New
+
+                # Process Expert Location
+                loc_val = data_row.get('Location')
+                tz_val = data_row.get('Timezone')
+                if pd.isna(loc_val) or str(loc_val) == 'nan': loc_val = None
+                if isinstance(loc_val, str): loc_val = loc_val.strip()
+                if pd.isna(tz_val) or str(tz_val) == 'nan': tz_val = None
+                if isinstance(tz_val, str): tz_val = tz_val.strip()
+
+                if loc_val:
+                    lk_loc = LkLocation.query.filter(LkLocation.display_name.ilike(loc_val)).first()
+                    if not lk_loc:
+                        lk_loc = LkLocation(display_name=loc_val, timezone=tz_val)
+                        db.session.add(lk_loc)
+                        db.session.flush()
+                    expert.location_id = lk_loc.id
+                else:
+                    expert.location_id = None
 
                 # Process Expert Strengths (1-to-Many)
                 raw_strengths = data_row.get('Strength Topics')

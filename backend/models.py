@@ -131,8 +131,8 @@ class Expert(db.Model):
     primary_phone = db.Column(db.String(50))
     secondary_phone = db.Column(db.String(50))
     linkedin_url = db.Column(db.String(500), unique=True)
-    location = db.Column(db.String(255))
-    timezone = db.Column(db.String(100))
+    location_id = db.Column(db.Integer, db.ForeignKey('lk_location.id'))
+    rel_location = db.relationship('LkLocation', lazy='joined')
     
     region_id = db.Column(db.Integer, db.ForeignKey('lk_regions.id'))
     rel_region = db.relationship('LkRegion', lazy='joined')
@@ -187,6 +187,18 @@ class Expert(db.Model):
     @property
     def salutation(self): return self.rel_salutation.name if self.rel_salutation else None
     @property
+    def location(self):
+        if self.rel_location:
+            return self.rel_location.display_name
+        # Fallback to the raw location captured in notes if present
+        if self.notes and 'Location: ' in self.notes:
+            return self.notes.split('Location: ')[1].strip()
+        if self.notes and 'Deep Scrape Location: ' in self.notes:
+            return self.notes.split('Deep Scrape Location: ')[1].strip()
+        return None
+    @property
+    def timezone(self): return self.rel_location.timezone if self.rel_location else None
+    @property
     def region(self): return self.rel_region.name if self.rel_region else None
     @property
     def current_employment_status(self): return self.rel_current_employment_status.name if self.rel_current_employment_status else None
@@ -220,11 +232,16 @@ class Expert(db.Model):
             history.append(f"{exp.role_title}, {exp.company_name} ({date_range})")
         return "\n".join(history)
 
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}".strip()
+
     def to_dict(self):
         """Serialize expert to dictionary."""
         return {
             'id': self.id,
             'expert_id': self.expert_id,
+            'full_name': self.full_name,
             'salutation': self.salutation,
             'first_name': self.first_name,
             'last_name': self.last_name,
@@ -584,14 +601,13 @@ class Project(db.Model):
     project_title = db.Column(db.String(255))
     project_type_id = db.Column(db.Integer, db.ForeignKey('lk_project_type.id', ondelete='SET NULL'))
     project_description = db.Column(db.Text)
-    target_companies = db.Column(db.Text)
+    target_companies = db.Column(JSONB, nullable=False, default=list)
     target_region_id = db.Column(db.Integer, db.ForeignKey('lk_regions.id', ondelete='SET NULL'))
     target_functions_titles = db.Column(db.Text)
+    target_functions = db.Column(JSONB, nullable=False, default=list)
     current_former_both = db.Column(db.String(20))
     number_of_calls = db.Column(db.Integer)
-    profile_question_1 = db.Column(db.Text)
-    profile_question_2 = db.Column(db.Text)
-    profile_question_3 = db.Column(db.Text)
+    project_questions = db.Column(JSONB, nullable=False, default=list)
     compliance_question_1 = db.Column(db.Text)
     project_deadline = db.Column(db.Date)
     poc_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id', ondelete='SET NULL'))
@@ -668,15 +684,14 @@ class Project(db.Model):
             'project_title': self.project_title,
             'project_type': self.rel_project_type.name if self.rel_project_type else None,
             'project_description': self.project_description,
-            'target_companies': self.target_companies,
+            'target_companies': self.target_companies or [],
             'target_region': self.rel_target_region.name if self.rel_target_region else None,
             'target_geographies': [g.name for g in self.target_geographies] if self.target_geographies else [],
             'target_functions_titles': self.target_functions_titles,
+            'target_functions': self.target_functions or [],
             'current_former_both': self.current_former_both,
             'number_of_calls': self.number_of_calls,
-            'profile_question_1': self.profile_question_1,
-            'profile_question_2': self.profile_question_2,
-            'profile_question_3': self.profile_question_3,
+            'project_questions': self.project_questions or [],
             'compliance_question_1': self.compliance_question_1,
             'project_deadline': self.project_deadline.isoformat() if self.project_deadline else None,
             'poc_user_id': self.poc_user_id,
@@ -705,6 +720,7 @@ class Project(db.Model):
             'declined_expert_ids': declined,
             'expert_scheduled': scheduled_assigned,
             'expert_call_completed': completed_assigned,
+            'outreach_messages': [m.to_dict() for m in self.outreach_messages] if self.outreach_messages else [],
         }
 
 class ProjectTargetGeography(db.Model):
@@ -947,5 +963,105 @@ class LeadCandidate(db.Model):
             'received_date': self.received_date.isoformat() if self.received_date else None,
             'status': self.status,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+class ProjectFormSubmission(db.Model):
+    __tablename__ = 'project_form_submissions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.project_id', ondelete='CASCADE'), nullable=False)
+    expert_id = db.Column(UUID(as_uuid=False), db.ForeignKey('experts.id', ondelete='CASCADE'), nullable=False)
+    confidence_level = db.Column(db.Integer)
+    availability_dates = db.Column(JSONB)
+    project_qns_ans = db.Column(JSONB)
+    compliance_onboarding = db.Column(JSONB)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'project_id': self.project_id,
+            'expert_id': self.expert_id,
+            'confidence_level': self.confidence_level,
+            'availability_dates': self.availability_dates,
+            'project_qns_ans': self.project_qns_ans,
+            'compliance_onboarding': self.compliance_onboarding,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class OutreachMessage(db.Model):
+    __tablename__ = "outreach_messages"
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(
+        db.Integer, db.ForeignKey("projects.project_id", ondelete="CASCADE"), nullable=False
+    )
+    email_content = db.Column(db.Text)
+    linkedin_content = db.Column(db.Text)
+    whatsapp_sms_content = db.Column(db.Text)
+    linkedin_inmail_content = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    project = db.relationship(
+        "Project", backref=db.backref("outreach_messages", cascade="all, delete-orphan")
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "project_id": self.project_id,
+            "email_content": self.email_content,
+            "linkedin_content": self.linkedin_content,
+            "whatsapp_sms_content": self.whatsapp_sms_content,
+            "linkedin_inmail_content": self.linkedin_inmail_content,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class ChatSession(db.Model):
+    __tablename__ = 'ai_chat_sessions'
+    id = db.Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    owner_id = db.Column(db.Integer, db.ForeignKey('hasamex_users.id', ondelete='CASCADE'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    message_count = db.Column(db.Integer, default=0)
+    last_message_at = db.Column(db.DateTime)
+    archived = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    owner = db.relationship('HasamexUser', lazy='joined')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'owner_id': self.owner_id,
+            'title': self.title,
+            'message_count': self.message_count,
+            'last_message_at': self.last_message_at.isoformat() if self.last_message_at else None,
+            'archived': self.archived,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ChatMessage(db.Model):
+    __tablename__ = 'ai_chat_messages'
+    id = db.Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    session_id = db.Column(UUID(as_uuid=False), db.ForeignKey('ai_chat_sessions.id', ondelete='CASCADE'), nullable=False)
+    owner_id = db.Column(db.Integer, nullable=False)
+    role = db.Column(db.String(32), nullable=False)
+    content_text = db.Column(db.Text, nullable=False)
+    content_json = db.Column(JSONB)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    session = db.relationship('ChatSession', backref=db.backref('messages', cascade='all, delete-orphan'))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'session_id': self.session_id,
+            'owner_id': self.owner_id,
+            'role': self.role,
+            'content_text': self.content_text,
+            'content_json': self.content_json,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
         }

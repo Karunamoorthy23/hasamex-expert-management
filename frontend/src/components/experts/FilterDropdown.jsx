@@ -12,7 +12,7 @@ import { ChevronDownIcon } from '../icons/Icons';
  * @param {string[]} props.selected - Currently selected values
  * @param {Function} props.onChange - Callback with next selected array
  */
-export default function FilterDropdown({ label, options = [], selected = [], onChange }) {
+export default function FilterDropdown({ label, options = [], selected = [], disabled = [], onChange }) {
     const [open, setOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const ref = useRef(null);
@@ -24,8 +24,10 @@ export default function FilterDropdown({ label, options = [], selected = [], onC
     );
 
     const selectedSet = new Set(selected);
+    const disabledSet = new Set(disabled);
 
     function handleToggle(value) {
+        if (disabledSet.has(value)) return;
         const next = new Set(selected);
         if (next.has(value)) {
             next.delete(value);
@@ -67,18 +69,25 @@ export default function FilterDropdown({ label, options = [], selected = [], onC
                             <div className="ms__empty">No options</div>
                         ) : (
                             filteredOptions.map((value) => {
-                                const id = `ms_${label}_${value.replace(/\W+/g, '_')}`;
-                                return (
-                                    <label key={value} className="ms__item" htmlFor={id}>
-                                        <input
-                                            id={id}
-                                            type="checkbox"
-                                            checked={selectedSet.has(value)}
-                                            onChange={() => handleToggle(value)}
-                                        />
-                                        <span className="ms__value">{value}</span>
-                                    </label>
-                                );
+                                 const id = `ms_${label}_${value.replace(/\W+/g, '_')}`;
+                                 const isDisabled = disabledSet.has(value);
+                                 return (
+                                     <label 
+                                         key={value} 
+                                         className={`ms__item ${isDisabled ? 'ms__item--disabled' : ''}`} 
+                                         htmlFor={id}
+                                         title={isDisabled ? 'Expert already assigned to this project' : ''}
+                                     >
+                                         <input
+                                             id={id}
+                                             type="checkbox"
+                                             checked={selectedSet.has(value)}
+                                             disabled={isDisabled}
+                                             onChange={() => handleToggle(value)}
+                                         />
+                                         <span className="ms__value">{value}</span>
+                                     </label>
+                                 );
                             })
                         )}
                     </div>

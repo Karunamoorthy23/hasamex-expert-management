@@ -135,6 +135,27 @@ export default function ClientsPage() {
                             className="search-input"
                         />
                     </div>
+                    
+                    <div className="action-bar__filters">
+                        <div className="view-toggle">
+                            <button
+                                type="button"
+                                className={`view-btn ${view === 'table' ? 'active' : ''}`}
+                                title="Table view"
+                                onClick={() => setView('table')}
+                            >
+                                <TableIcon />
+                            </button>
+                            <button
+                                type="button"
+                                className={`view-btn ${view === 'cards' ? 'active' : ''}`}
+                                title="Card view"
+                                onClick={() => setView('cards')}
+                            >
+                                <CardsIcon />
+                            </button>
+                        </div>
+                    </div>
 
                     <div className="action-bar__divider" aria-hidden="true" />
 
@@ -147,30 +168,7 @@ export default function ClientsPage() {
                     </div>
                 </div>
 
-                <div className="view-toggle-row">
-                    <div className="view-toggle">
-                        <button
-                            type="button"
-                            className={cn('view-btn', view === 'table' && 'view-btn--active')}
-                            title="Table view"
-                            aria-pressed={view === 'table'}
-                            onClick={() => setView('table')}
-                        >
-                            <TableIcon />
-                            Table
-                        </button>
-                        <button
-                            type="button"
-                            className={cn('view-btn', view === 'cards' && 'view-btn--active')}
-                            title="Card view"
-                            aria-pressed={view === 'cards'}
-                            onClick={() => setView('cards')}
-                        >
-                            <CardsIcon />
-                            Cards
-                        </button>
-                    </div>
-                </div>
+
 
                 <div className="content-area">
                     {isLoading ? (

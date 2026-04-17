@@ -125,7 +125,7 @@ class Config:
             _normalized_env_origins.append(origin)
     CORS_ORIGINS = list(dict.fromkeys(_normalized_env_origins))
 
-    # Flask-Mail
+    # Flask-Mail (legacy SMTP — kept for reference)
     MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
     
     # Safely handle MAIL_PORT
@@ -145,6 +145,15 @@ class Config:
     MAIL_USERNAME = os.getenv('MAIL_USERNAME')
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'Hasamex <noreply@hasamex.com>')
+
+    # Email Provider Selection (brevo | resend)
+    EMAIL_PROVIDER = os.getenv('EMAIL_PROVIDER', 'brevo').lower()
+
+    # Brevo Configuration (primary — recommended)
+    BREVO_API_KEY = os.getenv('BREVO_API_KEY')
+    MAIL_SENDER_NAME = os.getenv('MAIL_SENDER_NAME', 'Hasamex')
+    MAIL_SENDER_EMAIL = os.getenv('MAIL_SENDER_EMAIL', 'noreply@hasamex.com')
+
+    # Resend Configuration (legacy fallback)
     RESEND_API_KEY = os.getenv('RESEND_API_KEY')
-    EMAIL_PROVIDER = os.getenv('EMAIL_PROVIDER', 'resend').lower()
     MAIL_FROM = os.getenv('MAIL_FROM', MAIL_DEFAULT_SENDER)

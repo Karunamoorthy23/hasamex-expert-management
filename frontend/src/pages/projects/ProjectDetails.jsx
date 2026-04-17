@@ -1,12 +1,31 @@
-import { useEffect, useMemo, useState, useRef, useLayoutEffect } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useLayoutEffect, Fragment } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { fetchProjectById, fetchProjectExpertStatus, setProjectExpertStatus, setProjectCallAssignment } from '../../api/projects';
+import { 
+    fetchProjectById, 
+    fetchProjectExpertStatus, 
+    setProjectExpertStatus, 
+    setProjectCallAssignment, 
+    sendProjectInvites,
+    fetchExpertSubmission
+} from '../../api/projects';
 import { fetchClientById } from '../../api/clients';
 import Modal from '../../components/ui/Modal';
 import { updateExpert } from '../../api/experts';
 import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
 import Checkbox from '../../components/ui/Checkbox';
+import './ProjectDetails.css'; // New Styles
+import { 
+    LinkedInIcon, 
+    LinkedInInMailIcon, 
+    WhatsAppIcon, 
+    MailIcon, 
+    CopyIcon, 
+    CheckIcon,
+    XIcon,
+    EditIcon
+} from '../../components/icons/Icons';
+import { updateOutreachMessage, generateOutreachMessages } from '../../api/projects';
 
 function DetailItem({ label, value, full }) {
     return (
@@ -109,6 +128,118 @@ function StarRating({ rating, onRate }) {
     );
 }
 
+function SubmissionDetailView({ submission, isLoading }) {
+    if (isLoading) {
+        return (
+            <div className="submission-loading">
+                <div className="spinner"></div>
+                <span>Fetching submission details...</span>
+            </div>
+        );
+    }
+
+    if (!submission) {
+        return (
+            <div className="submission-empty">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                No submission details found for this expert.
+            </div>
+        );
+    }
+
+    const { confidence_level, availability_dates, project_qns_ans, compliance_onboarding, created_at } = submission;
+    const submissionDate = new Date(created_at).toLocaleDateString('en-US', { 
+        month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+    });
+
+    return (
+        <div className="submission-detail">
+            <div className="sd-header">
+                <div className="sd-title-wrap">
+                    <div className="sd-label">Form Submission</div>
+                    <div className="sd-date">Submitted on {submissionDate}</div>
+                </div>
+                <div className="sd-confidence">
+                    <div className="sd-conf-label">Confidence Level : {confidence_level} / 10</div>
+                    <div className="sd-conf-gauge">
+                        <div className="sd-conf-fill" style={{ width: `${(confidence_level || 5) * 10}%` }}></div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="sd-grid">
+                <div className="sd-section">
+                    <div className="sd-sec-title">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        Project Brief Questions
+                    </div>
+                    <div className="sd-qas">
+                        {Object.entries(project_qns_ans || {}).map(([q, a], i) => (
+                            <div key={i} className="sd-qa-card">
+                                <div className="sd-q">{q}</div>
+                                <div className="sd-a">{a || <span className="empty-val">—</span>}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="sd-section">
+                    <div className="sd-sec-title">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        Availability & Compliance
+                    </div>
+                    
+                    <div className="sd-group">
+                        <div className="sd-group-label">Proposed Availability</div>
+                        <div className="sd-slots">
+                            {(availability_dates || []).length > 0 ? (
+                                availability_dates.map((slot, i) => (
+                                    <div key={i} className="sd-slot-badge">
+                                        {slot.date} | {slot.startTime} - {slot.endTime}
+                                    </div>
+                                ))
+                            ) : <div className="empty-val">No slots provided</div>}
+                        </div>
+                    </div>
+
+                    <div className="sd-group">
+                        <div className="sd-group-label">Compliance & Onboarding</div>
+                        <div className="sd-comp-list">
+                            {Object.entries(compliance_onboarding || {}).map(([q, a], i) => {
+                                const qLower = q.toLowerCase();
+                                const isMNPI = qLower.includes('material non-public information');
+                                const isSensitive = qLower.includes('upcoming product launch');
+                                
+                                const correctMNPI = "no, i must never share any confidential or non-public information";
+                                const correctSensitive = "politely decline to answer and explain that it involves non-public information";
+                                
+                                const normalize = (val) => String(val || '').trim().toLowerCase();
+                                const currentAns = normalize(a);
+                                
+                                let statusClass = '';
+                                if (a === true || (isMNPI && currentAns === correctMNPI) || (isSensitive && currentAns === correctSensitive)) {
+                                    statusClass = 'correct-ans';
+                                } else if (a === false || isMNPI || isSensitive) {
+                                    statusClass = 'incorrect-ans';
+                                }
+
+                                return (
+                                    <div key={i} className="sd-comp-item">
+                                        <div className="sd-comp-q">{q}</div>
+                                        <div className={`sd-comp-a ${statusClass}`}>
+                                            {a === true ? 'Yes' : a === false ? 'No' : a || '—'}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function ProjectDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -122,7 +253,21 @@ export default function ProjectDetails() {
     const [updatingId, setUpdatingId] = useState(null);
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [serviceOpen, setServiceOpen] = useState(false);
+    const [mailboxOpen, setMailboxOpen] = useState(false);
     const [clientData, setClientData] = useState(null);
+    const [isSendingInvites, setIsSendingInvites] = useState(false);
+    const [expandedSubmissionId, setExpandedSubmissionId] = useState(null);
+    const [submissionCache, setSubmissionCache] = useState({}); // {expertId: data}
+    const [isFetchingSubmission, setIsFetchingSubmission] = useState(false);
+
+    // Outreach Message States
+    const [outreachModalContent, setOutreachModalContent] = useState(null); // { type, content, id }
+    const [isEditingOutreach, setIsEditingOutreach] = useState(false);
+    const [tempOutreachContent, setTempOutreachContent] = useState('');
+    const [isSavingOutreach, setIsSavingOutreach] = useState(false);
+    const [copySuccess, setCopySuccess] = useState(false);
+    const [isGeneratingOutreach, setIsGeneratingOutreach] = useState(false);
+    const [outreachToast, setOutreachToast] = useState(null); // 'success' | 'error'
 
     const loadParticipants = async () => {
         try {
@@ -152,6 +297,33 @@ export default function ProjectDetails() {
         } catch (err) {
             console.error('Failed to load participants', err);
             setParticipants([]);
+        }
+    };
+
+    const fetchSubmissionDetails = async (expertId) => {
+        if (submissionCache[expertId]) return;
+        
+        setIsFetchingSubmission(true);
+        try {
+            const result = await fetchExpertSubmission(id, expertId);
+            if (result && result.data) {
+                setSubmissionCache(prev => ({ ...prev, [expertId]: result.data }));
+            }
+        } catch (error) {
+            console.error('Error fetching submission:', error);
+        } finally {
+            setIsFetchingSubmission(false);
+        }
+    };
+
+    const handleRowClick = (expertId, status) => {
+        if (status !== 'Accepted') return;
+        
+        if (expandedSubmissionId === expertId) {
+            setExpandedSubmissionId(null);
+        } else {
+            setExpandedSubmissionId(expertId);
+            fetchSubmissionDetails(expertId);
         }
     };
 
@@ -236,6 +408,19 @@ export default function ProjectDetails() {
          return [...list].sort((a, b) => (b.rating || 0) - (a.rating || 0));
      }, [participants, statusFilter]);
 
+    // Calculate selected counts by status
+    const selectedStats = useMemo(() => {
+        const stats = { total: 0, Leads: 0, Invited: 0, Accepted: 0, Scheduled: 0, Completed: 0, Declined: 0 };
+        filteredParticipants.forEach(p => {
+            if (selectedIds.has(p.id || p.expert_id)) {
+                stats.total++;
+                const cat = p.category;
+                if (stats[cat] !== undefined) stats[cat]++;
+            }
+        });
+        return stats;
+    }, [filteredParticipants, selectedIds]);
+
     const handleRateExpert = async (expertId, newRating) => {
         try {
             await updateExpert(expertId, { rating: newRating });
@@ -249,6 +434,31 @@ export default function ProjectDetails() {
         }
     };
 
+    const handleSendInvites = async () => {
+        const leadExpertIds = [];
+        filteredParticipants.forEach(p => {
+            if (selectedIds.has(p.id || p.expert_id) && p.category === 'Leads') {
+                leadExpertIds.push(p.id || p.expert_id);
+            }
+        });
+        
+        if (leadExpertIds.length === 0) return;
+        
+        setIsSendingInvites(true);
+        try {
+            const res = await sendProjectInvites(id, leadExpertIds);
+            alert(`Project links successfully dispatched to ${res.sent_count} lead(s).`);
+            setMailboxOpen(false);
+            setSelectedIds(new Set());
+            loadParticipants();
+        } catch (err) {
+            console.error('Failed to send invites:', err);
+            alert('Failed to send some or all project invites.');
+        } finally {
+            setIsSendingInvites(false);
+        }
+    };
+
     const handleSelect = (expertId) => {
         const newSelectedIds = new Set(selectedIds);
         if (newSelectedIds.has(expertId)) {
@@ -259,11 +469,85 @@ export default function ProjectDetails() {
         setSelectedIds(newSelectedIds);
     };
 
-    const handleSelectAll = () => {
-        if (selectedIds.size === filteredParticipants.length) {
-            setSelectedIds(new Set());
+    const handleSelectAll = (e) => {
+        if (e.target.checked) {
+            setSelectedIds(new Set(filteredParticipants.map(ex => ex.id || ex.expert_id)));
         } else {
-            setSelectedIds(new Set(filteredParticipants.map(p => p.id || p.expert_id)));
+            setSelectedIds(new Set());
+        }
+    };
+
+    const handleOpenOutreach = (type) => {
+        const msg = project.outreach_messages?.[0];
+        if (!msg) return;
+
+        let content = '';
+        let title = '';
+        if (type === 'email') { content = msg.email_content; title = 'Email Template'; }
+        if (type === 'linkedin_conn') { content = msg.linkedin_content; title = 'LinkedIn Connection'; }
+        if (type === 'linkedin_inmail') { content = msg.linkedin_inmail_content; title = 'LinkedIn InMail'; }
+        if (type === 'whatsapp') { content = msg.whatsapp_sms_content; title = 'WhatsApp/SMS'; }
+
+        setOutreachModalContent({ type, content, id: msg.id, title });
+        setTempOutreachContent(content || '');
+        setIsEditingOutreach(false);
+    };
+
+    const handleCopyOutreach = () => {
+        navigator.clipboard.writeText(tempOutreachContent);
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+    };
+
+    const handleSaveOutreach = async () => {
+        if (!outreachModalContent) return;
+        setIsSavingOutreach(true);
+        try {
+            const fieldMap = {
+                'email': 'email_content',
+                'linkedin_conn': 'linkedin_content',
+                'linkedin_inmail': 'linkedin_inmail_content',
+                'whatsapp': 'whatsapp_sms_content'
+            };
+            const payload = { [fieldMap[outreachModalContent.type]]: tempOutreachContent };
+            await updateOutreachMessage(id, outreachModalContent.id, payload);
+            
+            // Update local state
+            setProject(prev => ({
+                ...prev,
+                outreach_messages: prev.outreach_messages.map(m => 
+                    m.id === outreachModalContent.id ? { ...m, ...payload } : m
+                )
+            }));
+            setOutreachModalContent(prev => ({ ...prev, content: tempOutreachContent }));
+            setIsEditingOutreach(false);
+        } catch (error) {
+            console.error('Failed to save outreach:', error);
+            alert('Failed to save changes.');
+        } finally {
+            setIsSavingOutreach(false);
+        }
+    };
+
+    const handleGenerateOutreach = async () => {
+        setIsGeneratingOutreach(true);
+        setOutreachToast(null);
+        try {
+            const res = await generateOutreachMessages(id);
+            if (res?.data) {
+                setProject(prev => ({
+                    ...prev,
+                    outreach_messages: [res.data],
+                }));
+                setOutreachToast('success');
+                setTimeout(() => setOutreachToast(null), 4000);
+            }
+        } catch (err) {
+            console.error('Failed to generate outreach:', err);
+            setOutreachToast('error');
+            setTimeout(() => setOutreachToast(null), 4000);
+        } finally {
+            setIsGeneratingOutreach(false);
         }
     };
 
@@ -365,13 +649,120 @@ export default function ProjectDetails() {
   .bi-row { font-size: 0.81rem; color: #333333; display: flex; align-items: center; gap: 0; }
   .bi-row.email { color: #1a5ca8; }
   .bi-fee { font-weight: 600; color: #111111; }
+  
+  .submission-dropdown { grid-column: 1 / -1; background: #fff; border-top: 1px solid #eee; overflow: hidden; animation: slideDownSubmission 0.3s ease-out; }
+  @keyframes slideDownSubmission { from { max-height: 0; opacity: 0; } to { max-height: 1000px; opacity: 1; } }
+  
+  .submission-loading { padding: 40px; display: flex; flex-direction: column; align-items: center; gap: 12px; color: #666; font-size: 0.9rem; }
+  .spinner { width: 24px; height: 24px; border: 3px solid #eee; border-top-color: #0a66c2; border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  
+  .submission-empty { padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 10px; color: #999; font-size: 0.9rem; }
+  
+  .submission-detail { padding: 24px; background: linear-gradient(to bottom, #fcfdfe, #ffffff); }
+  .sd-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; border-bottom: 1px solid #f0f0f0; padding-bottom: 16px; }
+  .sd-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #0a66c2; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .sd-date { font-size: 0.85rem; color: #666; font-weight:bold}
+  
+  .sd-confidence { text-align: right; min-width: 150px; }
+  .sd-conf-label { font-size: 0.75rem; font-weight: 700; color: #444; margin-bottom: 6px; }
+  .sd-conf-gauge { height: 8px; background: #eee; border-radius: 4px; position: relative; width: 100%; overflow: hidden; margin-bottom: 4px; }
+  .sd-conf-fill { height: 100%; background: linear-gradient(to right, #f59e0b, #10b981); border-radius: 4px; transition: width 0.6s ease-out; }
+  .sd-conf-val { font-size: 0.8rem; font-weight: 700; color: #111; }
+  
+  .sd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .sd-section { display: flex; flex-direction: column; gap: 16px; }
+  .sd-sec-title { font-size: 0.9rem; font-weight: 700; color: #111; display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 2px solid #0a66c2; width: fit-content; }
+  
+  .sd-qas { display: flex; flex-direction: column; gap: 12px; }
+  .sd-qa-card { background: #fff; padding: 14px; border-radius: 8px; border: 1px solid #eef2f6; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+  .sd-q { font-size: 0.82rem; font-weight: 700; color: #1a3070; margin-bottom: 6px; line-height: 1.4; }
+  .sd-a { font-size: 0.85rem; color: #333; line-height: 1.6; white-space: pre-wrap; }
+  
+  .sd-group { margin-bottom: 20px; }
+  .sd-group-label { font-size: 0.75rem; font-weight: 700; color: #666; text-transform: uppercase; margin-bottom: 10px; }
+  .sd-slots { display: flex; flex-wrap: wrap; gap: 4px; }
+  .sd-slot-badge { padding: 3px 12px; background: #e0f2fe; color: #0369a1; border-radius: 6px; font-size: 0.8rem; font-weight: 600; border: 1px solid #bae6fd; }
+  
+  .sd-comp-list { display: flex; flex-direction: column; gap: 8px; }
+  .sd-comp-item { display: flex;flex-direction: column; justify-content: space-between; align-items: center; padding: 10px 14px; background: #fff; border: 1px solid #f1f5f9; border-radius: 6px; }
+  .sd-comp-q { font-size: 0.82rem; color: #444; flex: 1; padding-right: 12px; }
+  .sd-comp-a { font-size: 0.78rem; font-weight: 700; padding: 3px 10px; border-radius: 4px; text-transform: uppercase; }
+  .sd-comp-a.yes { background: #dcfce7; color: #15803d; }
+  .sd-comp-a.no { background: #fee2e2; color: #b91c1c; }
+  .sd-comp-a.correct-ans { background: #e6f4ea; color: #1e7e34; border: 1px solid #c3e6cb; }
+  .sd-comp-a.incorrect-ans { background: #fdf2f2; color: #dc3545; border: 1px solid #f5c6cb; }
+  
+  .empty-val { color: #aaa; font-style: italic; }
+
+  .p-row.accepted { cursor: pointer; transition: background 0.2s; }
+  .p-row.accepted:hover { background: #f8fbff; }
+  .p-row.accepted.expanded { background: #f0f7ff; border-left: 4px solid #0a66c2; }
+
+  .mailbox-bar { position: relative; display: flex; align-items: center; justify-content: center; background: #e6f0fa; border-bottom: 1px solid #c8c8c8; padding: 10px; animation: slideDown 0.3s ease-out; }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .btn-mailbox { display: inline-flex; align-items: center; gap: 8px; background: #0a66c2; color: #fff; border: none; padding: 6px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; box-shadow: 0 2px 6px rgba(10,102,194,0.3); }
+  .btn-mailbox:hover { background: #004182; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(10,102,194,0.4); }
+  .mb-content { padding: 10px 0; }
+  .mb-stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; justify-content: center; }
+  .mb-stat { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 16px; border-radius: 6px; min-width: 90px; border: 1px solid #e0e0e0; background: #f9f9f9; }
+  .mb-stat-val { font-size: 1.4rem; font-weight: 700; color: #111; line-height: 1; margin-bottom: 4px; }
+  .mb-stat-lbl { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #555; text-align: center; }
+  .mb-stat.s-pending { background: #16cb16; border-color: #16cb16; }
+  .mb-stat.s-pending .mb-stat-val, .mb-stat.s-pending .mb-stat-lbl { color: #1a3070; }
+  .mb-stat.s-contacted { background: #fef9c3; border-color: #f59e0b; }
+  .mb-stat.s-contacted .mb-stat-val, .mb-stat.s-contacted .mb-stat-lbl { color: #854d0e; }
+  .mb-stat.s-accepted { background: #e6f4ea; border-color: #34a853; }
+  .mb-stat.s-accepted .mb-stat-val, .mb-stat.s-accepted .mb-stat-lbl { color: #1f6f3d; }
+  .mb-stat.s-scheduled { background: #dcfce7; border-color: #86efac; }
+  .mb-stat.s-scheduled .mb-stat-val, .mb-stat.s-scheduled .mb-stat-lbl { color: #166534; }
+  .mb-stat.s-completed { background: #bbf7d0; border-color: #34d399; }
+  .mb-stat.s-completed .mb-stat-val, .mb-stat.s-completed .mb-stat-lbl { color: #065f46; }
+  .mb-stat.s-declined { background: #fee2e2; border-color: #fca5a5; }
+  .mb-stat.s-declined .mb-stat-val, .mb-stat.s-declined .mb-stat-lbl { color: #7f1d1d; }
+  .mb-actions { text-align: center; border-top: 1px solid #e0e0e0; padding-top: 20px; }
+  .mb-actions-flex { display: flex; align-items: center; justify-content: center; gap: 12px; }
+  .btn-mb-primary { background: #0a66c2; color: white; border: none; font-weight: 600; padding: 10px 24px; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; transition: background 0.2s; }
+  .btn-mb-primary:hover { background: #004182; }
+  .btn-mb-secondary { background: #ffffff; color: #111; border: 1px solid #c8c8c8; font-weight: 600; padding: 10px 24px; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; transition: background 0.2s; }
+  .btn-mb-secondary:hover { background: #f0f0f0; border-color: #888; }
   @media (max-width: 700px) { .body-split { grid-template-columns: 1fr; } }
             `}</style>
             <div className="page">
                 <div className="hdr">
                     <div className="hdr-top">
                         <div className="hdr-title">{project.project_title || project.title || 'Project'}</div>
-                        <button className="btn-edit" onClick={() => navigate(`/projects/${project.project_id}/edit`)}>Edit Project</button>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <button className="btn-edit" style={{ background: '#0d1b3e' }} onClick={() => window.open(`/project-form/${project.project_id}`, '_blank')}>View Project Form</button>
+                            <button
+                                className="btn-edit"
+                                style={{ background: isGeneratingOutreach ? '#555' : '#1a6e3c', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                                onClick={handleGenerateOutreach}
+                                disabled={isGeneratingOutreach}
+                                title="Generate AI outreach message templates for this project"
+                            >
+                                {isGeneratingOutreach ? (
+                                    <>
+                                        <svg width="14" height="14" viewBox="0 0 50 50" style={{ animation: 'spin-anim 1s linear infinite' }}>
+                                            <circle cx="25" cy="25" r="20" stroke="currentColor" strokeWidth="6" fill="none" strokeDasharray="31.4 31.4">
+                                                <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+                                            </circle>
+                                        </svg>
+                                        Generating…
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                            <polyline points="22,6 12,13 2,6"/>
+                                        </svg>
+                                        Generate Outreach
+                                    </>
+                                )}
+                            </button>
+                            <button className="btn-edit" onClick={() => navigate(`/projects/${project.project_id}/edit`)}>Edit Project</button>
+                        </div>
                     </div>
                     <div className="hdr-subtitle">
                         Client: <strong>{project.client_id ? <a href={`/clients/${project.client_id}`}>{project.client_name || `#${project.client_id}`}</a> : (project.client_name || `#${project.client_id}`)}</strong> • PoC: <strong>{project.poc_user_id ? <a href={`/users/${project.poc_user_id}`}>{project.poc_user_name || '—'}</a> : (project.poc_user_name || '—')}</strong> • Status: <strong>{project.status || '—'}</strong> • <a href="#" onClick={(e) => { e.preventDefault(); setServiceOpen(true); }}>Service Rules</a>
@@ -404,6 +795,73 @@ export default function ProjectDetails() {
                         </div>
                     </Modal>
                 )}
+                {mailboxOpen && (
+                    <Modal
+                        open={mailboxOpen}
+                        onClose={() => setMailboxOpen(false)}
+                        title={`Selected Experts (${selectedStats.total})`}
+                    >
+                        <div className="mb-content">
+                            <div className="mb-stats">
+                                <div className="mb-stat"><div className="mb-stat-val">{selectedStats.total}</div><div className="mb-stat-lbl">Total<br/>Selected</div></div>
+                                <div className="mb-stat s-pending"><div className="mb-stat-val">{selectedStats.Leads}</div><div className="mb-stat-lbl">Leads</div></div>
+                                <div className="mb-stat s-contacted"><div className="mb-stat-val">{selectedStats.Invited}</div><div className="mb-stat-lbl">Invited</div></div>
+                                <div className="mb-stat s-accepted"><div className="mb-stat-val">{selectedStats.Accepted}</div><div className="mb-stat-lbl">Accepted</div></div>
+                                <div className="mb-stat s-declined"><div className="mb-stat-val">{selectedStats.Declined}</div><div className="mb-stat-lbl">Declined</div></div>
+                                <div className="mb-stat s-scheduled"><div className="mb-stat-val">{selectedStats.Scheduled}</div><div className="mb-stat-lbl">Scheduled</div></div>
+                                <div className="mb-stat s-completed"><div className="mb-stat-val">{selectedStats.Completed}</div><div className="mb-stat-lbl">Call</div></div>
+                            </div>
+                            
+                            <div className="mb-actions">
+                                <div style={{ marginBottom: 16, fontSize: '0.9rem', color: '#444' }}>
+                                    Only experts in the <strong>Leads</strong> stage will receive the project form link.
+                                </div>
+                                <div className="mb-actions-flex">
+                                    {selectedStats.Leads > 0 ? (
+                                        <button 
+                                            className="btn-mb-primary" 
+                                            onClick={handleSendInvites}
+                                            disabled={isSendingInvites}
+                                            style={{ opacity: isSendingInvites ? 0.7 : 1 }}
+                                        >
+                                            {isSendingInvites ? (
+                                                <>
+                                                    <svg 
+                                                        viewBox="0 0 24 24" 
+                                                        width="18" height="18" 
+                                                        fill="none" 
+                                                        stroke="currentColor" 
+                                                        strokeWidth="2" 
+                                                        strokeLinecap="round" 
+                                                        strokeLinejoin="round" 
+                                                        style={{ animation: 'spin-anim 1s linear infinite' }}
+                                                    >
+                                                        <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                                                    </svg>
+                                                    <style>{`@keyframes spin-anim { 100% { transform: rotate(360deg); } }`}</style>
+                                                    Sending...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                                                    Send the project to experts (Leads alone: {selectedStats.Leads})
+                                                </>
+                                            )}
+                                        </button>
+                                    ) : (
+                                        <div style={{ padding: '8px 16px', background: '#e0e0e0', color: '#555', borderRadius: '4px', border: '1px solid #c8c8c8', fontSize: '0.85rem', fontWeight: 600 }}>
+                                            No Leads selected.
+                                        </div>
+                                    )}
+                                    <button className="btn-mb-secondary" onClick={() => window.open(`/project-form/${project.project_id}`, '_blank')}>
+                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                        Preview Project Form
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </Modal>
+                )}
                 <div className="body-split">
                     <div className="left-pane">
                         <div className="sec-title">Project Description</div>
@@ -411,7 +869,7 @@ export default function ProjectDetails() {
                         <div className="disclaimer">Region: {project.target_region || '—'}</div>
                         <div className="divider"></div>
                         <div className="q-title">Project Questions</div>
-                        {[project.profile_question_1, project.profile_question_2, project.profile_question_3, project.compliance_question_1].filter(Boolean).map((q, i) => (
+                        {(project.project_questions || []).concat(project.compliance_question_1 ? [project.compliance_question_1] : []).filter(Boolean).map((q, i) => (
                             <div className="q-item" key={i}>{q}</div>
                         ))}
                     </div>
@@ -427,11 +885,15 @@ export default function ProjectDetails() {
                         <div className="ideal-title">Ideal Candidate Profile</div>
                         <div className="ideal-sub">Target Companies:</div>
                         <ul className="ideal-list">
-                            {(project.target_companies || '').split('\n').join(',').split(',').filter(x => x.trim()).map((c, i) => <li key={i}>{c.trim()}</li>)}
+                            {(Array.isArray(project.target_companies) ? project.target_companies : String(project.target_companies || '').split('\n').join(',').split(',')).filter(x => String(x).trim()).map((c, i) => <li key={i}>{String(c).trim()}</li>)}
                         </ul>
                         <div className="ideal-sub">Target Titles:</div>
                         <ul className="ideal-list">
                             {(project.target_functions_titles || '').split('\n').join(',').split(',').filter(x => x.trim()).map((t, i) => <li key={i}>{t.trim()}</li>)}
+                        </ul>
+                        <div className="ideal-sub">Target Functions (Seniority):</div>
+                        <ul className="ideal-list">
+                            {(Array.isArray(project.target_functions) ? project.target_functions : String(project.target_functions || '').split('\n').join(',').split(',')).filter(x => String(x).trim()).map((c, i) => <li key={i}>{String(c).trim()}</li>)}
                         </ul>
                     </div>
                 </div>
@@ -466,6 +928,14 @@ export default function ProjectDetails() {
                         </div>
                         <div className="p-bar-col">Basic Info</div>
                     </div>
+                    {selectedIds.size > 0 && (
+                        <div className="mailbox-bar">
+                             <button className="btn-mailbox" onClick={() => setMailboxOpen(true)}>
+                                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                                  Process Selected Experts ({selectedIds.size})
+                             </button>
+                        </div>
+                    )}
                     {filteredParticipants.map((row, idx) => {
                         const expertId = row.id || row.expert_id;
                         const name = row.name || 'Expert';
@@ -475,6 +945,7 @@ export default function ProjectDetails() {
                         const statusLabel = row.category || '—';
                         const history = Array.isArray(row.employment_history) ? row.employment_history : [];
                         const historyExpanded = expandedHistoryId === expertId;
+                        const submissionExpanded = expandedSubmissionId === expertId;
                         const visibleHistory = historyExpanded ? history : history.slice(0, 2);
                         let statusClass = 's-pending';
                         if (statusLabel === 'Leads') statusClass = 's-pending';
@@ -482,8 +953,13 @@ export default function ProjectDetails() {
                         else if (statusLabel === 'Accepted') statusClass = 's-accepted';
                         else if (statusLabel === 'Declined') statusClass = 's-declined';
                         else if (statusLabel === 'Scheduled') statusClass = 's-scheduled';
+                        
                         return (
-                            <div className="p-row" key={`${expertId}-${idx}`}>
+                            <Fragment key={`${expertId}-${idx}`}>
+                            <div 
+                                className={`p-row ${statusLabel === 'Accepted' ? 'accepted' : ''} ${submissionExpanded ? 'expanded' : ''}`} 
+                                onClick={() => handleRowClick(expertId, statusLabel)}
+                            >
                                 <div className="p-cell">
                                     <Checkbox 
                                         id={`select-expert-${expertId}`}
@@ -582,10 +1058,126 @@ export default function ProjectDetails() {
                                     </div>
                                 </div>
                             </div>
+                            {submissionExpanded && (
+                                <div className="submission-dropdown">
+                                    <SubmissionDetailView 
+                                        submission={submissionCache[expertId]} 
+                                        isLoading={isFetchingSubmission && !submissionCache[expertId]} 
+                                    />
+                                </div>
+                            )}
+                            </Fragment>
                         );
                     })}
                 </div>
             </div>
+
+            {/* Outreach Toast Notification */}
+            {outreachToast && (
+                <div style={{
+                    position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+                    zIndex: 9999, padding: '12px 24px', borderRadius: 6, fontWeight: 600,
+                    fontSize: '0.88rem', boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+                    background: outreachToast === 'success' ? '#1a6e3c' : '#b91c1c',
+                    color: '#fff', display: 'flex', alignItems: 'center', gap: 8,
+                    animation: 'slideDown 0.3s ease-out'
+                }}>
+                    {outreachToast === 'success' ? (
+                        <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Outreach messages generated successfully!</>
+                    ) : (
+                        <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Failed to generate outreach. Please try again.</>
+                    )}
+                </div>
+            )}
+
+            {/* Outreach Messages FAB */}
+            {project?.outreach_messages?.length > 0 && (
+                <div className="outreach-fab-container">
+                    <div className="outreach-fab">
+                        <MailIcon width={28} height={28} />
+                    </div>
+                    <div className="outreach-flyout">
+                        <button className="outreach-icon-btn" title="Email Template" onClick={() => handleOpenOutreach('email')}>
+                            <MailIcon width={22} height={22} />
+                        </button>
+                        <button className="outreach-icon-btn" title="LinkedIn Connection" onClick={() => handleOpenOutreach('linkedin_conn')}>
+                            <LinkedInIcon width={22} height={22} />
+                        </button>
+                        <button className="outreach-icon-btn" title="LinkedIn InMail" onClick={() => handleOpenOutreach('linkedin_inmail')}>
+                            <LinkedInInMailIcon width={22} height={22} />
+                        </button>
+                        <button className="outreach-icon-btn" title="WhatsApp/SMS" onClick={() => handleOpenOutreach('whatsapp')}>
+                            <WhatsAppIcon width={22} height={22} />
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Outreach Modal */}
+            <Modal
+                open={!!outreachModalContent}
+                onClose={() => { setOutreachModalContent(null); setIsEditingOutreach(false); }}
+                title={outreachModalContent?.title || 'Outreach Message'}
+                width="600px"
+            >
+                <div className="outreach-modal-header">
+                    <div className="outreach-modal-title">
+                        {outreachModalContent?.type === 'email' && <MailIcon />}
+                        {outreachModalContent?.type === 'linkedin_conn' && <LinkedInIcon />}
+                        {outreachModalContent?.type === 'linkedin_inmail' && <LinkedInInMailIcon />}
+                        {outreachModalContent?.type === 'whatsapp' && <WhatsAppIcon />}
+                        {outreachModalContent?.title}
+                    </div>
+                    <div className="outreach-modal-actions">
+                        <Button 
+                            variant="secondary" 
+                            size="small" 
+                            onClick={handleCopyOutreach}
+                            disabled={!tempOutreachContent}
+                        >
+                            {copySuccess ? <CheckIcon /> : <CopyIcon />}
+                            {copySuccess ? 'Copied' : 'Copy'}
+                        </Button>
+                        {!isEditingOutreach ? (
+                            <Button variant="secondary" size="small" onClick={() => setIsEditingOutreach(true)}>
+                                <EditIcon /> Edit
+                            </Button>
+                        ) : (
+                            <Button variant="secondary" size="small" onClick={() => { setIsEditingOutreach(false); setTempOutreachContent(outreachModalContent.content); }}>
+                                <XIcon /> Cancel
+                            </Button>
+                        )}
+                    </div>
+                </div>
+
+                {isEditingOutreach ? (
+                    <textarea 
+                        className="outreach-content-area"
+                        value={tempOutreachContent}
+                        onChange={(e) => setTempOutreachContent(e.target.value)}
+                        placeholder="Type your message here..."
+                    />
+                ) : (
+                    <div className="outreach-content-area">
+                        {tempOutreachContent || <span style={{color: '#999', fontStyle: 'italic'}}>No content generated for this platform.</span>}
+                    </div>
+                )}
+
+                <div className="outreach-modal-footer">
+                    <Button variant="secondary" onClick={() => { setOutreachModalContent(null); setIsEditingOutreach(false); }}>
+                        Close
+                    </Button>
+                    {isEditingOutreach && (
+                        <Button 
+                            variant="primary" 
+                            onClick={handleSaveOutreach}
+                            loading={isSavingOutreach}
+                        >
+                            Save Changes
+                        </Button>
+                    )}
+                </div>
+            </Modal>
         </>
     );
 }

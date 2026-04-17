@@ -67,13 +67,29 @@ export default function ForgotPasswordPage() {
         setLoading(true);
         try {
             const result = await verifyOTP({ email: email.trim().toLowerCase(), otp });
-            setMessage('OTP verified successfully.');
-            if (result?.reset_link) setResetLink(result.reset_link);
+            setMessage('OTP verified successfully. Redirecting...');
+            // Build reset link from current origin (works in both local and production)
+            const token = result?.reset_token;
+            if (token) {
+                const link = `${window.location.origin}/reset-password?token=${token}`;
+                setResetLink(link);
+                // Auto-redirect after 2 seconds
+                setTimeout(() => {
+                    window.location.href = link;
+                }, 2000);
+            }
             setStep('verified');
         } catch (err) {
             setError(err?.data?.error || 'Invalid OTP');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const copyResetLink = () => {
+        if (resetLink) {
+            navigator.clipboard.writeText(resetLink);
+            setMessage('Link copied to clipboard!');
         }
     };
 
@@ -114,9 +130,65 @@ export default function ForgotPasswordPage() {
                         <div className="auth-success">
                             <div>{message}</div>
                             {resetLink ? (
-                                <div style={{ marginTop: 'var(--space-2)' }}>
-                                    <a className="auth-link" href={resetLink}>
-                                        Open reset password page
+                                <div style={{ marginTop: 'var(--space-3)' }}>
+                                    <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: 'var(--space-2)' }}>
+                                        If you're not redirected automatically, copy the link below:
+                                    </p>
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        background: '#f3f4f6',
+                                        border: '1px solid #d1d5db',
+                                        borderRadius: '8px',
+                                        padding: '8px 12px',
+                                    }}>
+                                        <input
+                                            type="text"
+                                            value={resetLink}
+                                            readOnly
+                                            onClick={(e) => e.target.select()}
+                                            style={{
+                                                flex: 1,
+                                                background: 'transparent',
+                                                border: 'none',
+                                                outline: 'none',
+                                                fontSize: '0.8rem',
+                                                color: '#374151',
+                                                fontFamily: 'monospace',
+                                                minWidth: 0,
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={copyResetLink}
+                                            title="Copy link"
+                                            style={{
+                                                background: '#4f46e5',
+                                                color: '#fff',
+                                                border: 'none',
+                                                borderRadius: '6px',
+                                                padding: '6px 12px',
+                                                cursor: 'pointer',
+                                                fontSize: '0.8rem',
+                                                fontWeight: '600',
+                                                whiteSpace: 'nowrap',
+                                            }}
+                                        >
+                                            📋 Copy
+                                        </button>
+                                    </div>
+                                    <a
+                                        href={resetLink}
+                                        style={{
+                                            display: 'inline-block',
+                                            marginTop: 'var(--space-2)',
+                                            fontSize: '0.85rem',
+                                            color: '#4f46e5',
+                                            textDecoration: 'underline',
+                                        }}
+                                    >
+                                        Open reset password page →
                                     </a>
                                 </div>
                             ) : null}

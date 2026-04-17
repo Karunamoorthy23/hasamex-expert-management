@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Hasamex Expert Management — n8n Automation Flow</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reset.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/simple.min.css">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --brand-primary: #0f172a;
+            --brand-accent: #2563eb;
+            --bg-light: #f8fafc;
+            --text-main: #334155;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+        }
+
+        body, .reveal {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            background-color: var(--bg-light);
+        }
+
+        /* Widening the presentation area */
+        .reveal .slides {
+            width: 1200px !important; /* Forces a wider workspace */
+            text-align: left;
+        }
+
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+            font-family: 'Inter', sans-serif;
+            color: var(--brand-primary);
+            text-transform: none;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .reveal h1 { font-size: 2.5em; line-height: 1.1; margin-bottom: 20px;}
+        .reveal h2 { font-size: 1.8em; border-bottom: 3px solid var(--brand-accent); padding-bottom: 10px; display: inline-block; margin-bottom: 30px;}
+        .reveal h3 { font-size: 1.4em; color: var(--brand-accent); margin-bottom: 20px;}
+        .reveal p, .reveal li { font-size: 24px; line-height: 1.4; text-align: left; font-weight: 400; }
+        
+        .muted { color: var(--text-muted) !important; font-size: 0.85em !important; }
+        .highlight { color: var(--brand-accent); font-weight: 600; }
+        
+        .code-inline {
+            font-family: 'JetBrains Mono', monospace;
+            background: #f1f5f9;
+            color: #b91c1c;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            border: 1px solid var(--border-color);
+        }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; width: 100%; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; width: 100%; }
+        
+        .panel {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            height: 100%;
+        }
+
+        .panel h4 { font-size: 1.1em; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+
+        .reveal pre code {
+            font-family: 'JetBrains Mono', monospace;
+            background: #1e293b;
+            color: #f8fafc;
+            padding: 15px;
+            font-size: 18px;
+            border-radius: 8px;
+        }
+
+        /* FIX: Mermaid visibility and font issues */
+        .mermaid-wrapper {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 30px;
+            margin-top: 20px;
+            /* width: 100%; */
+            display: flex;
+            justify-content: center;
+            overflow: hidden; /* Prevent scrollbars inside panels */
+        }
+        
+        .mermaid { 
+            width: 100% !important; 
+            transform: scale(1.1); /* Slight boost for readability */
+        }
+
+        .endpoint-list li { margin-bottom: 8px; font-size: 20px; list-style: none;}
+        .endpoint-list strong { color: var(--brand-primary); width: 180px; display: inline-block;}
+
+        .title-slide { text-align: center !important; }
+        .badge {
+            display: inline-block;
+            padding: 8px 20px;
+            background: var(--brand-primary);
+            color: white !important;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <section class="title-slide">
+                <h1>n8n Integration</h1>
+                <h3>Project → Expert Search → Email Invites</h3>
+                <p class="muted">End-to-end n8n workflow for the Expert Management app</p>
+                <div class="badge">Executive Architecture Overview</div>
+            </section>
+
+            <section>
+                <h2>System Overview</h2>
+                <div class="grid-3">
+                    <div class="panel">
+                        <h4>1. Trigger</h4>
+                        <p>Creating a Project in the app posts minimal project context to an <span class="highlight">n8n webhook</span>.</p>
+                    </div>
+                    <div class="panel">
+                        <h4>2. Orchestration</h4>
+                        <p>n8n calls back the app to execute a <span class="highlight">“filter‑first”</span> LinkedIn search via Apify.</p>
+                    </div>
+                    <div class="panel">
+                        <h4>3. Outreach</h4>
+                        <p>n8n (or the app) triggers invitation emails to lead experts with a link to the <span class="highlight">expert form</span>.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>High-Level Flow</h2>
+                <center>
+                 <img src="image1.png" alt="">
+               </center>
+            </section>
+
+            <section>
+                <h2>Core Endpoints & Security</h2>
+                <div class="grid-2">
+                    <div class="panel">
+                        <h4>Authentication</h4>
+                        <p>Protected with <span class="code-inline">N8N_SERVICE_TOKEN</span>.</p>
+                        <pre style="margin-top:10px;"><code>Header: Authorization: Bearer &lt;token&gt;
+Query: ?token=&lt;token&gt;</code></pre>
+                    </div>
+                    <div class="panel">
+                        <h4>Key Endpoints Map</h4>
+                        <ul class="endpoint-list">
+                            <li><strong>Create Project:</strong> <small>projects.py</small></li>
+                            <li><strong>n8n Status:</strong> <small>n8n_webhook.py</small></li>
+                            <li><strong>Search Experts:</strong> <small>n8n_webhook.py</small></li>
+                            <li><strong>Send Emails:</strong> <small>n8n_webhook.py</small></li>
+                            <li><strong>Email Sender:</strong> <small>projects.py</small></li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>End‑to‑End Flow: Part 1</h2>
+                <h3>1) Create a New Project</h3>
+                <div class="panel">
+                    <ul>
+                        <li>Frontend posts to Project API; app notifies n8n webhook in a background thread.</li>
+                        <li><strong>Payload:</strong> Title, target companies, geographies, functions, description.</li>
+                    </ul>
+                    <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
+                    <p class="muted">Code: <span class="code-inline">_notify_n8n_project_created</span></p>
+                </div>
+            </section>
+
+            <section>
+                <h2>End‑to‑End Flow: Part 2</h2>
+                <h3>2) n8n Orchestrates Expert Search</h3>
+                <div class="panel">
+                    <p>n8n calls back <span class="code-inline">/api/v1/n8n/search-experts</span>.</p>
+                    <ul>
+                        <li><strong>Actor ID:</strong> <span class="code-inline">SEARCH_ACTOR</span></li>
+                        <li><strong>Structured payload:</strong> <span class="code-inline">currentJobTitles</span>, <span class="code-inline">currentCompanies</span>, <span class="code-inline">locations</span></li>
+                        <li>Processes in small batches to maintain high query relevance.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section>
+                <h2>End‑to‑End Flow: Part 3</h2>
+                <h3>3) Filter‑First Search Details</h3>
+                <center>
+                     <img src="image2.png" alt="" height="500px" style="margin-top: -10px">
+                </center>
+               
+            </section>
+
+            <section>
+                <h2>End‑to‑End Flow: Part 4</h2>
+                <h3>4) Prepare and Send Invite Emails</h3>
+                <div class="grid-2">
+                    <div class="panel">
+                        <h4>Execution Logic</h4>
+                        <ol>
+                            <li>n8n triggers endpoint</li>
+                            <li>App resolves <span class="code-inline">leads_expert_ids</span></li>
+                            <li>Updates status <span class="highlight">leads → invited</span></li>
+                            <li>Emails sent via Brevo/Resend</li>
+                        </ol>
+                    </div>
+                    <div class="panel">
+                        <h4>Expert CTA</h4>
+                        <p>Emails contain a unique link:</p>
+                        <pre><code>/project-form/:pid?expert_id=:code</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>Simplified PPT Narrative</h2>
+                <div class="grid-2">
+                    <div class="panel">
+                        <h4>1. Project Creation</h4>
+                        <p class="muted">User fills fields; App notifies n8n.</p>
+                    </div>
+                    <div class="panel">
+                        <h4>2. n8n Search</h4>
+                        <p class="muted">n8n triggers LinkedIn query; App scores Top 15.</p>
+                    </div>
+                    <div class="panel">
+                        <h4>3. Lead Outreach</h4>
+                        <p class="muted">App emails experts; Experts submit availability.</p>
+                    </div>
+                    <div class="panel">
+                        <h4>4. Feedback</h4>
+                        <p class="muted">Dashboards update based on expert responses.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>Ops: Config & Troubleshooting</h2>
+                <div class="grid-2">
+                    <div class="panel">
+                        <h4>Configuration</h4>
+                        <ul class="muted" style="font-size:18px;">
+                            <li><span class="code-inline">N8N_WEBHOOK_URL</span></li>
+                            <li><span class="code-inline">N8N_SERVICE_TOKEN</span></li>
+                            <li><span class="code-inline">APIFY_API_TOKEN</span></li>
+                            <li><span class="code-inline">BREVO_API_KEY</span></li>
+                        </ul>
+                    </div>
+                    <div class="panel">
+                        <h4>Common Issues</h4>
+                        <p style="font-size:18px;"><strong>401 Error:</strong> Check N8N_SERVICE_TOKEN.</p>
+                        <p style="font-size:18px;"><strong>No Results:</strong> Check Apify Actor limits.</p>
+                    </div>
+                </div>
+            </section>
+            <section>
+                    <h2>Upcoming Implementation</h2>
+                    <div class="panel">
+                        <center>
+                        <p class="muted">To Implement the Pgvector for semantic search</p>
+                        </center>
+                    </div>
+                    <div class="panel">
+                        <center>
+                        <p class="muted">Implement the agent chatbot for create project</p>
+                        </center>
+                    </div>
+                    <div class="panel">
+                        <center>
+                        <p class="muted">Improve the enrichment process of experts</p>
+                        </center>
+                    </div>
+            </section>
+            <section>
+                <center>
+                    <h2>Thankyou</h2>
+                </center>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            slideNumber: 'c/t',
+            transition: 'slide',
+            width: 1200, // Widened base
+            height: 700,
+            center: true,
+            margin: 0.05
+        });
+
+        mermaid.initialize({
+            startOnLoad: true,
+            securityLevel: 'loose',
+            theme: 'base',
+            logLevel: 3,
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
+            sequence: { useMaxWidth: true, showSequenceNumbers: false }
+        });
+    </script>
+</body>
+</html>
