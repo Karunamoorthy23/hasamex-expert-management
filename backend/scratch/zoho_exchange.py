@@ -1,11 +1,6 @@
 import requests
 
-# Use the latest credentials from flask.env
-client_id = "1000.COSP44TYZCEHR0P0OTVYB9AWVIZ1OI"
-client_secret = "44480e2cf36880c86039b1a9672876e366a311cdca"
-# Grant Token (Generate a NEW one if this fails with 'invalid_code')
-code = "1000.f78389a0dcb228023d6fe46e84034eb6.1d5d435a64b94af0cf108dec42a74c79"
-redirect_uri = "http://localhost:8080"
+# Add client id and secret
 
 for domain in ["zoho.com", "zoho.in"]:
     url = f"https://accounts.{domain}/oauth/v2/token"
