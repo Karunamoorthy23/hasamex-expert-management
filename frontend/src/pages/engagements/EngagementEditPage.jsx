@@ -4,6 +4,7 @@ import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
 import { http } from '../../api/http';
 import FilterDropdown from '../../components/experts/FilterDropdown';
+import TimezoneSelect from '../../components/ui/TimezoneSelect';
 
 export default function EngagementEditPage() {
     const { id } = useParams();
@@ -12,6 +13,7 @@ export default function EngagementEditPage() {
     const [form, setForm] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isScheduling, setIsScheduling] = useState(false);
     const [projectExperts, setProjectExperts] = useState(null);
 
     useEffect(() => {
@@ -54,6 +56,8 @@ export default function EngagementEditPage() {
                         expert_payment_status_id: '',
                         expert_paid_from: '',
                         expert_payout_ref_id: '',
+                        expert_timezone: '',
+                        client_timezone: '',
                         client_invoice_number: '',
                         client_invoice_date: '',
                         client_payment_received_date: '',
@@ -89,6 +93,8 @@ export default function EngagementEditPage() {
                         expert_payment_status_id: '',
                         expert_paid_from: '',
                         expert_payout_ref_id: '',
+                        expert_timezone: '',
+                        client_timezone: '',
                         client_invoice_number: '',
                         client_invoice_date: '',
                         client_payment_received_date: '',
@@ -141,6 +147,32 @@ export default function EngagementEditPage() {
         })();
         return () => { cancelled = true; };
     }, [form?.project_id]);
+    
+    async function handleScheduleMeeting() {
+        if (!id) {
+            alert('Please save the engagement first before scheduling a meeting.');
+            return;
+        }
+        if (!window.confirm('This will create a Zoom meeting and send Zoho Calendar invites. Continue?')) {
+            return;
+        }
+        setIsScheduling(true);
+        try {
+            const res = await http(`/engagements/${id}/schedule`, { method: 'POST' });
+            if (res.data && res.data.engagement) {
+                setForm(res.data.engagement);
+                alert('Meeting scheduled successfully!');
+            }
+            if (res.data && res.data.zoho_errors && res.data.zoho_errors.length > 0) {
+                alert('Note: ' + res.data.zoho_errors.join(', '));
+            }
+        } catch (error) {
+            console.error('Failed to schedule meeting', error);
+            alert('Failed to schedule meeting: ' + (error.response?.data?.error || error.message));
+        } finally {
+            setIsScheduling(false);
+        }
+    }
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -376,7 +408,36 @@ export default function EngagementEditPage() {
                                 <label className="form-label">Transcript Folder Link</label>
                                 <input className="form-input" value={form.transcript_link_folder || ''} onChange={(e) => handleFormChange('transcript_link_folder', e.target.value)} />
                             </div>
+                            <div className="form-field">
+                                <label className="form-label">Expert Timeline</label>
+                                <TimezoneSelect 
+                                    name="expert_timezone"
+                                    value={form.expert_timezone || ''}
+                                    onChange={(e) => handleFormChange('expert_timezone', e.target.value)}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Client Timeline</label>
+                                <TimezoneSelect 
+                                    name="client_timezone"
+                                    value={form.client_timezone || ''}
+                                    onChange={(e) => handleFormChange('client_timezone', e.target.value)}
+                                />
+                            </div>
                         </div>
+
+                        {form.zoom_meeting_id && (
+                            <div className="zoom-details-summary" style={{ marginTop: 'var(--space-4)', padding: 'var(--space-4)', background: 'var(--color-grey-50)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-grey-200)' }}>
+                                <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-bold)', marginBottom: 'var(--space-2)', color: 'var(--color-grey-700)' }}>Zoom Meeting Details</h3>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)', fontSize: 'var(--text-xs)' }}>
+                                    <div><span style={{ color: 'var(--color-grey-500)' }}>Meeting ID:</span> {form.zoom_meeting_id}</div>
+                                    <div><span style={{ color: 'var(--color-grey-500)' }}>Password:</span> {form.zoom_password}</div>
+                                    <div style={{ gridColumn: 'span 2' }}>
+                                        <span style={{ color: 'var(--color-grey-500)' }}>Join URL:</span> <a href={form.zoom_join_url} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary-600)', wordBreak: 'break-all' }}>{form.zoom_join_url}</a>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="form-section">
@@ -504,7 +565,18 @@ export default function EngagementEditPage() {
                         <Button type="button" variant="secondary" onClick={() => navigate('/engagements')}>
                             Cancel
                         </Button>
-                        <Button type="submit" variant="primary" loading={isSaving}>
+                        {id && (
+                            <Button 
+                                type="button" 
+                                variant="outline" 
+                                onClick={handleScheduleMeeting} 
+                                loading={isScheduling}
+                                disabled={isSaving}
+                            >
+                                Schedule Call (Zoom + Zoho)
+                            </Button>
+                        )}
+                        <Button type="submit" variant="primary" loading={isSaving} disabled={isScheduling}>
                             {id ? 'Save Changes' : 'Create Engagement'}
                         </Button>
                     </div>

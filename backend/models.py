@@ -798,6 +798,8 @@ class Engagement(db.Model):
     expert_currency_id = db.Column(db.Integer, db.ForeignKey('lk_currencies.id'))
     prorated_expert_amount_base = db.Column(db.Numeric(12, 2))
     prorated_expert_amount_usd = db.Column(db.Numeric(12, 2))
+    expert_timezone = db.Column(db.String(100))
+    client_timezone = db.Column(db.String(100))
     gross_margin_percent = db.Column(db.Numeric(5, 2))
     gross_profit_usd = db.Column(db.Numeric(12, 2))
     expert_post_call_status_id = db.Column(db.Integer, db.ForeignKey('lk_post_call_statuses.id'))
@@ -810,6 +812,17 @@ class Engagement(db.Model):
     client_invoice_date = db.Column(db.Date)
     client_payment_received_date = db.Column(db.Date)
     client_payment_received_account = db.Column(db.String(100))
+    
+    # Zoom Integration
+    zoom_meeting_id = db.Column(db.String(100))
+    zoom_join_url = db.Column(db.Text)
+    zoom_start_url = db.Column(db.Text)
+    zoom_password = db.Column(db.String(100))
+    
+    # Zoho Calendar Integration
+    zoho_event_id_expert = db.Column(db.String(100))
+    zoho_event_id_client = db.Column(db.String(100))
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -871,6 +884,14 @@ class Engagement(db.Model):
             'client_invoice_date': self.client_invoice_date.isoformat() if self.client_invoice_date else None,
             'client_payment_received_date': self.client_payment_received_date.isoformat() if self.client_payment_received_date else None,
             'client_payment_received_account': self.client_payment_received_account,
+            'zoom_meeting_id': self.zoom_meeting_id,
+            'zoom_join_url': self.zoom_join_url,
+            'zoom_start_url': self.zoom_start_url,
+            'zoom_password': self.zoom_password,
+            'zoho_event_id_expert': self.zoho_event_id_expert,
+            'zoho_event_id_client': self.zoho_event_id_client,
+            'expert_timezone': self.expert_timezone,
+            'client_timezone': self.client_timezone,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

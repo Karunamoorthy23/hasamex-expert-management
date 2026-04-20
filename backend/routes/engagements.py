@@ -8,6 +8,8 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import text
 from extensions import db
 from models import Engagement, Project, Expert, Client, User, HasamexUser, LkEngagementMethod, LkCurrency, LkPostCallStatus, LkPaymentStatus
+from services.zoom_service import zoom_service
+from services.zoho_service import zoho_calendar_service
 
 engagements_bp = Blueprint('engagements', __name__, url_prefix='/api/v1/engagements')
 
@@ -195,6 +197,8 @@ def normalize_engagement_payload(data: dict) -> dict:
         'expert_payout_ref_id': _none_if_empty(data.get('expert_payout_ref_id')),
         'client_invoice_number': _none_if_empty(data.get('client_invoice_number')),
         'client_payment_received_account': _none_if_empty(data.get('client_payment_received_account')),
+        'expert_timezone': _none_if_empty(data.get('expert_timezone')),
+        'client_timezone': _none_if_empty(data.get('client_timezone')),
     }
 
 @engagements_bp.route('', methods=['GET'])
@@ -426,6 +430,116 @@ def compute_profit_api():
         return jsonify({'data': result})
     except Exception as e:
         return jsonify({'error': 'Could not compute gross profit', 'details': str(e)}), 400
+
+@engagements_bp.route('/<id>/schedule', methods=['POST'])
+def schedule_meeting(id):
+    """
+    POST /api/v1/engagements/<id>/schedule
+    Generates a Zoom meeting and sends Zoho Calendar invites (separate for expert and client).
+    """
+    engagement = Engagement.query.get_or_404(id)
+    
+    # 1. Gather Details
+    topic = f"{engagement.project.title} | Expert Call | Hasamex"
+    start_time = engagement.call_date
+    duration = engagement.actual_call_duration_mins or 60
+    
+    expert_email = engagement.expert.primary_email if engagement.expert else None
+    
+    # Client email comes from User model (poc_user_id relationship)
+    client_email = engagement.poc_user.email if engagement.poc_user else None
+
+    print(f"DEBUG: Scheduling call for Engagement {id}")
+    print(f"DEBUG: Expert Email found: {expert_email}")
+    print(f"DEBUG: Client Email found: {client_email}")
+
+    # 2. Create Zoom Meeting
+    zoom_data = zoom_service.create_meeting(topic, start_time, duration)
+    if not zoom_data:
+        return jsonify({'error': 'Failed to create Zoom meeting'}), 500
+    
+    # Update engagement with Zoom details
+    engagement.zoom_meeting_id = zoom_data['meeting_id']
+    engagement.zoom_join_url = zoom_data['join_url']
+    engagement.zoom_start_url = zoom_data['start_url']
+    engagement.zoom_password = zoom_data['password']
+    
+    # Also update transcript_link_folder as it's used in the dashboard cards for the meeting link
+    engagement.transcript_link_folder = zoom_data['join_url']
+    
+    db.session.commit()
+
+    # 3. Create Zoho Calendar Invites
+    description_template = f"""This Hasamex expert call is confirmed as per the details below:
+
+Topic: {engagement.project.title}
+Link: {zoom_data['join_url']}
+Meeting ID: {zoom_data['meeting_id']}
+Passcode: {zoom_data['password']}
+
+_______________________________________________
+
+Please ensure that the discussion remains aligned with Hasamex’s compliance standards.
+
+As a reminder:
+* Please do not request or discuss any confidential, proprietary, or non-public information, including internal financials or employer-specific data.
+* Please do not request or share personal contact information (email, phone number, etc.) during the call.
+* Any follow-up work or additional discussions should be routed only through Hasamex.
+* This call will be recorded and transcribed.
+
+For any compliance-related questions, please feel free to reach out to us on compliance@hasamex.com
+
+- Hasamex Team
+www.hasamex.com
+"""
+
+    zoho_errors = []
+    
+    # Invitation Title
+    summary = f"Invitation: {topic} @ {start_time.strftime('%a %b %d, %Y %I:%M %p')} ({engagement.expert_timezone or 'Asia/Kolkata'})"
+
+    # Expert Invitation
+    if expert_email:
+        expert_event_id = zoho_calendar_service.create_event(
+            summary=summary,
+            description=description_template,
+            start_time=start_time,
+            duration_mins=duration,
+            attendee_email=expert_email,
+            timezone=engagement.expert_timezone or "Asia/Kolkata"
+        )
+        if expert_event_id:
+            engagement.zoho_event_id_expert = expert_event_id
+        else:
+            zoho_errors.append(f"Failed to send invite to expert ({expert_email})")
+    else:
+        zoho_errors.append("Expert email missing")
+
+    # Client Invitation
+    if client_email:
+        client_event_id = zoho_calendar_service.create_event(
+            summary=summary,
+            description=description_template,
+            start_time=start_time,
+            duration_mins=duration,
+            attendee_email=client_email,
+            timezone=engagement.client_timezone or "Asia/Kolkata"
+        )
+        if client_event_id:
+             engagement.zoho_event_id_client = client_event_id
+        else:
+            zoho_errors.append(f"Failed to send invite to client ({client_email})")
+    else:
+        zoho_errors.append("Client email missing")
+
+    db.session.commit()
+
+    return jsonify({
+        'message': 'Meeting scheduled and invites sent (if emails were found)',
+        'zoom': zoom_data,
+        'zoho_errors': zoho_errors,
+        'engagement': engagement.to_dict()
+    }), 200
 
 @engagements_bp.route('/<engagement_id>', methods=['DELETE'])
 def delete_engagement(engagement_id):

@@ -200,3 +200,21 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* Timezone Column Styles */
+.col-timezone {
+    max-width: 200px;
+}
+
+.timezone-text {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.85rem;
+    color: var(--color-grey-600);
+}
+
+:root[data-theme="dark"] .timezone-text {
+    color: var(--color-grey-400);
+}

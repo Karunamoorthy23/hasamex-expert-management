@@ -2,6 +2,7 @@ import React from 'react';
 import { format } from 'date-fns';
 import { EditIcon, TrashIcon, SortIcon } from '../icons/Icons';
 import { cn } from '../../utils/cn';
+import { getTimezoneLabel } from '../../utils/timezoneUtils';
 
 function statusBadgeClass(status) {
     if (!status) return 'badge badge-outline-theme';
@@ -67,6 +68,8 @@ export default function EngagementTable({
                         {renderHeader('Expert Rate', 'expert_rate', 'col-rate')}
                         {renderHeader('Gross Profit', 'gross_profit_usd', 'col-profit')}
                         {renderHeader('Margin', 'gross_margin_percent', 'col-margin')}
+                        {renderHeader('Expert TL', 'expert_timezone', 'col-timezone')}
+                        {renderHeader('Client TL', 'client_timezone', 'col-timezone')}
                         {renderHeader('Status', 'expert_payment_status', 'col-status')}
                         <th className="col-actions">Actions</th>
                     </tr>
@@ -91,6 +94,16 @@ export default function EngagementTable({
                                 {formatCurrency(eng.gross_profit_usd, 'USD')}
                             </td>
                             <td className="col-margin">{eng.gross_margin_percent ? `${eng.gross_margin_percent}%` : '-'}</td>
+                            <td className="col-timezone">
+                                <span className="timezone-text" title={getTimezoneLabel(eng.expert_timezone)}>
+                                    {getTimezoneLabel(eng.expert_timezone)}
+                                </span>
+                            </td>
+                            <td className="col-timezone">
+                                <span className="timezone-text" title={getTimezoneLabel(eng.client_timezone)}>
+                                    {getTimezoneLabel(eng.client_timezone)}
+                                </span>
+                            </td>
                             <td className="col-status">
                                 <span className={cn(statusBadgeClass(eng.expert_payment_status))}>
                                     {eng.expert_payment_status || 'Pending'}
