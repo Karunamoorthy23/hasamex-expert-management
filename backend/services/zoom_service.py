@@ -88,4 +88,41 @@ class ZoomService:
             logger.error(f"Failed to create Zoom meeting: {e}")
             return None
 
+    def update_meeting(self, meeting_id, topic=None, start_time=None, duration_mins=None):
+        """Update an existing Zoom meeting."""
+        token = self.get_access_token()
+        if not token:
+            return False
+
+        url = f"{self.base_url}/meetings/{meeting_id}"
+        
+        payload = {}
+        if topic:
+            payload["topic"] = topic
+        if start_time:
+            if isinstance(start_time, datetime):
+                payload["start_time"] = start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
+            else:
+                payload["start_time"] = start_time
+        if duration_mins:
+            payload["duration"] = duration_mins
+
+        if not payload:
+            return True # Nothing to update
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+
+        try:
+            response = requests.patch(url, json=payload, headers=headers)
+            if response.status_code == 204:
+                return True
+            response.raise_for_status()
+            return True
+        except Exception as e:
+            logger.error(f"Failed to update Zoom meeting {meeting_id}: {e}")
+            return False
+
 zoom_service = ZoomService()

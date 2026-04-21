@@ -798,6 +798,15 @@ class Engagement(db.Model):
     expert_currency_id = db.Column(db.Integer, db.ForeignKey('lk_currencies.id'))
     prorated_expert_amount_base = db.Column(db.Numeric(12, 2))
     prorated_expert_amount_usd = db.Column(db.Numeric(12, 2))
+    
+    # Call Completed Financials
+    call_completed_duration_mins = db.Column(db.Integer)
+    completed_client_rate = db.Column(db.Numeric(12, 2))
+    completed_expert_rate = db.Column(db.Numeric(12, 2))
+    completed_prorated_expert_amount_base = db.Column(db.Numeric(12, 2))
+    completed_prorated_expert_amount_usd = db.Column(db.Numeric(12, 2))
+    completed_billable_client_amount_usd = db.Column(db.Numeric(12, 2))
+
     expert_timezone = db.Column(db.String(100))
     client_timezone = db.Column(db.String(100))
     gross_margin_percent = db.Column(db.Numeric(5, 2))
@@ -869,6 +878,14 @@ class Engagement(db.Model):
             'expert_currency': self.expert_currency.name if self.expert_currency else None,
             'prorated_expert_amount_base': float(self.prorated_expert_amount_base) if self.prorated_expert_amount_base else None,
             'prorated_expert_amount_usd': float(self.prorated_expert_amount_usd) if self.prorated_expert_amount_usd else None,
+            
+            'call_completed_duration_mins': self.call_completed_duration_mins,
+            'completed_client_rate': float(self.completed_client_rate) if self.completed_client_rate else None,
+            'completed_expert_rate': float(self.completed_expert_rate) if self.completed_expert_rate else None,
+            'completed_prorated_expert_amount_base': float(self.completed_prorated_expert_amount_base) if self.completed_prorated_expert_amount_base else None,
+            'completed_prorated_expert_amount_usd': float(self.completed_prorated_expert_amount_usd) if self.completed_prorated_expert_amount_usd else None,
+            'completed_billable_client_amount_usd': float(self.completed_billable_client_amount_usd) if self.completed_billable_client_amount_usd else None,
+
             'gross_margin_percent': float(self.gross_margin_percent) if self.gross_margin_percent else None,
             'gross_profit_usd': float(self.gross_profit_usd) if self.gross_profit_usd else None,
             # Post-call + Payment statuses (both id and name)

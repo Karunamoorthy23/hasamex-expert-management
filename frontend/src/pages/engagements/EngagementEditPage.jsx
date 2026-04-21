@@ -15,6 +15,7 @@ export default function EngagementEditPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [isScheduling, setIsScheduling] = useState(false);
     const [projectExperts, setProjectExperts] = useState(null);
+    const [currentPhase, setCurrentPhase] = useState(1);
 
     useEffect(() => {
         async function fetchData() {
@@ -62,6 +63,12 @@ export default function EngagementEditPage() {
                         client_invoice_date: '',
                         client_payment_received_date: '',
                         client_payment_received_account: '',
+                        call_completed_duration_mins: '',
+                        completed_client_rate: '',
+                        completed_expert_rate: '',
+                        completed_prorated_expert_amount_base: '',
+                        completed_prorated_expert_amount_usd: '',
+                        completed_billable_client_amount_usd: '',
                     });
                 }
             } catch (error) {
@@ -99,6 +106,12 @@ export default function EngagementEditPage() {
                         client_invoice_date: '',
                         client_payment_received_date: '',
                         client_payment_received_account: '',
+                        call_completed_duration_mins: '',
+                        completed_client_rate: '',
+                        completed_expert_rate: '',
+                        completed_prorated_expert_amount_base: '',
+                        completed_prorated_expert_amount_usd: '',
+                        completed_billable_client_amount_usd: '',
                     });
                 }
             } finally {
@@ -148,27 +161,30 @@ export default function EngagementEditPage() {
         return () => { cancelled = true; };
     }, [form?.project_id]);
     
-    async function handleScheduleMeeting() {
-        if (!id) {
+    async function handleScheduleMeeting(targetId = id, silent = false) {
+        const activeId = targetId || id;
+        if (!activeId) {
             alert('Please save the engagement first before scheduling a meeting.');
             return;
         }
-        if (!window.confirm('This will create a Zoom meeting and send Zoho Calendar invites. Continue?')) {
+        if (!silent && !window.confirm('This will create/update a Zoom meeting and send Zoho Calendar invites. Continue?')) {
             return;
         }
         setIsScheduling(true);
         try {
-            const res = await http(`/engagements/${id}/schedule`, { method: 'POST' });
-            if (res.data && res.data.engagement) {
-                setForm(res.data.engagement);
-                alert('Meeting scheduled successfully!');
+            const res = await http(`/engagements/${activeId}/schedule`, { method: 'POST' });
+            if (res && res.engagement) {
+                setForm(res.engagement);
+                if (!silent) alert('Meeting scheduled successfully!');
             }
-            if (res.data && res.data.zoho_errors && res.data.zoho_errors.length > 0) {
-                alert('Note: ' + res.data.zoho_errors.join(', '));
+            if (!silent && res && res.zoho_errors && res.zoho_errors.length > 0) {
+                alert('Note: ' + res.zoho_errors.join(', '));
             }
+            return res;
         } catch (error) {
             console.error('Failed to schedule meeting', error);
-            alert('Failed to schedule meeting: ' + (error.response?.data?.error || error.message));
+            if (!silent) alert('Failed to schedule meeting: ' + (error.response?.data?.error || error.message));
+            throw error;
         } finally {
             setIsScheduling(false);
         }
@@ -193,10 +209,20 @@ export default function EngagementEditPage() {
                 }
             }
 
-            await http(url, {
+            const res = await http(url, {
                 method,
                 body: JSON.stringify(payload),
             });
+            
+            // If it's a new engagement, automatically trigger scheduling if call_date exists
+            if (!id && res?.id && payload.call_date) {
+                try {
+                    await handleScheduleMeeting(res.id, true);
+                } catch (e) {
+                    console.error('Auto-scheduling failed after creation', e);
+                }
+            }
+
             navigate('/engagements');
         } catch (error) {
             console.error('Failed to save engagement', error);
@@ -208,7 +234,39 @@ export default function EngagementEditPage() {
     }
 
     const handleFormChange = (field, value) => {
-        setForm(prev => ({ ...prev, [field]: value }));
+        setForm(prev => {
+            const next = { ...prev, [field]: value };
+
+            if (field === 'client_rate' || field === 'discount_offered_percent') {
+                const cRate = parseFloat(field === 'client_rate' ? value : prev.client_rate) || 0;
+                const disc = parseFloat(field === 'discount_offered_percent' ? value : prev.discount_offered_percent) || 0;
+                if (cRate > 0) {
+                    next.billable_client_amount_usd = (cRate - (cRate * disc / 100)).toFixed(2);
+                }
+            }
+            
+            if (field === 'call_completed_duration_mins') {
+                const completedVal = parseFloat(value);
+                const preVal = parseFloat(prev.actual_call_duration_mins);
+                
+                if (!isNaN(completedVal) && !isNaN(preVal) && preVal > 0) {
+                    const ratio = completedVal / preVal;
+                    if (prev.client_rate) {
+                        const newClientRate = parseFloat(prev.client_rate) * ratio;
+                        next.completed_client_rate = newClientRate.toFixed(2);
+                        const discount = parseFloat(prev.discount_offered_percent) || 0;
+                        next.completed_billable_client_amount_usd = (newClientRate - (newClientRate * discount / 100)).toFixed(2);
+                    } else if (prev.billable_client_amount_usd) {
+                        next.completed_billable_client_amount_usd = (parseFloat(prev.billable_client_amount_usd) * ratio).toFixed(2);
+                    }
+
+                    if (prev.expert_rate) next.completed_expert_rate = (parseFloat(prev.expert_rate) * ratio).toFixed(2);
+                    if (prev.prorated_expert_amount_base) next.completed_prorated_expert_amount_base = (parseFloat(prev.prorated_expert_amount_base) * ratio).toFixed(2);
+                    if (prev.prorated_expert_amount_usd) next.completed_prorated_expert_amount_usd = (parseFloat(prev.prorated_expert_amount_usd) * ratio).toFixed(2);
+                }
+            }
+            return next;
+        });
     };
 
     const findNameById = (list, id) => {
@@ -262,9 +320,58 @@ export default function EngagementEditPage() {
             </div>
 
             <div className="card">
+                <div style={{ padding: '10px 20px 50px', marginBottom: 20, borderBottom: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 700, margin: '0 auto' }}>
+                        {[{id: 1, label: 'Pre-Call Details'}, {id: 2, label: 'Call Completed Details'}, {id: 3, label: 'Post-Call Details'}].map((phase, index, arr) => {
+                            const isActive = currentPhase === phase.id;
+                            const isCompleted = phase.id < currentPhase;
+
+                            const circleBg = isActive || isCompleted ? 'var(--color-accent)' : 'var(--bg-main)';
+                            const circleBorder = isActive || isCompleted ? 'var(--color-accent)' : 'var(--border-color)';
+                            const circleColor = isActive || isCompleted ? '#ffffff' : 'var(--text-muted)';
+                            const labelColor = isActive ? 'var(--color-accent)' : 'var(--text-muted)';
+                            
+                            return (
+                                <div key={phase.id} style={{ display: 'flex', alignItems: 'center', flex: index === arr.length - 1 ? '0 1 auto' : '1 1 auto' }}>
+                                    <div 
+                                        onClick={() => setCurrentPhase(phase.id)}
+                                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', cursor: 'pointer' }}
+                                    >
+                                        <div style={{
+                                            width: 40, height: 40, borderRadius: '50%', backgroundColor: circleBg,
+                                            border: `2px solid ${circleBorder}`, color: circleColor,
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            fontWeight: 'bold', fontSize: 16, transition: 'all 0.3s ease', zIndex: 2,
+                                        }}>
+                                            {isCompleted ? (
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                                </svg>
+                                            ) : phase.id}
+                                        </div>
+                                        <span style={{ 
+                                            position: 'absolute', top: 50, whiteSpace: 'nowrap',
+                                            color: labelColor, fontWeight: isActive ? '700' : '500', fontSize: 13.5,
+                                            transition: 'color 0.3s ease'
+                                        }}>
+                                            {phase.label}
+                                        </span>
+                                    </div>
+                                    {index < arr.length - 1 && (
+                                        <div style={{ flex: 1, height: 3, backgroundColor: isCompleted ? 'var(--color-accent)' : 'var(--border-color)', margin: '0 16px', transition: 'all 0.3s ease', borderRadius: 2 }} />
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
                 <form className="expert-form" onSubmit={handleSubmit}>
-                    <div className="form-section">
-                        <h2 className="form-section__title">Core Details</h2>
+                    
+                    {currentPhase === 1 && (
+                        <>
+                            <div className="form-section">
+                                <h2 className="form-section__title">Core Details</h2>
                         <div className="form-grid">
                             <div className="form-field">
                                 <label className="form-label">Project *</label>
@@ -441,7 +548,7 @@ export default function EngagementEditPage() {
                     </div>
 
                     <div className="form-section">
-                        <h2 className="form-section__title">Financials</h2>
+                        <h2 className="form-section__title">Pre-Call Financials</h2>
                         <div className="form-grid">
                             <div className="form-field">
                                 <label className="form-label">Client Rate</label>
@@ -488,7 +595,44 @@ export default function EngagementEditPage() {
 
                         </div>
                     </div>
+                    </>
+                    )}
 
+                    {currentPhase === 2 && (
+                        <div className="form-section">
+                            <h2 className="form-section__title">Completed Calls Details</h2>
+                            <div className="form-grid">
+                                <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                    <label className="form-label" style={{ color: 'var(--color-primary-600)' }}>Call Completed Duration (mins) *</label>
+                                    <input className="form-input" type="number" value={form.call_completed_duration_mins || ''} onChange={(e) => handleFormChange('call_completed_duration_mins', e.target.value)} />
+                                    <small style={{ color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>Enter the actual completed duration to auto-calculate the completed rates based on Pre-Call history.</small>
+                                </div>
+                                <div className="form-field">
+                                    <label className="form-label">Completed Client Rate</label>
+                                    <input className="form-input" type="number" step="0.01" value={form.completed_client_rate || ''} onChange={(e) => handleFormChange('completed_client_rate', e.target.value)} />
+                                </div>
+                                <div className="form-field">
+                                    <label className="form-label">Completed Billable Amount (USD)</label>
+                                    <input className="form-input" type="number" step="0.01" value={form.completed_billable_client_amount_usd || ''} onChange={(e) => handleFormChange('completed_billable_client_amount_usd', e.target.value)} />
+                                </div>
+                                <div className="form-field">
+                                    <label className="form-label">Completed Expert Rate</label>
+                                    <input className="form-input" type="number" step="0.01" value={form.completed_expert_rate || ''} onChange={(e) => handleFormChange('completed_expert_rate', e.target.value)} />
+                                </div>
+                                <div className="form-field">
+                                    <label className="form-label">Completed Prorated Expert (Base)</label>
+                                    <input className="form-input" type="number" step="0.01" value={form.completed_prorated_expert_amount_base || ''} onChange={(e) => handleFormChange('completed_prorated_expert_amount_base', e.target.value)} />
+                                </div>
+                                <div className="form-field">
+                                    <label className="form-label">Completed Prorated Expert (USD)</label>
+                                    <input className="form-input" type="number" step="0.01" value={form.completed_prorated_expert_amount_usd || ''} onChange={(e) => handleFormChange('completed_prorated_expert_amount_usd', e.target.value)} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {currentPhase === 3 && (
+                        <>
                     <div className="form-section">
                         <h2 className="form-section__title">Post-Call & Payments</h2>
                         <div className="form-grid">
@@ -560,8 +704,10 @@ export default function EngagementEditPage() {
                             </div>
                         </div>
                     </div>
+                    </>
+                    )}
 
-                    <div className="form-actions">
+                    <div className="form-actions" style={{ marginTop: 30, borderTop: '1px solid var(--table-border)', paddingTop: 20 }}>
                         <Button type="button" variant="secondary" onClick={() => navigate('/engagements')}>
                             Cancel
                         </Button>
@@ -569,11 +715,11 @@ export default function EngagementEditPage() {
                             <Button 
                                 type="button" 
                                 variant="outline" 
-                                onClick={handleScheduleMeeting} 
+                                onClick={() => handleScheduleMeeting()} 
                                 loading={isScheduling}
-                                disabled={isSaving}
+                                disabled={isSaving || !form.call_date}
                             >
-                                Schedule Call (Zoom + Zoho)
+                                {form.zoom_meeting_id ? 'Reschedule Call' : 'Schedule Call (Zoom + Zoho)'}
                             </Button>
                         )}
                         <Button type="submit" variant="primary" loading={isSaving} disabled={isScheduling}>
