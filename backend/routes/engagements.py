@@ -486,31 +486,34 @@ def schedule_meeting(engagement_id):
     db.session.commit()
 
     # 3. Zoho Calendar Invites
-    description_template = f"""This Hasamex expert call is confirmed as per the details below:
+    description_template = f"""<div style="font-family: Arial, sans-serif;">
+<p>This Hasamex expert call is confirmed as per the details below:</p>
 
-Topic: {engagement.project.title}
-Link: {engagement.zoom_join_url}
-Meeting ID: {engagement.zoom_meeting_id}
-Passcode: {engagement.zoom_password}
+<p><b>Topic:</b> {engagement.project.title}<br>
+<b>Link:</b> <a href="{engagement.zoom_join_url}">{engagement.zoom_join_url}</a><br>
+<b>Meeting ID:</b> {engagement.zoom_meeting_id}<br>
+<b>Passcode:</b> {engagement.zoom_password}</p>
 
-_______________________________________________
+<hr>
 
-Please ensure that the discussion remains aligned with Hasamex’s compliance standards.
+<p>Please ensure that the discussion remains aligned with Hasamex’s compliance standards.</p>
 
-As a reminder:
-* Please do not request or discuss any confidential, proprietary, or non-public information, including internal financials or employer-specific data.
-* Please do not request or share personal contact information (email, phone number, etc.) during the call.
-* Any follow-up work or additional discussions should be routed only through Hasamex.
-* This call will be recorded and transcribed.
+<p>As a reminder:<br>
+* Please do not request or discuss any confidential, proprietary, or non-public information, including internal financials or employer-specific data.<br>
+* Please do not request or share personal contact information (email, phone number, etc.) during the call.<br>
+* Any follow-up work or additional discussions should be routed only through Hasamex.<br>
+* This call will be recorded and transcribed.</p>
 
-For any compliance-related questions, please feel free to reach out to us on compliance@hasamex.com
+<p>For any compliance-related questions, please feel free to reach out to us on <a href="mailto:compliance@hasamex.com">compliance@hasamex.com</a></p>
 
-- Hasamex Team
-www.hasamex.com
+<p>- Hasamex Team<br>
+<a href="https://www.hasamex.com">www.hasamex.com</a></p>
+</div>
 """
 
     zoho_errors = []
-    summary = f"Invitation: {topic} @ {start_time.strftime('%a %b %d, %Y %I:%M %p')} ({engagement.expert_timezone or 'Asia/Kolkata'})"
+    # Zoho automatically prefixes "Invitation: " and appends the date/time in its email.
+    summary = topic
 
     # Expert Invitation
     if expert_email:

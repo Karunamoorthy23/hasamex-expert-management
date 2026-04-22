@@ -104,7 +104,7 @@ class ZohoCalendarService:
 
         event_data = {
             "title": summary,
-            "description": description,
+            "richtext_description": description,
             "dateandtime": {
                 "start": format_zoho_time(st),
                 "end": format_zoho_time(et),
@@ -172,7 +172,7 @@ class ZohoCalendarService:
             "uid": event_id,
             "etag": etag,
             "title": summary,
-            "description": description,
+            "richtext_description": description,
             "dateandtime": {
                 "start": format_zoho_time(st),
                 "end": format_zoho_time(et),
