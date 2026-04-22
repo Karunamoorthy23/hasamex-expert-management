@@ -17,7 +17,7 @@ export default function ProjectCreatePage() {
 
     const [form, setForm] = useState({
         client_id: '',
-        poc_user_id: '',
+        poc_user_ids: [],
         received_date: '',
         project_title: '',
         project_type: '',
@@ -85,17 +85,19 @@ export default function ProjectCreatePage() {
     }, [lookups.experts_codes]);
 
     const selectedClientName = useMemo(() => clients.find((c) => String(c.client_id) === String(form.client_id))?.client_name, [clients, form.client_id]);
-    const selectedUserName = useMemo(() => users.find((u) => String(u.user_id) === String(form.poc_user_id))?.user_name, [users, form.poc_user_id]);
+    const selectedUserNames = useMemo(() => (form.poc_user_ids || []).map(id => users.find(u => String(u.user_id) === String(id))?.user_name).filter(Boolean), [users, form.poc_user_ids]);
 
     const clientId = form?.client_id;
-    const pocUserId = form?.poc_user_id;
+    const pocUserIds = form?.poc_user_ids || [];
     useEffect(() => {
-        if (!clientId && !pocUserId) return;
-        const currentUser = (users || []).find((u) => String(u.user_id) === String(pocUserId));
-        if (clientId && currentUser && String(currentUser.client_id) !== String(clientId)) {
-            setForm((p) => ({ ...p, poc_user_id: '' }));
+        if (!clientId && pocUserIds.length === 0) return;
+        if (!users || users.length === 0) return;
+        const currentUsers = (users || []).filter(u => pocUserIds.includes(String(u.user_id)));
+        const validUserIds = currentUsers.filter(u => String(u.client_id) === String(clientId)).map(u => String(u.user_id));
+        if (validUserIds.length !== pocUserIds.length) {
+            setForm((p) => ({ ...p, poc_user_ids: validUserIds }));
         }
-    }, [clientId, pocUserId, users]);
+    }, [clientId, form?.poc_user_ids, users]);
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -103,7 +105,6 @@ export default function ProjectCreatePage() {
         try {
             const requiredStrings = [
                 'client_id',
-                'poc_user_id',
                 'received_date',
                 'project_title',
                 'project_type',
@@ -114,7 +115,7 @@ export default function ProjectCreatePage() {
                 'compliance_question_1',
                 'project_deadline',
             ];
-            const requiredArrays = ['target_geographies', 'target_functions', 'client_solution_owner_ids', 'sales_team_ids'];
+            const requiredArrays = ['poc_user_ids', 'target_geographies', 'target_functions', 'client_solution_owner_ids', 'sales_team_ids'];
             const missing = [];
             for (const key of requiredStrings) {
                 if (!String(form[key] ?? '').trim()) missing.push(key);
@@ -145,7 +146,7 @@ export default function ProjectCreatePage() {
             const payload = {
                 ...form,
                 client_id: form.client_id ? Number(form.client_id) : null,
-                poc_user_id: form.poc_user_id ? Number(form.poc_user_id) : null,
+                poc_user_ids: (form.poc_user_ids || []).map(Number),
                 number_of_calls: form.number_of_calls ? Number(form.number_of_calls) : null,
                 scheduled_calls_count: form.scheduled_calls_count ? Number(form.scheduled_calls_count) : 0,
                 completed_calls_count: form.completed_calls_count ? Number(form.completed_calls_count) : 0,
@@ -236,15 +237,14 @@ export default function ProjectCreatePage() {
                             </div>
 
                             <div className="form-field">
-                                <label className="form-label">User Name (PoC)</label>
+                                <label className="form-label">User Names (PoC)</label>
                                 <FilterDropdown
-                                    label={selectedUserName || 'Select user'}
+                                    label={selectedUserNames.length ? selectedUserNames.join(', ') : 'Select users'}
                                     options={userOptions}
-                                    selected={selectedUserName ? [selectedUserName] : []}
-                                    onChange={(next) => {
-                                        const name = next[0] || '';
-                                        const match = users.find((u) => u.user_name === name);
-                                        setForm((p) => ({ ...p, poc_user_id: match ? String(match.user_id) : '' }));
+                                    selected={selectedUserNames}
+                                    onChange={(names) => {
+                                        const ids = names.map(n => users.find(u => u.user_name === n)?.user_id).filter(Boolean).map(String);
+                                        setForm((p) => ({ ...p, poc_user_ids: ids }));
                                     }}
                                 />
                             </div>

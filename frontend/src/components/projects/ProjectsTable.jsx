@@ -69,10 +69,12 @@ export default function ProjectsTable({
                                 )}
                             </td>
                             <td className="col-compact">
-                                {p.poc_user_id ? (
-                                    <Link to={`/users/${p.poc_user_id}`}>{p.poc_user_name || '—'}</Link>
+                                {p.poc_user_names && p.poc_user_names.length > 0 ? (
+                                    <span title={p.poc_user_names.join(', ')}>
+                                        {p.poc_user_names[0]} {p.poc_user_names.length > 1 && `+${p.poc_user_names.length - 1}`}
+                                    </span>
                                 ) : (
-                                    p.poc_user_name || '—'
+                                    '—'
                                 )}
                             </td>
                             <td className="col-compact">{p.project_type || '—'}</td>

@@ -28,8 +28,6 @@ export default function EngagementEditPage() {
                 setLookups(lookupsData || {});
                 if (engagementData) {
                     const clean = { ...engagementData.data };
-                    delete clean.gross_margin_percent;
-                    delete clean.gross_profit_usd;
                     setForm(clean);
                 } else {
                     setForm({
@@ -310,6 +308,43 @@ export default function EngagementEditPage() {
         });
         return list;
     }, [projectExperts]);
+
+    const EXCHANGE_RATES_USD = {
+        'USD': 1.0,
+        'EUR': 1.09,
+        'GBP': 1.27,
+        'INR': 0.012,
+        'SGD': 0.74,
+        'AED': 0.27,
+    };
+
+    const normalizeAmount = (amount, currencyName) => {
+        if (!amount || isNaN(amount)) return 0;
+        const rate = EXCHANGE_RATES_USD[currencyName] || 1.0;
+        return parseFloat(amount) * rate;
+    };
+
+    const clientCurrencyName = findNameById(lookups.currencies, form?.client_currency_id) || 'USD';
+    const expertCurrencyName = findNameById(lookups.currencies, form?.expert_currency_id) || 'USD';
+    const discPre = parseFloat(form?.discount_offered_percent) || 0;
+
+    // Pre-Call Financials Calc
+    const cRatePre = parseFloat(form?.client_rate) || 0;
+    const eRatePre = parseFloat(form?.expert_rate) || 0;
+    let normClientPre = normalizeAmount(cRatePre * (1 - discPre / 100), clientCurrencyName);
+    if (parseFloat(form?.billable_client_amount_usd)) normClientPre = parseFloat(form?.billable_client_amount_usd);
+    const normExpertPre = normalizeAmount(eRatePre, expertCurrencyName);
+    const preCalcProfit = normClientPre - normExpertPre;
+    const preCalcMargin = normClientPre > 0 ? (preCalcProfit / normClientPre) * 100 : 0;
+
+    // Completed Financials Calc
+    const cRateComp = parseFloat(form?.completed_client_rate) || cRatePre;
+    const eRateComp = parseFloat(form?.completed_expert_rate) || eRatePre;
+    let normClientComp = normalizeAmount(cRateComp * (1 - discPre / 100), clientCurrencyName);
+    if (parseFloat(form?.completed_billable_client_amount_usd)) normClientComp = parseFloat(form?.completed_billable_client_amount_usd);
+    const normExpertComp = normalizeAmount(eRateComp, expertCurrencyName);
+    const compCalcProfit = normClientComp - normExpertComp;
+    const compCalcMargin = normClientComp > 0 ? (compCalcProfit / normClientComp) * 100 : 0;
 
     if (isLoading || !form) return <Loader rows={8} />;
 
@@ -593,6 +628,15 @@ export default function EngagementEditPage() {
                                 <input className="form-input" type="number" value={form.prorated_expert_amount_usd || ''} onChange={(e) => handleFormChange('prorated_expert_amount_usd', e.target.value)} />
                             </div>
 
+                            <div className="form-field">
+                                <label className="form-label" style={{ color: 'var(--text-muted)' }}>Pre-Call Gross Profit (USD)</label>
+                                <input className="form-input" type="text" readOnly disabled value={`$${preCalcProfit.toFixed(2)}`} style={{ fontWeight: 600, backgroundColor: 'var(--color-grey-50)', color: preCalcProfit >= 0 ? 'var(--color-success-600)' : 'var(--color-danger-600)' }} />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label" style={{ color: 'var(--text-muted)' }}>Pre-Call Gross Margin (%)</label>
+                                <input className="form-input" type="text" readOnly disabled value={`${preCalcMargin.toFixed(2)}%`} style={{ fontWeight: 600, backgroundColor: 'var(--color-grey-50)' }} />
+                            </div>
+
                         </div>
                     </div>
                     </>
@@ -626,6 +670,14 @@ export default function EngagementEditPage() {
                                 <div className="form-field">
                                     <label className="form-label">Completed Prorated Expert (USD)</label>
                                     <input className="form-input" type="number" step="0.01" value={form.completed_prorated_expert_amount_usd || ''} onChange={(e) => handleFormChange('completed_prorated_expert_amount_usd', e.target.value)} />
+                                </div>
+                                <div className="form-field">
+                                    <label className="form-label" style={{ color: 'var(--text-muted)' }}>Completed Gross Profit (USD)</label>
+                                    <input className="form-input" type="text" readOnly disabled value={`$${compCalcProfit.toFixed(2)}`} style={{ fontWeight: 600, backgroundColor: 'var(--color-grey-50)', color: compCalcProfit >= 0 ? 'var(--color-success-600)' : 'var(--color-danger-600)' }} />
+                                </div>
+                                <div className="form-field">
+                                    <label className="form-label" style={{ color: 'var(--text-muted)' }}>Completed Gross Margin (%)</label>
+                                    <input className="form-input" type="text" readOnly disabled value={`${compCalcMargin.toFixed(2)}%`} style={{ fontWeight: 600, backgroundColor: 'var(--color-grey-50)' }} />
                                 </div>
                             </div>
                         </div>

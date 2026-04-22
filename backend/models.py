@@ -174,6 +174,8 @@ class Expert(db.Model):
     rating = db.Column(db.Integer, default=0)
     last_modified = db.Column(db.DateTime)
     total_calls_completed = db.Column(db.Integer, default=0)
+    # Education history extracted from PDF — JSONB array of { institution, degree, field, start_year, end_year }
+    education = db.Column(JSONB, default=list)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -279,7 +281,8 @@ class Expert(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'experiences': [exp.to_dict() for exp in self.experiences],
-            'strengths_list': [s.to_dict() for s in self.strengths]
+            'strengths_list': [s.to_dict() for s in self.strengths],
+            'education': self.education or [],
         }
 
     def __repr__(self):
@@ -610,7 +613,7 @@ class Project(db.Model):
     project_questions = db.Column(JSONB, nullable=False, default=list)
     compliance_question_1 = db.Column(db.Text)
     project_deadline = db.Column(db.Date)
-    poc_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id', ondelete='SET NULL'))
+    poc_user_ids = db.Column(JSONB, nullable=False, default=list)
     project_created_by = db.Column(db.String(255))
     last_modified_time = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -632,7 +635,6 @@ class Project(db.Model):
     calls = db.relationship('Call', backref='project', lazy=True, cascade='all, delete-orphan')
     rel_project_type = db.relationship('LkProjectType', lazy='joined')
     rel_target_region = db.relationship('LkRegion', foreign_keys=[target_region_id], lazy='joined')
-    rel_poc_user = db.relationship('User', foreign_keys=[poc_user_id], lazy='joined')
     target_geographies = db.relationship(
         'LkProjectTargetGeography',
         secondary='project_target_geographies',
@@ -657,6 +659,14 @@ class Project(db.Model):
         sales_ids = _to_int_list(self.sales_team_ids)
         sol_users = HasamexUser.query.filter(HasamexUser.id.in_(sol_ids)).all() if sol_ids else []
         sales_users = HasamexUser.query.filter(HasamexUser.id.in_(sales_ids)).all() if sales_ids else []
+        
+        from models import User
+        poc_ids = self.poc_user_ids or []
+        poc_users = User.query.filter(User.user_id.in_(poc_ids)).all() if poc_ids else []
+        # Keep same order as poc_ids
+        poc_user_map = {u.user_id: u.user_name for u in poc_users}
+        poc_names = [poc_user_map.get(pid) for pid in poc_ids if pid in poc_user_map]
+
         leads = self.leads_expert_ids or []
         invited = self.invited_expert_ids or []
         accepted = self.accepted_expert_ids or []
@@ -694,8 +704,8 @@ class Project(db.Model):
             'project_questions': self.project_questions or [],
             'compliance_question_1': self.compliance_question_1,
             'project_deadline': self.project_deadline.isoformat() if self.project_deadline else None,
-            'poc_user_id': self.poc_user_id,
-            'poc_user_name': self.rel_poc_user.user_name if self.rel_poc_user else None,
+            'poc_user_ids': poc_ids,
+            'poc_user_names': poc_names,
             'project_created_by': self.project_created_by,
             'client_solution_owner_ids': sol_ids,
             'client_solution_owner_names': [u.username for u in sol_users],

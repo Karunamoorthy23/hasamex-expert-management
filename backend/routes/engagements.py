@@ -321,14 +321,19 @@ def create_engagement():
         if payload.get('expert_currency_id'):
             row = db.session.get(LkCurrency, payload['expert_currency_id'])
             expert_currency = row.name if row else None
+        is_completed = bool(new_engagement.call_completed_duration_mins)
+        c_rate = new_engagement.completed_client_rate if is_completed and new_engagement.completed_client_rate is not None else new_engagement.client_rate
+        e_rate = new_engagement.completed_expert_rate if is_completed and new_engagement.completed_expert_rate is not None else new_engagement.expert_rate
+        b_override = new_engagement.completed_billable_client_amount_usd if is_completed and new_engagement.completed_billable_client_amount_usd is not None else new_engagement.billable_client_amount_usd
+
         result = compute_profit_and_margin(
-            client_rate=payload.get('client_rate'),
+            client_rate=c_rate,
             client_currency=client_currency or 'USD',
-            expert_rate=payload.get('expert_rate'),
+            expert_rate=e_rate,
             expert_currency=expert_currency or 'USD',
             base_currency='USD',
-            discount_percent=payload.get('discount_offered_percent'),
-            billable_override_in_base=payload.get('billable_client_amount_usd'),
+            discount_percent=new_engagement.discount_offered_percent,
+            billable_override_in_base=b_override,
         )
         new_engagement.gross_profit_usd = result['gross_profit']
         new_engagement.gross_margin_percent = result['margin_percentage']
@@ -377,14 +382,19 @@ def update_engagement(engagement_id):
         if engagement.expert_currency_id:
             row = db.session.get(LkCurrency, engagement.expert_currency_id)
             expert_currency = row.name if row else None
+        is_completed = bool(engagement.call_completed_duration_mins)
+        c_rate = engagement.completed_client_rate if is_completed and engagement.completed_client_rate is not None else engagement.client_rate
+        e_rate = engagement.completed_expert_rate if is_completed and engagement.completed_expert_rate is not None else engagement.expert_rate
+        b_override = engagement.completed_billable_client_amount_usd if is_completed and engagement.completed_billable_client_amount_usd is not None else engagement.billable_client_amount_usd
+
         result = compute_profit_and_margin(
-            client_rate=engagement.client_rate,
+            client_rate=c_rate,
             client_currency=client_currency or 'USD',
-            expert_rate=engagement.expert_rate,
+            expert_rate=e_rate,
             expert_currency=expert_currency or 'USD',
             base_currency='USD',
             discount_percent=engagement.discount_offered_percent,
-            billable_override_in_base=engagement.billable_client_amount_usd,
+            billable_override_in_base=b_override,
         )
         engagement.gross_profit_usd = result['gross_profit']
         engagement.gross_margin_percent = result['margin_percentage']

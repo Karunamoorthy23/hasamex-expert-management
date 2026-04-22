@@ -152,3 +152,49 @@ export async function generateOutreachMessages(projectId) {
     });
     return result;
 }
+
+/**
+ * Upload one or more expert PDF files to a project.
+ * The backend will parse each PDF with Gemini and create/update experts as Leads.
+ * @param {number} projectId
+ * @param {File[]} files  - array of File objects (PDF only)
+ * @returns {Promise<{total, created, updated, duplicate, error, results[]}>}
+ */
+export async function uploadExpertPdfs(projectId, files) {
+    const { getToken } = await import('../auth/token');
+    const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+    const token = getToken();
+
+    const formData = new FormData();
+    files.forEach((f) => formData.append('files[]', f));
+
+    const response = await fetch(`${BASE_URL}/projects/${projectId}/upload-expert-pdfs`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const err = new Error(`HTTP Error ${response.status}`);
+        err.status = response.status;
+        try { err.data = await response.json(); } catch { /* ignore */ }
+        throw err;
+    }
+
+    return response.json();
+}
+
+/**
+ * Send an expert report email for the selected accepted experts.
+ * @param {number} projectId
+ * @param {string[]} expertIds   - selected expert UUIDs
+ * @param {'myself'|'client'} recipient
+ * @param {Object} rates         - { [expertId]: rateNumber }
+ */
+export async function sendExpertReport(projectId, expertIds, recipient, rates = {}) {
+    const result = await http(`/projects/${projectId}/send-expert-report`, {
+        method: 'POST',
+        body: JSON.stringify({ expert_ids: expertIds, recipient, rates }),
+    });
+    return result;
+}

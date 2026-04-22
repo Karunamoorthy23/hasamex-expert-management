@@ -6,7 +6,8 @@ import {
     setProjectExpertStatus, 
     setProjectCallAssignment, 
     sendProjectInvites,
-    fetchExpertSubmission
+    fetchExpertSubmission,
+    sendExpertReport
 } from '../../api/projects';
 import { fetchClientById } from '../../api/clients';
 import Modal from '../../components/ui/Modal';
@@ -26,6 +27,7 @@ import {
     EditIcon
 } from '../../components/icons/Icons';
 import { updateOutreachMessage, generateOutreachMessages } from '../../api/projects';
+import AddExpertsByPdfButton from '../../components/experts/AddExpertsByPdfButton';
 
 function DetailItem({ label, value, full }) {
     return (
@@ -269,6 +271,11 @@ export default function ProjectDetails() {
     const [isGeneratingOutreach, setIsGeneratingOutreach] = useState(false);
     const [outreachToast, setOutreachToast] = useState(null); // 'success' | 'error'
 
+    // Expert Report sending states
+    const [reportRates, setReportRates] = useState({});           // { expertId: rateString }
+    const [isSendingReport, setIsSendingReport] = useState(false);
+    const [reportToast, setReportToast] = useState(null);          // { type: 'success'|'error', msg }
+
     const loadParticipants = async () => {
         try {
             const status = await fetchProjectExpertStatus(id);
@@ -456,6 +463,41 @@ export default function ProjectDetails() {
             alert('Failed to send some or all project invites.');
         } finally {
             setIsSendingInvites(false);
+        }
+    };
+
+    const handleSendReport = async (recipient) => {
+        // Collect selected accepted expert IDs
+        const acceptedSelectedIds = filteredParticipants
+            .filter(p => selectedIds.has(p.id || p.expert_id) && p.category === 'Accepted')
+            .map(p => p.id || p.expert_id);
+
+        if (acceptedSelectedIds.length === 0) {
+            setReportToast({ type: 'error', msg: 'No Accepted experts selected. Only Accepted experts are included in the report.' });
+            setTimeout(() => setReportToast(null), 5000);
+            return;
+        }
+
+        setIsSendingReport(true);
+        setReportToast(null);
+        try {
+            const rates = {};
+            acceptedSelectedIds.forEach(eid => {
+                const raw = reportRates[eid];
+                if (raw && !isNaN(parseFloat(raw))) rates[eid] = parseFloat(raw);
+            });
+            const res = await sendExpertReport(id, acceptedSelectedIds, recipient, rates);
+            setReportToast({
+                type: 'success',
+                msg: `Report sent to: ${(res.recipients || []).join(', ')} — ${res.expert_count} expert(s).`,
+            });
+            setTimeout(() => setReportToast(null), 7000);
+        } catch (err) {
+            const errMsg = err?.data?.error || err?.message || 'Failed to send report.';
+            setReportToast({ type: 'error', msg: errMsg });
+            setTimeout(() => setReportToast(null), 7000);
+        } finally {
+            setIsSendingReport(false);
         }
     };
 
@@ -762,10 +804,23 @@ export default function ProjectDetails() {
                                 )}
                             </button>
                             <button className="btn-edit" onClick={() => navigate(`/projects/${project.project_id}/edit`)}>Edit Project</button>
+                            <AddExpertsByPdfButton
+                                projectId={project.project_id}
+                                onSuccess={loadParticipants}
+                                label="Add Experts"
+                                variant="header"
+                            />
                         </div>
                     </div>
                     <div className="hdr-subtitle">
-                        Client: <strong>{project.client_id ? <a href={`/clients/${project.client_id}`}>{project.client_name || `#${project.client_id}`}</a> : (project.client_name || `#${project.client_id}`)}</strong> • PoC: <strong>{project.poc_user_id ? <a href={`/users/${project.poc_user_id}`}>{project.poc_user_name || '—'}</a> : (project.poc_user_name || '—')}</strong> • Status: <strong>{project.status || '—'}</strong> • <a href="#" onClick={(e) => { e.preventDefault(); setServiceOpen(true); }}>Service Rules</a>
+                        Client: <strong>{project.client_id ? <a href={`/clients/${project.client_id}`}>{project.client_name || `#${project.client_id}`}</a> : (project.client_name || `#${project.client_id}`)}</strong> • PoC: <strong>
+                            {project.poc_user_names && project.poc_user_names.length > 0 ? (
+                                <span title={project.poc_user_names.join(', ')}>
+                                    {project.poc_user_names.slice(0, 2).join(', ')}
+                                    {project.poc_user_names.length > 2 && ` +${project.poc_user_names.length - 2}`}
+                                </span>
+                            ) : '—'}
+                        </strong> • Status: <strong>{project.status || '—'}</strong> • <a href="#" onClick={(e) => { e.preventDefault(); setServiceOpen(true); }}>Service Rules</a>
                     </div>
                     <div className="team-row">
                         <div className="team-member">
@@ -859,6 +914,71 @@ export default function ProjectDetails() {
                                     </button>
                                 </div>
                             </div>
+
+                            {/* EXPERT REPORT SECTION */}
+                            {selectedStats.Accepted > 0 && (
+                                <div className="mb-report-section" style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #e0e0e0' }}>
+                                    <h3 style={{ margin: '0 0 12px 0', fontSize: '1.05rem', color: '#1a2e4a' }}>Send Expert Report</h3>
+                                    <div style={{ marginBottom: 12, fontSize: '0.9rem', color: '#444' }}>
+                                        Generate and send a consolidated profile report for selected <strong>Accepted</strong> experts.
+                                    </div>
+                                    
+                                    <div style={{ background: '#f8f9fa', padding: '12px', borderRadius: '6px', marginBottom: '16px', border: '1px solid #eaedf1', maxHeight: '180px', overflowY: 'auto' }}>
+                                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#556', marginBottom: '8px' }}>Client Rates (USD/hr) - Optional</div>
+                                        {filteredParticipants.filter(p => selectedIds.has(p.id || p.expert_id) && p.category === 'Accepted').map(p => (
+                                            <div key={p.id || p.expert_id} style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', gap: '12px' }}>
+                                                <div style={{ flex: 1, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                    {p.name || 'Expert'} {p.expert_code ? `(${p.expert_code})` : ''}
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <span style={{ fontSize: '0.85rem', color: '#667' }}>$</span>
+                                                    <input 
+                                                        type="number" 
+                                                        placeholder="Rate"
+                                                        value={reportRates[p.id || p.expert_id] || ''}
+                                                        onChange={(e) => setReportRates(prev => ({ ...prev, [p.id || p.expert_id]: e.target.value }))}
+                                                        style={{ width: '80px', padding: '4px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '0.9rem' }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {reportToast && (
+                                        <div style={{ 
+                                            padding: '10px 14px', 
+                                            marginBottom: '16px', 
+                                            borderRadius: '6px', 
+                                            fontSize: '0.9rem',
+                                            background: reportToast.type === 'success' ? '#dcfce7' : '#fee2e2',
+                                            color: reportToast.type === 'success' ? '#14532d' : '#991b1b',
+                                            border: `1px solid ${reportToast.type === 'success' ? '#bbf7d0' : '#fecaca'}`
+                                        }}>
+                                            {reportToast.msg}
+                                        </div>
+                                    )}
+
+                                    <div className="mb-actions-flex">
+                                        <button 
+                                            className="btn-mb-primary" 
+                                            style={{ background: '#2563eb', opacity: isSendingReport ? 0.7 : 1 }}
+                                            onClick={() => handleSendReport('myself')}
+                                            disabled={isSendingReport}
+                                        >
+                                            {isSendingReport ? 'Sending...' : 'Send to Myself'}
+                                        </button>
+                                        <button 
+                                            className="btn-mb-primary" 
+                                            style={{ background: '#059669', opacity: isSendingReport ? 0.7 : 1 }}
+                                            onClick={() => handleSendReport('client')}
+                                            disabled={isSendingReport}
+                                        >
+                                            {isSendingReport ? 'Sending...' : 'Send to Client'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
                         </div>
                     </Modal>
                 )}

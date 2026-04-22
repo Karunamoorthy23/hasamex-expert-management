@@ -82,6 +82,21 @@ export default function ExpertDetails() {
   .ideal-list { list-style: none; margin-bottom: 8px; display: flex; flex-direction: column; gap: 3px; }
   .ideal-list li { display: flex; align-items: flex-start; gap: 7px; font-size: 0.875rem; color: #333333; }
   .bullet-list { list-style: disc; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+  /* Experience cards */
+  .exp-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+  .exp-card { border-left: 3px solid #d0d0d0; padding: 4px 0 4px 10px; }
+  .exp-role { font-size: 0.86rem; font-weight: 700; color: #111; }
+  .exp-company { font-size: 0.82rem; color: #444; }
+  .exp-years { font-size: 0.75rem; color: #888; margin-top: 1px; }
+  /* Education cards */
+  .edu-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+  .edu-card { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; background: #f8f9ff; border: 1px solid #e0e4f5; border-radius: 5px; }
+  .edu-icon { flex-shrink: 0; margin-top: 2px; }
+  .edu-body { flex: 1; min-width: 0; }
+  .edu-degree { font-size: 0.86rem; font-weight: 700; color: #1a1a1a; }
+  .edu-field { font-size: 0.80rem; color: #555; margin-top: 1px; }
+  .edu-institution { font-size: 0.80rem; color: #1a5ca8; font-weight: 600; margin-top: 2px; }
+  .edu-years { font-size: 0.73rem; color: #888; margin-top: 2px; }
   @media (max-width: 700px) { .body-split { grid-template-columns: 1fr; } }
             `}</style>
             <div className="page">
@@ -117,13 +132,68 @@ export default function ExpertDetails() {
                         <div className="sec-title">Biography</div>
                         <div className="desc-text bio-text">{expert.bio || '—'}</div>
                         <div className="sec-title">Employment History</div>
-                        {employmentHistoryLines.length ? (
-                            <ul className="bullet-list">
-                                {employmentHistoryLines.map((line, i) => <li key={i}>{line}</li>)}
-                            </ul>
-                        ) : (
-                            <div className="desc-text">—</div>
-                        )}
+                        {(() => {
+                            // Prefer structured experiences array from ExpertExperience table
+                            const exps = Array.isArray(expert?.experiences) && expert.experiences.length
+                                ? expert.experiences
+                                : null;
+                            if (exps) {
+                                return (
+                                    <div className="exp-list">
+                                        {exps.map((exp, i) => {
+                                            const years = [exp.start_year, exp.end_year ?? 'Present']
+                                                .filter(Boolean).join(' – ');
+                                            return (
+                                                <div key={i} className="exp-card">
+                                                    <div className="exp-role">{exp.role_title || '—'}</div>
+                                                    <div className="exp-company">{exp.company_name || '—'}</div>
+                                                    {years && <div className="exp-years">{years}</div>}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            }
+                            // Fallback: old plain-text field
+                            const lines = String(expert?.employment_history || '')
+                                .split('\n').map(s => s.trim()).filter(Boolean);
+                            return lines.length ? (
+                                <ul className="bullet-list">
+                                    {lines.map((line, i) => <li key={i}>{line}</li>)}
+                                </ul>
+                            ) : <div className="desc-text">—</div>;
+                        })()}
+
+                        <div className="sec-title">Education</div>
+                        {(() => {
+                            const edu = Array.isArray(expert?.education) ? expert.education : [];
+                            if (!edu.length) return <div className="desc-text">—</div>;
+                            return (
+                                <div className="edu-list">
+                                    {edu.map((e, i) => {
+                                        const years = [e.start_year, e.end_year]
+                                            .filter(Boolean).join(' – ');
+                                        return (
+                                            <div key={i} className="edu-card">
+                                                <div className="edu-icon">
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                                                        <path d="M6 12v5c0 1.657 3.582 3 8 3s8-1.343 8-3v-5"/>
+                                                    </svg>
+                                                </div>
+                                                <div className="edu-body">
+                                                    <div className="edu-degree">{e.degree || '—'}</div>
+                                                    {e.field && <div className="edu-field">{e.field}</div>}
+                                                    <div className="edu-institution">{e.institution || '—'}</div>
+                                                    {years && <div className="edu-years">{years}</div>}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()}
+
                         <div className="sec-title">Strength Topics</div>
                         {strengthItems.length ? (
                             <ul className="bullet-list">

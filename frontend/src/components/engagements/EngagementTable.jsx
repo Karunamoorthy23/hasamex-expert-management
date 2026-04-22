@@ -75,7 +75,13 @@ export default function EngagementTable({
                     </tr>
                 </thead>
                 <tbody>
-                    {engagements.map((eng) => (
+                    {engagements.map((eng) => {
+                        const isCompletedPhase = !!eng.call_completed_duration_mins;
+                        const displayDuration = isCompletedPhase ? eng.call_completed_duration_mins : eng.actual_call_duration_mins;
+                        const displayClientRate = isCompletedPhase ? eng.completed_client_rate : eng.client_rate;
+                        const displayExpertRate = isCompletedPhase ? eng.completed_expert_rate : eng.expert_rate;
+
+                        return (
                         <tr key={eng.id} onClick={() => onRowClick && onRowClick(eng.id)} style={{ cursor: 'pointer' }}>
                             <td className="col-id">
                                 <span className="badge badge-outline-theme">{eng.engagement_id || '—'}</span>
@@ -87,13 +93,13 @@ export default function EngagementTable({
                                 </div>
                             </td>
                             <td className="col-date">{formatDate(eng.call_date)}</td>
-                            <td className="col-duration">{eng.actual_call_duration_mins ? `${eng.actual_call_duration_mins}m` : '-'}</td>
-                            <td className="col-rate">{formatCurrency(eng.client_rate, eng.client_currency)}</td>
-                            <td className="col-rate">{formatCurrency(eng.expert_rate, eng.expert_currency)}</td>
+                            <td className="col-duration">{displayDuration ? `${displayDuration}m` : '-'}</td>
+                            <td className="col-rate">{formatCurrency(displayClientRate, eng.client_currency)}</td>
+                            <td className="col-rate">{formatCurrency(displayExpertRate, eng.expert_currency)}</td>
                             <td className={`col-profit ${eng.gross_profit_usd >= 0 ? 'text-success' : 'text-danger'}`}>
                                 {formatCurrency(eng.gross_profit_usd, 'USD')}
                             </td>
-                            <td className="col-margin">{eng.gross_margin_percent ? `${eng.gross_margin_percent}%` : '-'}</td>
+                            <td className="col-margin">{eng.gross_margin_percent !== null && eng.gross_margin_percent !== undefined && eng.gross_margin_percent !== 0 ? `${eng.gross_margin_percent}%` : '-'}</td>
                             <td className="col-timezone">
                                 <span className="timezone-text" title={getTimezoneLabel(eng.expert_timezone)}>
                                     {getTimezoneLabel(eng.expert_timezone)}
@@ -120,7 +126,8 @@ export default function EngagementTable({
                                 </div>
                             </td>
                         </tr>
-                    ))}
+                        );
+                    })}
                 </tbody>
             </table>
         </div>
