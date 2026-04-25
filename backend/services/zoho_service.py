@@ -124,11 +124,8 @@ class ZohoCalendarService:
         headers = {"Authorization": f"Bearer {token}"}
         
         try:
-            # Zoho v1 triggers notifications correctly when eventdata and notify flags are sent as query parameters (params)
             payload = {
-                "eventdata": json.dumps(event_data),
-                "notify_attendee": 1,
-                "notifyType": 1
+                "eventdata": json.dumps(event_data)
             }
             response = requests.post(url, params=payload, headers=headers)
             response.raise_for_status()
@@ -136,7 +133,8 @@ class ZohoCalendarService:
             events = data.get('events', [])
             return events[0].get('uid') if events else data.get('uid')
         except Exception as e:
-            logger.error(f"Failed to create Zoho event: {e}")
+            error_details = e.response.text if hasattr(e, 'response') and hasattr(e.response, 'text') else str(e)
+            logger.error(f"Failed to create Zoho event: {error_details}")
             return None
 
     def update_event(self, event_id, summary, description, start_time, duration_mins, attendee_email, timezone="Asia/Kolkata"):

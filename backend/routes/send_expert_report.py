@@ -33,148 +33,87 @@ from models import Project, Expert, ProjectFormSubmission, HasamexUser, User
 # HTML Email builder
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _build_expert_report_html(project, experts_data):
+def _build_expert_report_text(project, experts_data):
     """
-    Build a rich HTML email containing all selected accepted experts' details.
-    experts_data: list of dicts with expert + submission + rate info.
+    Build a structured plain-text email containing all selected accepted experts' details.
     """
     p_title = project.project_title or project.title or "Project"
     p_code  = f"PRJ-{project.project_id}"
     count   = len(experts_data)
 
-    # Header
-    html = f"""
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<style>
-  body {{ font-family: Arial, sans-serif; color: #222; background: #f5f5f5; margin: 0; padding: 0; }}
-  .wrapper {{ max-width: 700px; margin: 24px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,.10); }}
-  .header {{ padding: 28px 32px 14px 32px; color: #111; border-bottom: 1px solid #dde4ee; }}
-  .header h1 {{ margin: 0 0 6px; font-size: 1.4rem; color: #1a2e4a; }}
-  .header p {{ margin: 0; font-size: 0.9rem; color: #556; }}
-  .summary-bar {{ background: #eef2f7; padding: 14px 32px; border-bottom: 1px solid #dde4ee; font-size: 0.88rem; color: #445; }}
-  .expert-card {{ border-bottom: 2px solid #e0e8f5; padding: 28px 32px; }}
-  .expert-card:last-child {{ border-bottom: none; }}
-  .expert-num {{ display: inline-block; background: #1a2e4a; color: #fff; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-bottom: 8px; letter-spacing: .05em; }}
-  .expert-name {{ font-size: 1.1rem; font-weight: 700; color: #111; margin: 0 0 4px; }}
-  .expert-title {{ font-size: 0.88rem; color: #556; margin: 0 0 14px; }}
-  .section-label {{ font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6677aa; margin: 16px 0 6px; border-bottom: 1px solid #e8edf5; padding-bottom: 4px; }}
-  .bio {{ font-size: 0.88rem; color: #334; line-height: 1.65; }}
-  .exp-item {{ margin: 4px 0; font-size: 0.86rem; color: #334; }}
-  .exp-role {{ font-weight: 600; color: #111; }}
-  .exp-co {{ color: #556; }}
-  .exp-yr {{ font-size: 0.78rem; color: #889; margin-left: 6px; }}
-  .slot-badge {{ display: inline-block; background: #e8f0fe; color: #1a3a7a; border: 1px solid #b8cef8; border-radius: 4px; padding: 3px 10px; font-size: 0.80rem; font-weight: 600; margin: 2px 3px 2px 0; }}
-  .qa-item {{ background: #f8faff; border-left: 3px solid #b8cef8; border-radius: 0 5px 5px 0; padding: 8px 12px; margin: 6px 0; }}
-  .qa-q {{ font-size: 0.83rem; font-weight: 700; color: #1a3a7a; margin-bottom: 4px; }}
-  .qa-a {{ font-size: 0.85rem; color: #334; line-height: 1.55; }}
-  .rate-pill {{ display: inline-block; background: #dcfce7; color: #14532d; border: 1px solid #86efac; border-radius: 20px; padding: 5px 16px; font-size: 0.88rem; font-weight: 700; margin-top: 6px; }}
-  .avail-tz {{ font-size: 0.82rem; color: #556; margin-bottom: 6px; }}
-  .footer {{ background: #f0f4f8; text-align: center; padding: 18px 32px; font-size: 0.78rem; color: #889; border-top: 1px solid #dde4ee; }}
-</style>
-</head>
-<body>
-<div class="wrapper">
-  <div class="header">
-    <h1>{p_title} | Hasamex</h1>
-    <p>{p_code} &nbsp;|&nbsp; {count} Accepted Expert{"s" if count != 1 else ""} Selected</p>
-  </div>
-  <div class="summary-bar">
-    This report contains profiles of <strong>{count}</strong> accepted expert{"s" if count != 1 else ""} for your review.
-  </div>
-"""
+    lines = []
+    lines.append("=" * 60)
+    lines.append(f"{p_title.upper()} | HASAMEX EXPERT REPORT")
+    lines.append(f"Project Code: {p_code}")
+    lines.append(f"Experts:      {count} Accepted Expert(s)")
+    lines.append("=" * 60)
+    lines.append("")
+    lines.append(f"This report contains profiles of {count} accepted expert(s) for your review.")
+    lines.append("")
 
     for idx, ed in enumerate(experts_data, 1):
-        expert    = ed["expert"]
-        sub       = ed["submission"]       # ProjectFormSubmission or None
-        rate      = ed["rate"]             # float or None
-        num_label = f"Expert #{idx:02d}"
+        expert = ed["expert"]
+        sub    = ed["submission"]
+        rate   = ed["rate"]
+        
+        name   = f"{expert.first_name or ''} {expert.last_name or ''}".strip() or "Expert"
+        title  = expert.title_headline or "Professional"
+        bio    = expert.bio or "No bio available."
+        tz     = expert.timezone or (expert.rel_location.timezone if expert.rel_location else None) or "Unknown"
 
-        name  = f"{expert.first_name or ''} {expert.last_name or ''}".strip() or "Expert"
-        title = expert.title_headline or ""
-        bio   = expert.bio or "No bio available."
-        tz    = expert.timezone or (expert.rel_location.timezone if expert.rel_location else None) or "—"
+        lines.append(f"--- EXPERT #{idx:02d} ---")
+        lines.append(f"Title: {title}")
+        lines.append("")
+        lines.append("BIOGRAPHY :")
+        lines.append(bio)
+        lines.append("")
 
-        # Employment history
-        exp_html = ""
+        lines.append("EMPLOYMENT HISTORY :")
         if expert.experiences:
             for exp in expert.experiences:
-                yr = f"{exp.start_year or '??'} – {exp.end_year or 'Present'}"
-                exp_html += f"""
-            <div class="exp-item">
-              <span class="exp-role">{exp.role_title}</span>
-              <span class="exp-co"> @ {exp.company_name}</span>
-              <span class="exp-yr">({yr})</span>
-            </div>"""
+                yr = f"{exp.start_year or '??'} - {exp.end_year or 'Present'}"
+                lines.append(f"• {exp.role_title} @ {exp.company_name} ({yr})")
         else:
-            exp_html = "<div class='exp-item'>No employment history on file.</div>"
+            lines.append("No employment history on file.")
+        lines.append("")
 
-        # Availability slots from submission
-        slots_html = ""
+        lines.append("AVAILABILITY :")
+        lines.append(f"Timezone: {tz}")
         if sub and sub.availability_dates:
             slots = sub.availability_dates if isinstance(sub.availability_dates, list) else []
             if slots:
                 for slot in slots:
-                    d  = slot.get("date", "")
-                    st = slot.get("startTime", "")
-                    et = slot.get("endTime", "")
-                    slots_html += f'<span class="slot-badge">{d} &nbsp;{st}–{et}</span>'
+                    lines.append(f"• {slot.get('date', '')} | {slot.get('startTime', '')} - {slot.get('endTime', '')}")
             else:
-                slots_html = "<em>No slots submitted.</em>"
+                lines.append("No slots submitted.")
         else:
-            slots_html = "<em>No form submission yet.</em>"
+            lines.append("No form submission yet.")
+        lines.append("")
 
-        # Q&A
-        qa_html = ""
+        lines.append("PROJECT Q&A :")
         if sub and sub.project_qns_ans:
             qas = sub.project_qns_ans if isinstance(sub.project_qns_ans, dict) else {}
             for q, a in qas.items():
-                ans_text = a if isinstance(a, str) else str(a or "—")
-                qa_html += f"""
-            <div class="qa-item">
-              <div class="qa-q">{q}</div>
-              <div class="qa-a">{ans_text}</div>
-            </div>"""
-        if not qa_html:
-            qa_html = "<em>No project Q&amp;A submitted.</em>"
+                lines.append(f"Q: {q}")
+                lines.append(f"A: {a}")
+                lines.append("")
+        else:
+            lines.append("No project Q&A submitted.")
+            lines.append("")
 
-        # Rate
-        rate_html = f'<span class="rate-pill">Client Rate: USD {rate:,.0f}/hr</span>' if rate else '<span style="color:#889;font-size:0.84rem;">Rate not specified</span>'
+        lines.append("CLIENT RATE :")
+        if rate:
+            lines.append(f"USD {rate:,.0f}/hr")
+        else:
+            lines.append("Rate not specified")
+        
+        lines.append("-" * 40)
+        lines.append("")
 
-        html += f"""
-  <div class="expert-card">
-    <div class="expert-num">{num_label}</div>
-    <div class="expert-title">{title}</div>
+    lines.append("CONFIDENTIAL: This is a confidential expert report generated by Hasamex HUB.")
+    lines.append("Please do not forward externally.")
 
-    <div class="section-label">Bio</div>
-    <div class="bio">{bio}</div>
-
-    <div class="section-label">Employment History</div>
-    {exp_html}
-
-    <div class="section-label">Availability</div>
-    <div class="avail-tz">Timezone: <strong>{tz}</strong></div>
-    {slots_html}
-
-    <div class="section-label">Project Q&amp;A</div>
-    {qa_html}
-
-    <div class="section-label">Client Rate</div>
-    {rate_html}
-  </div>
-"""
-
-    html += """
-  <div class="footer">
-    This is a confidential expert report generated by Hasamex HUB. Please do not forward externally.
-  </div>
-</div>
-</body>
-</html>"""
-
-    return html
+    return "\n".join(lines)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -212,11 +151,11 @@ def _bg_send_expert_report(app, project_id, expert_ids, rates, recipient_emails,
         subject = f"Expert Report — {p_title} ({len(experts_data)} Accepted Expert{'s' if len(experts_data) != 1 else ''})"
 
         try:
-            html = _build_expert_report_html(project, experts_data)
+            text = _build_expert_report_text(project, experts_data)
             send_email(
                 to=recipient_emails,
                 subject=subject,
-                html=html,
+                text=text,
                 reply_to=sender_email,
             )
             logging.info(f"Expert report sent to {recipient_emails} for project {project_id}")

@@ -37,6 +37,7 @@ export default function EngagementEditPage() {
                         poc_user_id: '',
                         call_owner_id: '',
                         call_date: '',
+                        expert_call_date: '',
                         actual_call_duration_mins: '',
                         engagement_method_id: '',
                         notes: '',
@@ -80,6 +81,7 @@ export default function EngagementEditPage() {
                         poc_user_id: '',
                         call_owner_id: '',
                         call_date: '',
+                        expert_call_date: '',
                         actual_call_duration_mins: '',
                         engagement_method_id: '',
                         notes: '',
@@ -158,6 +160,34 @@ export default function EngagementEditPage() {
         })();
         return () => { cancelled = true; };
     }, [form?.project_id]);
+    
+    useEffect(() => {
+        if (!form) return;
+        const { call_date, client_timezone, expert_timezone } = form;
+        if (call_date && client_timezone && expert_timezone) {
+            let cancelled = false;
+            // Extract the 'YYYY-MM-DDTHH:MM' portion
+            const dtStr = typeof call_date === 'string' ? call_date.substring(0, 16) : new Date(call_date).toISOString().substring(0, 16);
+            http('/engagements/convert-timezone', {
+                method: 'POST',
+                body: JSON.stringify({
+                    datetime_str: dtStr,
+                    from_tz: client_timezone,
+                    to_tz: expert_timezone
+                })
+            }).then(res => {
+                if (!cancelled && res && res.converted_datetime_str) {
+                    setForm(prev => {
+                        if (prev.expert_call_date !== res.converted_datetime_str) {
+                            return { ...prev, expert_call_date: res.converted_datetime_str };
+                        }
+                        return prev;
+                    });
+                }
+            }).catch(e => console.error("Failed to convert timezone", e));
+            return () => { cancelled = true; };
+        }
+    }, [form?.call_date, form?.client_timezone, form?.expert_timezone]);
     
     async function handleScheduleMeeting(targetId = id, silent = false) {
         const activeId = targetId || id;
@@ -530,10 +560,6 @@ export default function EngagementEditPage() {
                                 />
                             </div>
                             <div className="form-field">
-                                <label className="form-label">Call Date & Time *</label>
-                                <input className="form-input" type="datetime-local" value={dtValue(form.call_date)} onChange={(e) => handleFormChange('call_date', e.target.value)} />
-                            </div>
-                            <div className="form-field">
                                 <label className="form-label">Duration (mins)</label>
                                 <input className="form-input" type="number" value={form.actual_call_duration_mins || ''} onChange={(e) => handleFormChange('actual_call_duration_mins', e.target.value)} />
                             </div>
@@ -546,9 +572,17 @@ export default function EngagementEditPage() {
                                     onChange={(next) => handleFormChange('engagement_method_id', findIdByName(lookups.engagement_method, next[0] || ''))}
                                 />
                             </div>
-                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
-                                <label className="form-label">Transcript Folder Link</label>
-                                <input className="form-input" value={form.transcript_link_folder || ''} onChange={(e) => handleFormChange('transcript_link_folder', e.target.value)} />
+                            <div className="form-field">
+                                <label className="form-label">Client Timeline</label>
+                                <TimezoneSelect 
+                                    name="client_timezone"
+                                    value={form.client_timezone || ''}
+                                    onChange={(e) => handleFormChange('client_timezone', e.target.value)}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label className="form-label">Client Date & Time *</label>
+                                <input className="form-input" type="datetime-local" value={dtValue(form.call_date)} onChange={(e) => handleFormChange('call_date', e.target.value)} />
                             </div>
                             <div className="form-field">
                                 <label className="form-label">Expert Timeline</label>
@@ -559,12 +593,12 @@ export default function EngagementEditPage() {
                                 />
                             </div>
                             <div className="form-field">
-                                <label className="form-label">Client Timeline</label>
-                                <TimezoneSelect 
-                                    name="client_timezone"
-                                    value={form.client_timezone || ''}
-                                    onChange={(e) => handleFormChange('client_timezone', e.target.value)}
-                                />
+                                <label className="form-label">Expert Date & Time</label>
+                                <input className="form-input" type="datetime-local" value={dtValue(form.expert_call_date)} onChange={(e) => handleFormChange('expert_call_date', e.target.value)} />
+                            </div>
+                            <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                                <label className="form-label">Transcript Folder Link</label>
+                                <input className="form-input" value={form.transcript_link_folder || ''} onChange={(e) => handleFormChange('transcript_link_folder', e.target.value)} />
                             </div>
                         </div>
 

@@ -2,7 +2,6 @@ import React from 'react';
 import { VideoIcon, MailIcon, CalendarIcon, ClockIcon, EditIcon, TrashIcon } from '../icons/Icons';
 import Badge from '../ui/Badge';
 import { Link } from 'react-router-dom';
-import { getTimezoneLabel } from '../../utils/timezoneUtils';
 
 /**
  * EngagementCard - A card view for an engagement, matching the provided design.
@@ -198,11 +197,11 @@ export default function EngagementCard({ engagement, onEdit, onDelete }) {
                     </div>
                     <div className="eng-card__item">
                         <span className="eng-card__label">Expert Timeline</span>
-                        <span className="eng-card__value">{getTimezoneLabel(engagement.expert_timezone)}</span>
+                        <span className="eng-card__value">{engagement.expert_timezone || '—'}</span>
                     </div>
                     <div className="eng-card__item">
                         <span className="eng-card__label">Client Timeline</span>
-                        <span className="eng-card__value">{getTimezoneLabel(engagement.client_timezone)}</span>
+                        <span className="eng-card__value">{engagement.client_timezone || '—'}</span>
                     </div>
                 </div>
             </div>

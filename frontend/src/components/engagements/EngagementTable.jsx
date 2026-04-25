@@ -2,8 +2,6 @@ import React from 'react';
 import { format } from 'date-fns';
 import { EditIcon, TrashIcon, SortIcon } from '../icons/Icons';
 import { cn } from '../../utils/cn';
-import { getTimezoneLabel } from '../../utils/timezoneUtils';
-
 function statusBadgeClass(status) {
     if (!status) return 'badge badge-outline-theme';
     const val = String(status).toLowerCase();
@@ -101,13 +99,13 @@ export default function EngagementTable({
                             </td>
                             <td className="col-margin">{eng.gross_margin_percent !== null && eng.gross_margin_percent !== undefined && eng.gross_margin_percent !== 0 ? `${eng.gross_margin_percent}%` : '-'}</td>
                             <td className="col-timezone">
-                                <span className="timezone-text" title={getTimezoneLabel(eng.expert_timezone)}>
-                                    {getTimezoneLabel(eng.expert_timezone)}
+                                <span className="timezone-text" title={eng.expert_timezone || '-'}>
+                                    {eng.expert_timezone || '-'}
                                 </span>
                             </td>
                             <td className="col-timezone">
-                                <span className="timezone-text" title={getTimezoneLabel(eng.client_timezone)}>
-                                    {getTimezoneLabel(eng.client_timezone)}
+                                <span className="timezone-text" title={eng.client_timezone || '-'}>
+                                    {eng.client_timezone || '-'}
                                 </span>
                             </td>
                             <td className="col-status">

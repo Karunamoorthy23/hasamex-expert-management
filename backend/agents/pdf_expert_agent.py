@@ -21,6 +21,7 @@ import re
 import time
 
 import requests as _requests
+from agents.bio_rephrase_agent import rephrase_or_generate_bio
 
 
 # ─── Config ──────────────────────────────────────────────────────────────────
@@ -57,7 +58,7 @@ Return EXACTLY this JSON schema:
   "region": "one of: North America, South America, Europe, Middle East, Africa, South Asia, East Asia, Southeast Asia, Australia/Pacific or null",
   "timezone": "IANA timezone string e.g. Asia/Kolkata or null",
   "title_headline": "current job title and company e.g. VP of Product at Acme Corp or null",
-  "bio": "2-4 sentence professional bio or null",
+  "bio": "The full verbatim text of the expert's bio, summary, about, or profile section — extract it completely, do NOT truncate or summarise. Preserve every sentence exactly as written, including first-person voice. If no bio/summary/about section exists, use null.",
   "current_employment_status": "one of: Employed, Self-Employed, Consultant, Retired, Unemployed or null",
   "seniority": "one of: C-Suite, VP, Director, Manager, Senior, Mid-Level, Junior or null",
   "years_of_experience": integer or null,
@@ -275,6 +276,21 @@ class PdfExpertAgent:
 
         print(f"PDF_AGENT: Parsed data for {fname}: {json.dumps(extracted)[:400]}")
 
+        # ── Debug: print extracted bio so we can verify full capture ──
+        raw_bio = (extracted.get("bio") or "").strip()
+        if raw_bio:
+            print(f"PDF_AGENT: Extracted bio ({len(raw_bio)} chars):\n{raw_bio[:600]}{'...' if len(raw_bio) > 600 else ''}")
+        else:
+            print("PDF_AGENT: No bio/summary section found in PDF — will generate from full text")
+
+        # ── Step 3b: Bio Agent — pass raw PDF text + extracted bio ──
+        polished_bio = rephrase_or_generate_bio(pdf_text, extracted)
+        if polished_bio:
+            extracted["bio"] = polished_bio
+            print(f"PDF_AGENT: Bio polished ({len(polished_bio)} chars) — saved")
+        else:
+            print("PDF_AGENT: Bio agent returned nothing — keeping raw bio from extraction")
+
         # ── Step 4: Upsert expert ──
         try:
             return self._upsert_expert(extracted, fname, project_id, db)
@@ -292,7 +308,7 @@ class PdfExpertAgent:
             Expert, ExpertExperience, ExpertStrength,
             LkRegion, LkPrimarySector, LkEmploymentStatus,
             LkSeniority, LkCompanyRole, LkExpertFunction,
-            LkSalutation, Project
+            LkSalutation, LkLocation, Project
         )
         from sqlalchemy import func, text
 
@@ -325,8 +341,21 @@ class PdfExpertAgent:
             _bf("secondary_phone",     (data.get("secondary_phone") or "").strip() or None)
             _bf("linkedin_url",        linkedin)
             _bf("title_headline",      (data.get("title_headline") or "").strip() or None)
-            _bf("bio",                 (data.get("bio") or "").strip() or None)
+            # Always update bio with polished version (overwrite, not just backfill)
+            new_bio = (data.get("bio") or "").strip() or None
+            if new_bio:
+                existing.bio = new_bio
+                updated_fields.append("bio")
             _bf("years_of_experience", data.get("years_of_experience"))
+
+            # Location and Timezone backfill
+            loc_raw = (data.get("location") or "").strip()
+            tz_raw = (data.get("timezone") or "").strip()
+            if loc_raw and not existing.location_id:
+                loc_id = self._resolve_location(loc_raw, tz_raw, db)
+                if loc_id:
+                    existing.location_id = loc_id
+                    updated_fields.append("location")
 
             # Education
             edu = data.get("education") or []
@@ -417,6 +446,12 @@ class PdfExpertAgent:
             expert.expert_function_id           = _resolve_or_create(LkExpertFunction, data.get("expert_function"))
             expert.company_role_id              = _resolve_or_create(LkCompanyRole,    data.get("company_role"))
 
+            # Location
+            loc_raw = (data.get("location") or "").strip()
+            tz_raw = (data.get("timezone") or "").strip()
+            if loc_raw:
+                expert.location_id = self._resolve_location(loc_raw, tz_raw, db)
+
             sal_raw = (data.get("salutation") or "").strip()
             if sal_raw:
                 sal = LkSalutation.query.filter(LkSalutation.name.ilike(sal_raw)).first()
@@ -468,6 +503,41 @@ class PdfExpertAgent:
         if row:
             setattr(expert, attr, row.id)
             updated_fields.append(attr.replace("_id", ""))
+
+    def _resolve_location(self, loc_str, tz_str, db) -> int | None:
+        """Find or create a location in lk_location table."""
+        from models import LkLocation
+        if not loc_str:
+            return None
+
+        display_name = loc_str.strip()
+        # Look for existing by display_name
+        row = LkLocation.query.filter(LkLocation.display_name.ilike(display_name)).first()
+        if row:
+            # Update timezone if missing
+            if tz_str and not row.timezone:
+                row.timezone = tz_str
+            return row.id
+
+        # Create new
+        city = ""
+        country = ""
+        if "," in display_name:
+            parts = [p.strip() for p in display_name.split(",")]
+            city = parts[0][:100]
+            country = parts[-1][:100]
+        else:
+            city = display_name[:100]
+
+        new_loc = LkLocation(
+            display_name=display_name,
+            city=city,
+            country=country,
+            timezone=tz_str or None
+        )
+        db.session.add(new_loc)
+        db.session.flush()
+        return new_loc.id
 
     @staticmethod
     def _err(filename, message):

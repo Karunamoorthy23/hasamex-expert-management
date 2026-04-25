@@ -58,6 +58,15 @@ export default function EngagementDetails() {
         }
     }, [eng?.call_date]);
 
+    const expertCallDate = useMemo(() => {
+        if (!eng?.expert_call_date) return '—';
+        try {
+            return new Date(eng.expert_call_date).toLocaleString();
+        } catch {
+            return eng.expert_call_date;
+        }
+    }, [eng?.expert_call_date]);
+
     const clientInvoiceDate = useMemo(() => {
         if (!eng?.client_invoice_date) return '—';
         try {
@@ -191,6 +200,9 @@ export default function EngagementDetails() {
   .ideal-list li { display: flex; align-items: flex-start; gap: 0.625rem; font-size: 0.83rem; color: #333333; }
   .ideal-list .info-key { min-width: 6.25rem; }
   .bullet-list { list-style: disc; padding-left: 1.125rem; display: flex; flex-direction: column; gap: 0.375rem; }
+  .financials-split { display: flex; gap: 2rem; align-items: flex-start; }
+  .financials-col { flex: 1; }
+  @media (max-width: 900px) { .financials-split { flex-direction: column; gap: 1rem; } }
   @media (max-width: 700px) { .body-split { grid-template-columns: 1fr; } }
             `}</style>
             <div className="page">
@@ -243,35 +255,41 @@ export default function EngagementDetails() {
                         )}
                         <div className="divider"></div>
                         <div className="sec-title">Call Info</div>
-                        <div className="info-row"><div className="info-key">Call Date</div><div>{callDate}</div></div>
+                        <div className="info-row"><div className="info-key">Client Date & Time</div><div>{callDate}</div></div>
+                        <div className="info-row"><div className="info-key">Client Timeline</div><div>{eng.client_timezone || '—'}</div></div>
+                        <div className="info-row"><div className="info-key">Expert Date & Time</div><div>{expertCallDate}</div></div>
+                        <div className="info-row"><div className="info-key">Expert Timeline</div><div>{eng.expert_timezone || '—'}</div></div>
                         <div className="info-row"><div className="info-key">Duration</div><div>{eng.actual_call_duration_mins ?? '—'} mins</div></div>
                         <div className="info-row"><div className="info-key">Method</div><div>{eng.engagement_method || '—'}</div></div>
                         <div className="info-row"><div className="info-key">Transcript Folder</div><div>{eng.transcript_link_folder ? <a href={eng.transcript_link_folder} target="_blank" rel="noreferrer">{eng.transcript_link_folder}</a> : '—'}</div></div>
                         <div className="divider"></div>
-                        <div className="sec-title">Pre-Call Financials</div>
-                        <div className="info-row"><div className="info-key">Client Rate</div><div>{eng.client_rate != null ? `${eng.client_rate} ${eng.client_currency || ''}`.trim() : '—'}</div></div>
-                        <div className="info-row"><div className="info-key">Discount</div><div>{eng.discount_offered_percent != null ? `${eng.discount_offered_percent}%` : '—'}</div></div>
-                        <div className="info-row"><div className="info-key">Billable Amount</div><div>{eng.billable_client_amount_usd != null ? `$${eng.billable_client_amount_usd}` : '—'}</div></div>
-                        <div className="info-row"><div className="info-key">Expert Rate</div><div>{eng.expert_rate != null ? `${eng.expert_rate} ${eng.expert_currency || ''}`.trim() : '—'}</div></div>
-                        <div className="info-row"><div className="info-key">Prorated Base</div><div>{eng.prorated_expert_amount_base != null ? `$${eng.prorated_expert_amount_base}` : '—'}</div></div>
-                        <div className="info-row"><div className="info-key">Prorated USD</div><div>{eng.prorated_expert_amount_usd != null ? `$${eng.prorated_expert_amount_usd}` : '—'}</div></div>
-                        <div className="info-row"><div className="info-key">Gross Margin</div><div>{preCalcMargin != null ? `${preCalcMargin.toFixed(2)}%` : '—'}</div></div>
-                        <div className="info-row"><div className="info-key">Gross Profit</div><div>{preCalcProfit != null ? `$${preCalcProfit.toFixed(2)}` : '—'}</div></div>
+                        <div className="financials-split">
+                            <div className="financials-col">
+                                <div className="sec-title">Pre-Call Financials</div>
+                                <div className="info-row" style={{ gridTemplateColumns: '9rem 1fr' }}><div className="info-key">Client Rate</div><div>{eng.client_rate != null ? `${eng.client_rate} ${eng.client_currency || ''}`.trim() : '—'}</div></div>
+                                <div className="info-row" style={{ gridTemplateColumns: '9rem 1fr' }}><div className="info-key">Discount</div><div>{eng.discount_offered_percent != null ? `${eng.discount_offered_percent}%` : '—'}</div></div>
+                                <div className="info-row" style={{ gridTemplateColumns: '9rem 1fr' }}><div className="info-key">Billable Amount</div><div>{eng.billable_client_amount_usd != null ? `$${eng.billable_client_amount_usd}` : '—'}</div></div>
+                                <div className="info-row" style={{ gridTemplateColumns: '9rem 1fr' }}><div className="info-key">Expert Rate</div><div>{eng.expert_rate != null ? `${eng.expert_rate} ${eng.expert_currency || ''}`.trim() : '—'}</div></div>
+                                <div className="info-row" style={{ gridTemplateColumns: '9rem 1fr' }}><div className="info-key">Prorated Base</div><div>{eng.prorated_expert_amount_base != null ? `$${eng.prorated_expert_amount_base}` : '—'}</div></div>
+                                <div className="info-row" style={{ gridTemplateColumns: '9rem 1fr' }}><div className="info-key">Prorated USD</div><div>{eng.prorated_expert_amount_usd != null ? `$${eng.prorated_expert_amount_usd}` : '—'}</div></div>
+                                <div className="info-row" style={{ gridTemplateColumns: '9rem 1fr' }}><div className="info-key">Gross Margin</div><div>{preCalcMargin != null ? `${preCalcMargin.toFixed(2)}%` : '—'}</div></div>
+                                <div className="info-row" style={{ gridTemplateColumns: '9rem 1fr' }}><div className="info-key">Gross Profit</div><div>{preCalcProfit != null ? `$${preCalcProfit.toFixed(2)}` : '—'}</div></div>
+                            </div>
 
-                        {eng.call_completed_duration_mins && (
-                            <>
-                                <div className="divider"></div>
-                                <div className="sec-title">Call Completed Financials</div>
-                                <div className="info-row"><div className="info-key">Completed Duration</div><div>{eng.call_completed_duration_mins} mins</div></div>
-                                <div className="info-row"><div className="info-key">Completed Client Rate</div><div>{eng.completed_client_rate != null ? `${eng.completed_client_rate} ${eng.client_currency || ''}`.trim() : '—'}</div></div>
-                                <div className="info-row"><div className="info-key">Completed Billable</div><div>{eng.completed_billable_client_amount_usd != null ? `$${eng.completed_billable_client_amount_usd}` : '—'}</div></div>
-                                <div className="info-row"><div className="info-key">Completed Expert Rate</div><div>{eng.completed_expert_rate != null ? `${eng.completed_expert_rate} ${eng.expert_currency || ''}`.trim() : '—'}</div></div>
-                                <div className="info-row"><div className="info-key">Completed Prorated Base</div><div>{eng.completed_prorated_expert_amount_base != null ? `$${eng.completed_prorated_expert_amount_base}` : '—'}</div></div>
-                                <div className="info-row"><div className="info-key">Completed Prorated USD</div><div>{eng.completed_prorated_expert_amount_usd != null ? `$${eng.completed_prorated_expert_amount_usd}` : '—'}</div></div>
-                                <div className="info-row"><div className="info-key">Gross Margin</div><div>{compCalcMargin != null ? `${compCalcMargin.toFixed(2)}%` : '—'}</div></div>
-                                <div className="info-row"><div className="info-key">Gross Profit</div><div>{compCalcProfit != null ? `$${compCalcProfit.toFixed(2)}` : '—'}</div></div>
-                            </>
-                        )}
+                            {eng.call_completed_duration_mins && (
+                                <div className="financials-col">
+                                    <div className="sec-title">Call Completed Financials</div>
+                                    <div className="info-row" style={{ gridTemplateColumns: '9rem 1fr' }}><div className="info-key">Completed Duration</div><div>{eng.call_completed_duration_mins} mins</div></div>
+                                    <div className="info-row" style={{ gridTemplateColumns: '9rem 1fr' }}><div className="info-key">Client Rate</div><div>{eng.completed_client_rate != null ? `${eng.completed_client_rate} ${eng.client_currency || ''}`.trim() : '—'}</div></div>
+                                    <div className="info-row" style={{ gridTemplateColumns: '9rem 1fr' }}><div className="info-key">Billable Amount</div><div>{eng.completed_billable_client_amount_usd != null ? `$${eng.completed_billable_client_amount_usd}` : '—'}</div></div>
+                                    <div className="info-row" style={{ gridTemplateColumns: '9rem 1fr' }}><div className="info-key">Expert Rate</div><div>{eng.completed_expert_rate != null ? `${eng.completed_expert_rate} ${eng.expert_currency || ''}`.trim() : '—'}</div></div>
+                                    <div className="info-row" style={{ gridTemplateColumns: '9rem 1fr' }}><div className="info-key">Prorated Base</div><div>{eng.completed_prorated_expert_amount_base != null ? `$${eng.completed_prorated_expert_amount_base}` : '—'}</div></div>
+                                    <div className="info-row" style={{ gridTemplateColumns: '9rem 1fr' }}><div className="info-key">Prorated USD</div><div>{eng.completed_prorated_expert_amount_usd != null ? `$${eng.completed_prorated_expert_amount_usd}` : '—'}</div></div>
+                                    <div className="info-row" style={{ gridTemplateColumns: '9rem 1fr' }}><div className="info-key">Gross Margin</div><div>{compCalcMargin != null ? `${compCalcMargin.toFixed(2)}%` : '—'}</div></div>
+                                    <div className="info-row" style={{ gridTemplateColumns: '9rem 1fr' }}><div className="info-key">Gross Profit</div><div>{compCalcProfit != null ? `$${compCalcProfit.toFixed(2)}` : '—'}</div></div>
+                                </div>
+                            )}
+                        </div>
                         <div className="divider"></div>
                         <div className="sec-title">Payment & Invoicing</div>
                         <div className="info-row"><div className="info-key">Expert Post-Call Status</div><div>{eng.expert_post_call_status || '—'}</div></div>

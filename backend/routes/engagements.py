@@ -4,6 +4,8 @@ Engagements API Blueprint — /api/v1/engagements
 
 from flask import Blueprint, request, jsonify
 from datetime import datetime, date
+import zoneinfo
+from zoneinfo import ZoneInfo
 from sqlalchemy.orm import joinedload
 from sqlalchemy import text, select
 from extensions import db
@@ -41,6 +43,41 @@ def get_form_lookups():
         'post_call_status': [{'id': item.id, 'name': item.name} for item in LkPostCallStatus.query.order_by(LkPostCallStatus.id).all()],
         'payment_status': [{'id': item.id, 'name': item.name} for item in LkPaymentStatus.query.order_by(LkPaymentStatus.id).all()]
     })
+
+@engagements_bp.route('/convert-timezone', methods=['POST'])
+def convert_timezone():
+    """
+    POST /api/v1/engagements/convert-timezone
+    Accepts JSON: { "datetime_str": "2026-04-23T10:00", "from_tz": "America/New_York", "to_tz": "Asia/Kolkata" }
+    Returns JSON: { "converted_datetime_str": "2026-04-23T19:30" }
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid request'}), 400
+        
+    dt_str = data.get('datetime_str')
+    from_tz_str = data.get('from_tz')
+    to_tz_str = data.get('to_tz')
+    
+    if not dt_str or not from_tz_str or not to_tz_str:
+        return jsonify({'error': 'Missing required fields'}), 400
+        
+    try:
+        # Format might be 'YYYY-MM-DDTHH:MM' or have seconds. Trim to handle standard iso formats.
+        if len(dt_str) > 16 and dt_str[16] == ':':
+             dt_str = dt_str[:16] # keep only up to minutes for typical datetime-local values
+        # Parse the input datetime (naive)
+        dt_naive = datetime.fromisoformat(dt_str)
+        # Assign the from timezone
+        dt_from = dt_naive.replace(tzinfo=ZoneInfo(from_tz_str))
+        # Convert to target timezone
+        dt_to = dt_from.astimezone(ZoneInfo(to_tz_str))
+        # Format back to ISO 8601 without timezone offset for datetime-local input
+        return jsonify({
+            'converted_datetime_str': dt_to.strftime('%Y-%m-%dT%H:%M')
+        })
+    except Exception as e:
+        return jsonify({'error': f'Failed to convert timezone: {str(e)}'}), 400
 
 
 EXCHANGE_RATES_USD = {
@@ -177,6 +214,7 @@ def normalize_engagement_payload(data: dict) -> dict:
         'expert_payment_status_id': _to_int(data.get('expert_payment_status_id')),
         # Dates
         'call_date': _to_datetime(data.get('call_date')),
+        'expert_call_date': _to_datetime(data.get('expert_call_date')),
         'expert_payment_due_date': _to_date(data.get('expert_payment_due_date')),
         'actual_expert_payment_date': _to_date(data.get('actual_expert_payment_date')),
         'client_invoice_date': _to_date(data.get('client_invoice_date')),
@@ -527,13 +565,14 @@ def schedule_meeting(engagement_id):
 
     # Expert Invitation
     if expert_email:
+        expert_start_time = engagement.expert_call_date or start_time
         if engagement.zoho_event_id_expert:
             # Update existing event
             zoho_calendar_service.update_event(
                 event_id=engagement.zoho_event_id_expert,
                 summary=summary,
                 description=description_template,
-                start_time=start_time,
+                start_time=expert_start_time,
                 duration_mins=duration,
                 attendee_email=expert_email,
                 timezone=engagement.expert_timezone or "Asia/Kolkata"
@@ -543,7 +582,7 @@ def schedule_meeting(engagement_id):
             expert_event_id = zoho_calendar_service.create_event(
                 summary=summary,
                 description=description_template,
-                start_time=start_time,
+                start_time=expert_start_time,
                 duration_mins=duration,
                 attendee_email=expert_email,
                 timezone=engagement.expert_timezone or "Asia/Kolkata"

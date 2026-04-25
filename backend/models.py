@@ -796,6 +796,7 @@ class Engagement(db.Model):
     poc_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'))
     call_owner_id = db.Column(db.Integer, db.ForeignKey('hasamex_users.id'))
     call_date = db.Column(db.DateTime, nullable=False)
+    expert_call_date = db.Column(db.DateTime(timezone=True))
     actual_call_duration_mins = db.Column(db.Integer)
     engagement_method_id = db.Column(db.Integer, db.ForeignKey('lk_engagement_methods.id'))
     notes = db.Column(db.Text)
@@ -871,6 +872,7 @@ class Engagement(db.Model):
             'call_owner_id': self.call_owner_id,
             'call_owner_name': self.call_owner.username if self.call_owner else None,
             'call_date': self.call_date.isoformat() if self.call_date else None,
+            'expert_call_date': self.expert_call_date.isoformat() if self.expert_call_date else None,
             'actual_call_duration_mins': self.actual_call_duration_mins,
             # Engagement method (both id and name for form prefill)
             'engagement_method_id': self.engagement_method.id if self.engagement_method else None,
