@@ -144,11 +144,20 @@ def get_users_summary():
     engagement_counts = {}
     
     if user_ids:
-        # Batch count projects per user
-        proj_counts_query = db.session.query(
-            Project.poc_user_id, func.count(Project.project_id)
-        ).filter(Project.poc_user_id.in_(user_ids)).group_by(Project.poc_user_id).all()
-        project_counts = {u_id: count for u_id, count in proj_counts_query}
+        # Batch count projects per user (poc_user_ids is a JSONB array, so we aggregate in memory to avoid complex SQL)
+        project_counts = {u: 0 for u in user_ids}
+        all_projs = db.session.query(Project.project_id, Project.poc_user_ids).filter(
+            Project.poc_user_ids.isnot(None)
+        ).all()
+        for pid, pocs in all_projs:
+            if pocs and isinstance(pocs, list):
+                for poc in pocs:
+                    try:
+                        poc_int = int(poc)
+                        if poc_int in project_counts:
+                            project_counts[poc_int] += 1
+                    except (ValueError, TypeError):
+                        pass
         
         # Batch count engagements per user
         eng_counts_query = db.session.query(

@@ -99,10 +99,15 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Connection Pooling Fix:
-    # Use NullPool when connecting to Supabase/Render to prevent "hanging" connections.
-    from sqlalchemy.pool import NullPool
+    # We MUST NOT use NullPool here. NullPool creates a new SSL connection across the internet
+    # (Singapore to Mumbai) for EVERY single query, adding 200-300ms per query and causing
+    # extreme slowdowns or 30s timeouts if IPv6 resolution fails.
+    # To fix "hanging" connections, we use pool_pre_ping=True and pool_recycle=300 instead.
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'poolclass': NullPool,
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+        'pool_size': 10,
+        'max_overflow': 20,
         'connect_args': {
             'connect_timeout': 10,
             'keepalives': 1,
