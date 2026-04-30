@@ -2,7 +2,6 @@ import React from 'react';
 import { format } from 'date-fns';
 import { EditIcon, TrashIcon, SortIcon } from '../icons/Icons';
 import { cn } from '../../utils/cn';
-
 function statusBadgeClass(status) {
     if (!status) return 'badge badge-outline-theme';
     const val = String(status).toLowerCase();
@@ -67,12 +66,20 @@ export default function EngagementTable({
                         {renderHeader('Expert Rate', 'expert_rate', 'col-rate')}
                         {renderHeader('Gross Profit', 'gross_profit_usd', 'col-profit')}
                         {renderHeader('Margin', 'gross_margin_percent', 'col-margin')}
+                        {renderHeader('Expert TL', 'expert_timezone', 'col-timezone')}
+                        {renderHeader('Client TL', 'client_timezone', 'col-timezone')}
                         {renderHeader('Status', 'expert_payment_status', 'col-status')}
                         <th className="col-actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {engagements.map((eng) => (
+                    {engagements.map((eng) => {
+                        const isCompletedPhase = !!eng.call_completed_duration_mins;
+                        const displayDuration = isCompletedPhase ? eng.call_completed_duration_mins : eng.actual_call_duration_mins;
+                        const displayClientRate = isCompletedPhase ? eng.completed_client_rate : eng.client_rate;
+                        const displayExpertRate = isCompletedPhase ? eng.completed_expert_rate : eng.expert_rate;
+
+                        return (
                         <tr key={eng.id} onClick={() => onRowClick && onRowClick(eng.id)} style={{ cursor: 'pointer' }}>
                             <td className="col-id">
                                 <span className="badge badge-outline-theme">{eng.engagement_id || '—'}</span>
@@ -84,13 +91,23 @@ export default function EngagementTable({
                                 </div>
                             </td>
                             <td className="col-date">{formatDate(eng.call_date)}</td>
-                            <td className="col-duration">{eng.actual_call_duration_mins ? `${eng.actual_call_duration_mins}m` : '-'}</td>
-                            <td className="col-rate">{formatCurrency(eng.client_rate, eng.client_currency)}</td>
-                            <td className="col-rate">{formatCurrency(eng.expert_rate, eng.expert_currency)}</td>
+                            <td className="col-duration">{displayDuration ? `${displayDuration}m` : '-'}</td>
+                            <td className="col-rate">{formatCurrency(displayClientRate, eng.client_currency)}</td>
+                            <td className="col-rate">{formatCurrency(displayExpertRate, eng.expert_currency)}</td>
                             <td className={`col-profit ${eng.gross_profit_usd >= 0 ? 'text-success' : 'text-danger'}`}>
                                 {formatCurrency(eng.gross_profit_usd, 'USD')}
                             </td>
-                            <td className="col-margin">{eng.gross_margin_percent ? `${eng.gross_margin_percent}%` : '-'}</td>
+                            <td className="col-margin">{eng.gross_margin_percent !== null && eng.gross_margin_percent !== undefined && eng.gross_margin_percent !== 0 ? `${eng.gross_margin_percent}%` : '-'}</td>
+                            <td className="col-timezone">
+                                <span className="timezone-text" title={eng.expert_timezone || '-'}>
+                                    {eng.expert_timezone || '-'}
+                                </span>
+                            </td>
+                            <td className="col-timezone">
+                                <span className="timezone-text" title={eng.client_timezone || '-'}>
+                                    {eng.client_timezone || '-'}
+                                </span>
+                            </td>
                             <td className="col-status">
                                 <span className={cn(statusBadgeClass(eng.expert_payment_status))}>
                                     {eng.expert_payment_status || 'Pending'}
@@ -107,7 +124,8 @@ export default function EngagementTable({
                                 </div>
                             </td>
                         </tr>
-                    ))}
+                        );
+                    })}
                 </tbody>
             </table>
         </div>

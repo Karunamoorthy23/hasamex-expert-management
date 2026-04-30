@@ -1,89 +1,88 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { useOutsideClick } from '../../hooks/useOutsideClick';
 import { ChevronDownIcon, SearchIcon } from '../icons/Icons';
 
 /**
- * Curated list of high-quality, business-standard timezone options.
- * Format EXACTLY as requested: "UTC+offset (Abbreviation) — Countries"
- */
-function getCuratedTimezones() {
-    const zones = [
-        // Asia
-        { value: 'Asia/Dubai', group: 'Asia', label: 'UTC+4 (GST) — UAE, Oman', offset: 'UTC+4', city: 'UAE, Oman' },
-        { value: 'Asia/Kabul', group: 'Asia', label: 'UTC+4:30 (AFT) — Afghanistan', offset: 'UTC+4:30', city: 'Afghanistan' },
-        { value: 'Asia/Karachi', group: 'Asia', label: 'UTC+5 (PKT) — Pakistan', offset: 'UTC+5', city: 'Pakistan' },
-        { value: 'Asia/Kolkata', group: 'Asia', label: 'UTC+5:30 (IST) — India, Sri Lanka', offset: 'UTC+5:30', city: 'India, Sri Lanka' },
-        { value: 'Asia/Kathmandu', group: 'Asia', label: 'UTC+5:45 (NPT) — Nepal', offset: 'UTC+5:45', city: 'Nepal' },
-        { value: 'Asia/Dhaka', group: 'Asia', label: 'UTC+6 (BST) — Bangladesh', offset: 'UTC+6', city: 'Bangladesh' },
-        { value: 'Asia/Bangkok', group: 'Asia', label: 'UTC+7 (ICT) — Thailand, Vietnam, Indonesia', offset: 'UTC+7', city: 'Thailand, Vietnam, Indonesia' },
-        { value: 'Asia/Singapore', group: 'Asia', label: 'UTC+8 (SGT / CST) — China, Singapore, Malaysia', offset: 'UTC+8', city: 'China, Singapore, Malaysia' },
-        { value: 'Asia/Tokyo', group: 'Asia', label: 'UTC+9 (JST) — Japan, South Korea', offset: 'UTC+9', city: 'Japan, South Korea' },
-
-        // Europe
-        { value: 'Europe/London', group: 'Europe', label: 'UTC+0 (GMT/BST) — UK, Ireland, Portugal', offset: 'UTC+0', city: 'UK, Ireland, Portugal' },
-        { value: 'Europe/Paris', group: 'Europe', label: 'UTC+1 (CET) — France, Germany, Italy, Spain', offset: 'UTC+1', city: 'France, Germany, Italy, Spain' },
-        { value: 'Europe/Istanbul', group: 'Europe', label: 'UTC+3 (TRT) — Turkey, Russia (Moscow)', offset: 'UTC+3', city: 'Turkey, Russia (Moscow)' },
-
-        // Americas
-        { value: 'America/New_York', group: 'Americas', label: 'UTC-5 (EST) — USA (East), Canada, Colombia', offset: 'UTC-5', city: 'USA (East), Canada, Colombia' },
-        { value: 'America/Chicago', group: 'Americas', label: 'UTC-6 (CST) — USA (Central), Mexico', offset: 'UTC-6', city: 'USA (Central), Mexico' },
-        { value: 'America/Denver', group: 'Americas', label: 'UTC-7 (MST) — USA (Mountain)', offset: 'UTC-7', city: 'USA (Mountain)' },
-        { value: 'America/Los_Angeles', group: 'Americas', label: 'UTC-8 (PST) — USA (Pacific)', offset: 'UTC-8', city: 'USA (Pacific)' },
-        { value: 'America/Sao_Paulo', group: 'Americas', label: 'UTC-3 (BRT) — Brazil, Argentina', offset: 'UTC-3', city: 'Brazil, Argentina' },
-
-        // Oceania
-        { value: 'Australia/Perth', group: 'Oceania', label: 'UTC+8 (AWST) — Australia (West)', offset: 'UTC+8', city: 'Australia (West)' },
-        { value: 'Australia/Sydney', group: 'Oceania', label: 'UTC+11 (AEDT) — Australia (East)', offset: 'UTC+11', city: 'Australia (East)' },
-        { value: 'Pacific/Auckland', group: 'Oceania', label: 'UTC+13 (NZDT) — New Zealand', offset: 'UTC+13', city: 'New Zealand' },
-
-        // Africa
-        { value: 'Africa/Lagos', group: 'Africa', label: 'UTC+1 (WAT) — Nigeria, Algeria', offset: 'UTC+1', city: 'Nigeria, Algeria' },
-        { value: 'Africa/Johannesburg', group: 'Africa', label: 'UTC+2 (SAST) — South Africa, Egypt', offset: 'UTC+2', city: 'South Africa, Egypt' },
-        { value: 'Africa/Nairobi', group: 'Africa', label: 'UTC+3 (EAT) — Kenya, Ethiopia, Saudi Arabia', offset: 'UTC+3', city: 'Kenya, Ethiopia, Saudi Arabia' },
-    ];
-
-    const groups = {};
-    zones.forEach(z => {
-        if (!groups[z.group]) groups[z.group] = [];
-        groups[z.group].push(z);
-    });
-
-    const order = ['Asia', 'Europe', 'Americas', 'Oceania', 'Africa'];
-    return order.filter(g => groups[g]).map(g => ({ group: g, options: groups[g] }));
-}
-
-const TIMEZONE_DATA = getCuratedTimezones();
-
-// Flatten for easy searching
-const ALL_TIMEZONES = TIMEZONE_DATA.flatMap(g =>
-    g.options.map(o => ({ ...o, group: g.group }))
-);
-
-/**
  * TimezoneSelect — a searchable, scrollable single-select dropdown for timezones.
- * Pattern matched to the app's filter dropdowns.
+ * Fetches from WorldTimeAPI (free IANA timezone API) with fallback to native Intl.
  */
 export default function TimezoneSelect({ value, onChange, hasError, id, name }) {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
+    const [timezoneData, setTimezoneData] = useState([]);
+    const [loading, setLoading] = useState(true);
     const ref = useRef(null);
     const listRef = useRef(null);
 
     useOutsideClick(ref, () => setOpen(false));
 
+    useEffect(() => {
+        let mounted = true;
+
+        const processTimezones = (tzList) => {
+            const groups = {};
+            tzList.forEach(tz => {
+                const parts = tz.split('/');
+                const groupName = parts[0];
+                if (!groups[groupName]) groups[groupName] = [];
+                groups[groupName].push({
+                    value: tz,
+                    label: tz.replace(/_/g, ' '),
+                    group: groupName
+                });
+            });
+            const formatted = Object.keys(groups).sort().map(g => ({
+                group: g,
+                options: groups[g].sort((a, b) => a.label.localeCompare(b.label))
+            }));
+            if (mounted) {
+                setTimezoneData(formatted);
+                setLoading(false);
+            }
+        };
+
+        fetch('https://worldtimeapi.org/api/timezone')
+            .then(res => {
+                if (!res.ok) throw new Error("API Failed");
+                return res.json();
+            })
+            .then(data => {
+                if (Array.isArray(data) && data.length > 0) {
+                    processTimezones(data);
+                } else {
+                    throw new Error("Invalid format");
+                }
+            })
+            .catch(err => {
+                console.warn("WorldTimeAPI failed, using native Intl fallback:", err);
+                try {
+                    const fallback = Intl.supportedValuesOf('timeZone');
+                    processTimezones(fallback);
+                } catch (e) {
+                    processTimezones(['UTC']);
+                }
+            });
+
+        return () => { mounted = false; };
+    }, []);
+
+    const allTimezones = useMemo(() => {
+        return timezoneData.flatMap(g => g.options);
+    }, [timezoneData]);
+
     const selectedLabel = useMemo(() => {
         if (!value) return '';
-        const found = ALL_TIMEZONES.find(tz => tz.value === value);
+        const found = allTimezones.find(tz => tz.value === value);
         return found ? found.label : value;
-    }, [value]);
+    }, [value, allTimezones]);
 
     const filtered = useMemo(() => {
-        if (!search.trim()) return TIMEZONE_DATA;
+        if (!search.trim()) return timezoneData;
 
         const term = search.toLowerCase();
         const result = [];
 
-        TIMEZONE_DATA.forEach(group => {
+        timezoneData.forEach(group => {
             const matchingOptions = group.options.filter(o =>
                 o.label.toLowerCase().includes(term) ||
                 o.value.toLowerCase().includes(term) ||
@@ -95,7 +94,7 @@ export default function TimezoneSelect({ value, onChange, hasError, id, name }) 
         });
 
         return result;
-    }, [search]);
+    }, [search, timezoneData]);
 
     const totalResults = filtered.reduce((sum, g) => sum + g.options.length, 0);
 
@@ -118,12 +117,13 @@ export default function TimezoneSelect({ value, onChange, hasError, id, name }) 
                 className={`tz-select__trigger${hasError ? ' form-input--error' : ''}`}
                 onClick={() => setOpen(prev => !prev)}
                 aria-expanded={open}
+                disabled={loading}
             >
                 <span className={`tz-select__value${!value ? ' tz-select__placeholder' : ''}`}>
-                    {value ? selectedLabel : '— Select Timezone —'}
+                    {loading ? 'Loading timezones...' : (value ? selectedLabel : '— Select Timezone —')}
                 </span>
                 <span className="tz-select__actions">
-                    {value && (
+                    {value && !loading && (
                         <span className="tz-select__clear" onClick={handleClear} title="Clear timezone">
                             ×
                         </span>
@@ -132,7 +132,7 @@ export default function TimezoneSelect({ value, onChange, hasError, id, name }) 
                 </span>
             </button>
 
-            {open && (
+            {open && !loading && (
                 <div className="tz-select__dropdown">
                     <div className="tz-select__search-wrap">
                         <SearchIcon width={14} height={14} className="tz-select__search-icon" />

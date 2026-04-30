@@ -1,0 +1,767 @@
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Data retrieved successfully",
+  "errors": null,
+  "data": {
+    "id": 124759123,
+    "urn": "ACoAAAdvrFMBOuFTkKwhAZ8tKQodmVQanlZM71E",
+    "username": "nitin-balakrishnan-69794635",
+    "firstName": "Nitin",
+    "lastName": "Balakrishnan",
+    "isCreator": false,
+    "isPremium": false,
+    "isInfluencer": false,
+    "isOpenToWork": false,
+    "isHiring": false,
+    "followerCount": 1595,
+    "connectionsCount": 1574,
+    "profilePicture": "https://media.licdn.com/dms/image/v2/C4D03AQEuvMe0nIiWPg/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1656437689195?e=1778716800&v=beta&t=Rjo4kc0UjMeglV8LqY8P7Yl549ljAyDC4qSfPGweQtY",
+    "profilePictures": [
+      {
+        "url": "https://media.licdn.com/dms/image/v2/C4D03AQEuvMe0nIiWPg/profile-displayphoto-shrink_100_100/profile-displayphoto-shrink_100_100/0/1656437689195?e=1778716800&v=beta&t=cjJcmj9qDLO80WS-tlqCCdUINo4Xxz5iSONz6Yhz3UI",
+        "width": 100,
+        "height": 100
+      },
+      {
+        "url": "https://media.licdn.com/dms/image/v2/C4D03AQEuvMe0nIiWPg/profile-displayphoto-shrink_200_200/profile-displayphoto-shrink_200_200/0/1656437689195?e=1778716800&v=beta&t=G9NJxXwelVTRPp_B09rJOCBCtobLiYJdKFFfvwEGmXo",
+        "width": 200,
+        "height": 200
+      },
+      {
+        "url": "https://media.licdn.com/dms/image/v2/C4D03AQEuvMe0nIiWPg/profile-displayphoto-shrink_400_400/profile-displayphoto-shrink_400_400/0/1656437689195?e=1778716800&v=beta&t=5kvlvu0SoMkf3GhfRrbBE85cdUgbICqYB6ILSW9Y8Wo",
+        "width": 400,
+        "height": 400
+      },
+      {
+        "url": "https://media.licdn.com/dms/image/v2/C4D03AQEuvMe0nIiWPg/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1656437689195?e=1778716800&v=beta&t=Rjo4kc0UjMeglV8LqY8P7Yl549ljAyDC4qSfPGweQtY",
+        "width": 800,
+        "height": 800
+      }
+    ],
+    "backgroundImage": [],
+    "summary": "",
+    "headline": "R&D Procurement @ Bristol Myers Squibb | MBA",       
+    "geo": {
+      "country": "United States",
+      "city": "Pennington, New Jersey",
+      "full": "Pennington, New Jersey, United States",
+      "countryCode": "us"
+    },
+    "industry": {
+      "name": "Pharmaceuticals",
+      "urn": "urn:li:fsd_industry:15"
+    },
+    "currentPositions": [
+      {
+        "companyName": "Bristol Myers Squibb",
+        "company": {
+          "id": "1773",
+          "name": "Bristol Myers Squibb",
+          "url": "https://www.linkedin.com/company/bristol-myers-squibb/",
+          "logoURL": "https://media.licdn.com/dms/image/v2/D4E0BAQHPSJGTVwPgvg/company-logo_400_400/company-logo_400_400/0/1719830772393/bristol_myers_squibb_logo?e=1778716800&v=beta&t=-8QTSz2ydcPe9rdQZU-aoof41zdWanney6Xc7IsQRPU"
+        }
+      }
+    ],
+    "currentEducation": [
+      {
+        "schoolName": "Michigan State University - The Eli Broad College of Business",
+        "school": {
+          "id": 18615,
+          "urn": "18615",
+          "name": "Michigan State University - Eli Broad College of Business",
+          "url": "https://www.linkedin.com/school/msubroadcollege/",  
+          "logoURL": "https://media.licdn.com/dms/image/v2/C4E0BAQGa8RitQyDp9w/company-logo_400_400/company-logo_400_400/0/1630642589647/msubroadcollege_logo?e=1778716800&v=beta&t=XCdjDCrcjXJ-jp7o5-yg9CHR4xzmcaRXhaod4wmJiBo"
+        },
+        "company": {
+          "id": "15101208",
+          "name": "Michigan State University - Eli Broad College of Business",
+          "url": "https://www.linkedin.com/school/msubroadcollege/",  
+          "logoURL": "https://media.licdn.com/dms/image/v2/C4E0BAQGa8RitQyDp9w/company-logo_400_400/company-logo_400_400/0/1630642589647/msubroadcollege_logo?e=1778716800&v=beta&t=XCdjDCrcjXJ-jp7o5-yg9CHR4xzmcaRXhaod4wmJiBo"
+        }
+      }
+    ],
+    "languages": [
+      {
+        "name": "English",
+        "proficiency": "NATIVE_OR_BILINGUAL"
+      },
+      {
+        "name": "Tamil",
+        "proficiency": "PROFESSIONAL_WORKING"
+      }
+    ],
+    "educations": [
+      {
+        "start": {
+          "year": 2016,
+          "month": 0,
+          "day": 0
+        },
+        "end": {
+          "year": 2018,
+          "month": 0,
+          "day": 0
+        },
+        "fieldOfStudy": "Supply Chain Management",
+        "degree": "Master of Business Administration (MBA)",
+        "grade": "",
+        "schoolName": "Michigan State University - The Eli Broad College of Business",
+        "description": "",
+        "activities": "Beta Gamma Sigma (graduated top 20% of MBA class)",
+        "url": "https://www.linkedin.com/school/msubroadcollege/",    
+        "schoolId": "15101208",
+        "logo": [
+          {
+            "url": "https://media.licdn.com/dms/image/v2/C4E0BAQGa8RitQyDp9w/company-logo_200_200/company-logo_200_200/0/1630642589647/msubroadcollege_logo?e=1778716800&v=beta&t=j4o2LVkQ2lkpf6HCXgN6JQk-x0UDc1tNJ-i-WYvng3Y",
+            "width": 200,
+            "height": 200
+          },
+          {
+            "url": "https://media.licdn.com/dms/image/v2/C4E0BAQGa8RitQyDp9w/company-logo_100_100/company-logo_100_100/0/1630642589647/msubroadcollege_logo?e=1778716800&v=beta&t=E97BFNiqsjEXXTIcmh09-63gV3Iv1PebQXlljsckYUk",
+            "width": 100,
+            "height": 100
+          },
+          {
+            "url": "https://media.licdn.com/dms/image/v2/C4E0BAQGa8RitQyDp9w/company-logo_400_400/company-logo_400_400/0/1630642589647/msubroadcollege_logo?e=1778716800&v=beta&t=XCdjDCrcjXJ-jp7o5-yg9CHR4xzmcaRXhaod4wmJiBo",
+            "width": 400,
+            "height": 400
+          }
+        ]
+      },
+      {
+        "start": {
+          "year": 2011,
+          "month": 0,
+          "day": 0
+        },
+        "end": {
+          "year": 2013,
+          "month": 0,
+          "day": 0
+        },
+        "fieldOfStudy": "Bioengineering and Biomedical Engineering",  
+        "degree": "Master of Science (MS)",
+        "grade": "",
+        "schoolName": "Clemson University",
+        "description": "",
+        "activities": "",
+        "url": "https://www.linkedin.com/school/clemson-university/", 
+        "schoolId": "163107",
+        "logo": [
+          {
+            "url": "https://media.licdn.com/dms/image/v2/D4E0BAQHCrkwG2qE6gw/company-logo_200_200/company-logo_200_200/0/1682352940783/clemson_university_logo?e=1778716800&v=beta&t=D4bl0m2gXafaJdZ8eEBg9J9bZwGnGvABjg8BxwBr28w",
+            "width": 200,
+            "height": 200
+          },
+          {
+            "url": "https://media.licdn.com/dms/image/v2/D4E0BAQHCrkwG2qE6gw/company-logo_100_100/company-logo_100_100/0/1682352940783/clemson_university_logo?e=1778716800&v=beta&t=7ioFUUevijnY8Wok0xXTitFh2ec5s1151wAfC73NZCk",
+            "width": 100,
+            "height": 100
+          },
+          {
+            "url": "https://media.licdn.com/dms/image/v2/D4E0BAQHCrkwG2qE6gw/company-logo_400_400/company-logo_400_400/0/1682352940783/clemson_university_logo?e=1778716800&v=beta&t=dfCM7MSGBSf8CAHAoPjzMt4Vo1gBYUmGm0UMDXSTX0w",
+            "width": 400,
+            "height": 400
+          }
+        ]
+      },
+      {
+        "start": {
+          "year": 2007,
+          "month": 0,
+          "day": 0
+        },
+        "end": {
+          "year": 2011,
+          "month": 0,
+          "day": 0
+        },
+        "fieldOfStudy": "Bioengineering and Biomedical Engineering",  
+        "degree": "Bachelor of Science (B.S.)",
+        "grade": "",
+        "schoolName": "Clemson University",
+        "description": "",
+        "activities": "Biomedical Engineering Society, Alpha Lambda Delta Honors Society",
+        "url": "https://www.linkedin.com/school/clemson-university/", 
+        "schoolId": "163107",
+        "logo": [
+          {
+            "url": "https://media.licdn.com/dms/image/v2/D4E0BAQHCrkwG2qE6gw/company-logo_200_200/company-logo_200_200/0/1682352940783/clemson_university_logo?e=1778716800&v=beta&t=D4bl0m2gXafaJdZ8eEBg9J9bZwGnGvABjg8BxwBr28w",
+            "width": 200,
+            "height": 200
+          },
+          {
+            "url": "https://media.licdn.com/dms/image/v2/D4E0BAQHCrkwG2qE6gw/company-logo_100_100/company-logo_100_100/0/1682352940783/clemson_university_logo?e=1778716800&v=beta&t=7ioFUUevijnY8Wok0xXTitFh2ec5s1151wAfC73NZCk",
+            "width": 100,
+            "height": 100
+          },
+          {
+            "url": "https://media.licdn.com/dms/image/v2/D4E0BAQHCrkwG2qE6gw/company-logo_400_400/company-logo_400_400/0/1682352940783/clemson_university_logo?e=1778716800&v=beta&t=dfCM7MSGBSf8CAHAoPjzMt4Vo1gBYUmGm0UMDXSTX0w",
+            "width": 400,
+            "height": 400
+          }
+        ]
+      }
+    ],
+    "position": [
+      {
+        "companyId": 1773,
+        "companyName": "Bristol Myers Squibb",
+        "companyUsername": "bristol-myers-squibb",
+        "companyURL": "https://www.linkedin.com/company/bristol-myers-squibb/",
+        "companyLogo": "https://media.licdn.com/dms/image/v2/D4E0BAQHPSJGTVwPgvg/company-logo_400_400/company-logo_400_400/0/1719830772393/bristol_myers_squibb_logo?e=1778716800&v=beta&t=-8QTSz2ydcPe9rdQZU-aoof41zdWanney6Xc7IsQRPU",
+        "companyIndustry": "Pharmaceuticals",
+        "companyStaffCountRange": "10001 - 0",
+        "title": "Associate Director, R&D Procurement, Performance & Excellence",
+        "multiLocaleTitle": {
+          "en_US": "Associate Director, R&D Procurement, Performance & Excellence"
+        },
+        "multiLocaleCompanyName": {
+          "en_US": "Bristol Myers Squibb"
+        },
+        "location": "",
+        "locationType": "",
+        "description": "",
+        "employmentType": "Full-time",
+        "start": {
+          "year": 2023,
+          "month": 8,
+          "day": 0
+        },
+        "end": {
+          "year": 0,
+          "month": 0,
+          "day": 0
+        }
+      },
+      {
+        "companyId": 1773,
+        "companyName": "Bristol Myers Squibb",
+        "companyUsername": "bristol-myers-squibb",
+        "companyURL": "https://www.linkedin.com/company/bristol-myers-squibb/",
+        "companyLogo": "https://media.licdn.com/dms/image/v2/D4E0BAQHPSJGTVwPgvg/company-logo_400_400/company-logo_400_400/0/1719830772393/bristol_myers_squibb_logo?e=1778716800&v=beta&t=-8QTSz2ydcPe9rdQZU-aoof41zdWanney6Xc7IsQRPU",
+        "companyIndustry": "Pharmaceuticals",
+        "companyStaffCountRange": "10001 - 0",
+        "title": "Associate Director, Procurement Performance & Intelligence",
+        "multiLocaleTitle": {
+          "en_US": "Associate Director, Procurement Performance & Intelligence"
+        },
+        "multiLocaleCompanyName": {
+          "en_US": "Bristol Myers Squibb"
+        },
+        "location": "",
+        "locationType": "",
+        "description": "",
+        "employmentType": "Full-time",
+        "start": {
+          "year": 2022,
+          "month": 9,
+          "day": 0
+        },
+        "end": {
+          "year": 2023,
+          "month": 8,
+          "day": 0
+        }
+      },
+      {
+        "companyId": 1773,
+        "companyName": "Bristol Myers Squibb",
+        "companyUsername": "bristol-myers-squibb",
+        "companyURL": "https://www.linkedin.com/company/bristol-myers-squibb/",
+        "companyLogo": "https://media.licdn.com/dms/image/v2/D4E0BAQHPSJGTVwPgvg/company-logo_400_400/company-logo_400_400/0/1719830772393/bristol_myers_squibb_logo?e=1778716800&v=beta&t=-8QTSz2ydcPe9rdQZU-aoof41zdWanney6Xc7IsQRPU",
+        "companyIndustry": "Pharmaceuticals",
+        "companyStaffCountRange": "10001 - 0",
+        "title": "Senior Manager, Procurement Performance Management & Analytics",
+        "multiLocaleTitle": {
+          "en_US": "Senior Manager, Procurement Performance Management & Analytics"
+        },
+        "multiLocaleCompanyName": {
+          "en_US": "Bristol Myers Squibb"
+        },
+        "location": "Princeton, New Jersey, United States",
+        "locationType": "",
+        "description": "",
+        "employmentType": "Full-time",
+        "start": {
+          "year": 2020,
+          "month": 11,
+          "day": 0
+        },
+        "end": {
+          "year": 2022,
+          "month": 9,
+          "day": 0
+        }
+      },
+      {
+        "companyId": 1893,
+        "companyName": "Bayer",
+        "companyUsername": "bayer",
+        "companyURL": "https://www.linkedin.com/company/bayer/",      
+        "companyLogo": "https://media.licdn.com/dms/image/v2/D4E0BAQFQPUqDADpXsQ/company-logo_400_400/B4EZfFha0cHIAY-/0/1751365562172/bayer_logo?e=1778716800&v=beta&t=9wfspw9P47v08XjaenQfksmbEz-zOI3aikjikqtQ06I",
+        "companyIndustry": "Chemicals",
+        "companyStaffCountRange": "10001 - 0",
+        "title": "Global Procurement Category Lead",
+        "multiLocaleTitle": {
+          "en_US": "Global Procurement Category Lead"
+        },
+        "multiLocaleCompanyName": {
+          "en_US": "Bayer"
+        },
+        "location": "Whippany, New Jersey, United States",
+        "locationType": "",
+        "description": "Global Category Lead for Bayer Consumer Health's Powders, Granules, & Pellets + Contract Packaging Services (Procurement CH Product Supply)",
+        "employmentType": "Full-time",
+        "start": {
+          "year": 2020,
+          "month": 1,
+          "day": 0
+        },
+        "end": {
+          "year": 2020,
+          "month": 11,
+          "day": 0
+        }
+      },
+      {
+        "companyId": 1893,
+        "companyName": "Bayer",
+        "companyUsername": "bayer",
+        "companyURL": "https://www.linkedin.com/company/bayer/",      
+        "companyLogo": "https://media.licdn.com/dms/image/v2/D4E0BAQFQPUqDADpXsQ/company-logo_400_400/B4EZfFha0cHIAY-/0/1751365562172/bayer_logo?e=1778716800&v=beta&t=9wfspw9P47v08XjaenQfksmbEz-zOI3aikjikqtQ06I",
+        "companyIndustry": "Chemicals",
+        "companyStaffCountRange": "10001 - 0",
+        "title": "Procurement Category Manager and Business Partner", 
+        "multiLocaleTitle": {
+          "en_US": "Procurement Category Manager and Business Partner"
+        },
+        "multiLocaleCompanyName": {
+          "en_US": "Bayer"
+        },
+        "location": "",
+        "locationType": "",
+        "description": "Global Category Lead for Bayer Consumer Health's Powders, Granules, & Pellets (PRO BP CH Product Supply)",
+        "employmentType": "",
+        "start": {
+          "year": 2019,
+          "month": 8,
+          "day": 0
+        },
+        "end": {
+          "year": 2020,
+          "month": 1,
+          "day": 0
+        }
+      }
+    ],
+    "fullPositions": [
+      {
+        "companyId": 1773,
+        "companyName": "Bristol Myers Squibb",
+        "companyUsername": "bristol-myers-squibb",
+        "companyURL": "https://www.linkedin.com/company/bristol-myers-squibb/",
+        "companyLogo": "https://media.licdn.com/dms/image/v2/D4E0BAQHPSJGTVwPgvg/company-logo_400_400/company-logo_400_400/0/1719830772393/bristol_myers_squibb_logo?e=1778716800&v=beta&t=-8QTSz2ydcPe9rdQZU-aoof41zdWanney6Xc7IsQRPU",
+        "companyIndustry": "Pharmaceuticals",
+        "companyStaffCountRange": "10001 - 0",
+        "title": "Associate Director, R&D Procurement, Performance & Excellence",
+        "multiLocaleTitle": {
+          "en_US": "Associate Director, R&D Procurement, Performance & Excellence"
+        },
+        "multiLocaleCompanyName": {
+          "en_US": "Bristol Myers Squibb"
+        },
+        "location": "",
+        "locationType": "",
+        "description": "",
+        "employmentType": "Full-time",
+        "start": {
+          "year": 2023,
+          "month": 8,
+          "day": 0
+        },
+        "end": {
+          "year": 0,
+          "month": 0,
+          "day": 0
+        }
+      },
+      {
+        "companyId": 1773,
+        "companyName": "Bristol Myers Squibb",
+        "companyUsername": "bristol-myers-squibb",
+        "companyURL": "https://www.linkedin.com/company/bristol-myers-squibb/",
+        "companyLogo": "https://media.licdn.com/dms/image/v2/D4E0BAQHPSJGTVwPgvg/company-logo_400_400/company-logo_400_400/0/1719830772393/bristol_myers_squibb_logo?e=1778716800&v=beta&t=-8QTSz2ydcPe9rdQZU-aoof41zdWanney6Xc7IsQRPU",
+        "companyIndustry": "Pharmaceuticals",
+        "companyStaffCountRange": "10001 - 0",
+        "title": "Associate Director, Procurement Performance & Intelligence",
+        "multiLocaleTitle": {
+          "en_US": "Associate Director, Procurement Performance & Intelligence"
+        },
+        "multiLocaleCompanyName": {
+          "en_US": "Bristol Myers Squibb"
+        },
+        "location": "",
+        "locationType": "",
+        "description": "",
+        "employmentType": "Full-time",
+        "start": {
+          "year": 2022,
+          "month": 9,
+          "day": 0
+        },
+        "end": {
+          "year": 2023,
+          "month": 8,
+          "day": 0
+        }
+      },
+      {
+        "companyId": 1773,
+        "companyName": "Bristol Myers Squibb",
+        "companyUsername": "bristol-myers-squibb",
+        "companyURL": "https://www.linkedin.com/company/bristol-myers-squibb/",
+        "companyLogo": "https://media.licdn.com/dms/image/v2/D4E0BAQHPSJGTVwPgvg/company-logo_400_400/company-logo_400_400/0/1719830772393/bristol_myers_squibb_logo?e=1778716800&v=beta&t=-8QTSz2ydcPe9rdQZU-aoof41zdWanney6Xc7IsQRPU",
+        "companyIndustry": "Pharmaceuticals",
+        "companyStaffCountRange": "10001 - 0",
+        "title": "Senior Manager, Procurement Performance Management & Analytics",
+        "multiLocaleTitle": {
+          "en_US": "Senior Manager, Procurement Performance Management & Analytics"
+        },
+        "multiLocaleCompanyName": {
+          "en_US": "Bristol Myers Squibb"
+        },
+        "location": "Princeton, New Jersey, United States",
+        "locationType": "",
+        "description": "",
+        "employmentType": "Full-time",
+        "start": {
+          "year": 2020,
+          "month": 11,
+          "day": 0
+        },
+        "end": {
+          "year": 2022,
+          "month": 9,
+          "day": 0
+        }
+      },
+      {
+        "companyId": 1893,
+        "companyName": "Bayer",
+        "companyUsername": "bayer",
+        "companyURL": "https://www.linkedin.com/company/bayer/",      
+        "companyLogo": "https://media.licdn.com/dms/image/v2/D4E0BAQFQPUqDADpXsQ/company-logo_400_400/B4EZfFha0cHIAY-/0/1751365562172/bayer_logo?e=1778716800&v=beta&t=9wfspw9P47v08XjaenQfksmbEz-zOI3aikjikqtQ06I",
+        "companyIndustry": "Chemicals",
+        "companyStaffCountRange": "10001 - 0",
+        "title": "Global Procurement Category Lead",
+        "multiLocaleTitle": {
+          "en_US": "Global Procurement Category Lead"
+        },
+        "multiLocaleCompanyName": {
+          "en_US": "Bayer"
+        },
+        "location": "Whippany, New Jersey, United States",
+        "locationType": "",
+        "description": "Global Category Lead for Bayer Consumer Health's Powders, Granules, & Pellets + Contract Packaging Services (Procurement CH Product Supply)",
+        "employmentType": "Full-time",
+        "start": {
+          "year": 2020,
+          "month": 1,
+          "day": 0
+        },
+        "end": {
+          "year": 2020,
+          "month": 11,
+          "day": 0
+        }
+      },
+      {
+        "companyId": 1893,
+        "companyName": "Bayer",
+        "companyUsername": "bayer",
+        "companyURL": "https://www.linkedin.com/company/bayer/",      
+        "companyLogo": "https://media.licdn.com/dms/image/v2/D4E0BAQFQPUqDADpXsQ/company-logo_400_400/B4EZfFha0cHIAY-/0/1751365562172/bayer_logo?e=1778716800&v=beta&t=9wfspw9P47v08XjaenQfksmbEz-zOI3aikjikqtQ06I",
+        "companyIndustry": "Chemicals",
+        "companyStaffCountRange": "10001 - 0",
+        "title": "Procurement Category Manager and Business Partner", 
+        "multiLocaleTitle": {
+          "en_US": "Procurement Category Manager and Business Partner"
+        },
+        "multiLocaleCompanyName": {
+          "en_US": "Bayer"
+        },
+        "location": "",
+        "locationType": "",
+        "description": "Global Category Lead for Bayer Consumer Health's Powders, Granules, & Pellets (PRO BP CH Product Supply)",
+        "employmentType": "",
+        "start": {
+          "year": 2019,
+          "month": 8,
+          "day": 0
+        },
+        "end": {
+          "year": 2020,
+          "month": 1,
+          "day": 0
+        }
+      },
+      {
+        "companyId": 1893,
+        "companyName": "Bayer",
+        "companyUsername": "bayer",
+        "companyURL": "https://www.linkedin.com/company/bayer/",      
+        "companyLogo": "https://media.licdn.com/dms/image/v2/D4E0BAQFQPUqDADpXsQ/company-logo_400_400/B4EZfFha0cHIAY-/0/1751365562172/bayer_logo?e=1778716800&v=beta&t=9wfspw9P47v08XjaenQfksmbEz-zOI3aikjikqtQ06I",
+        "companyIndustry": "Chemicals",
+        "companyStaffCountRange": "10001 - 0",
+        "title": "International Procurement Management Program",      
+        "multiLocaleTitle": {
+          "en_US": "International Procurement Management Program"     
+        },
+        "multiLocaleCompanyName": {
+          "en_US": "Bayer"
+        },
+        "location": "Whippany, NJ",
+        "locationType": "",
+        "description": "",
+        "employmentType": "",
+        "start": {
+          "year": 2018,
+          "month": 6,
+          "day": 0
+        },
+        "end": {
+          "year": 2019,
+          "month": 8,
+          "day": 0
+        }
+      },
+      {
+        "companyId": 1893,
+        "companyName": "Bayer",
+        "companyUsername": "bayer",
+        "companyURL": "https://www.linkedin.com/company/bayer/",      
+        "companyLogo": "https://media.licdn.com/dms/image/v2/D4E0BAQFQPUqDADpXsQ/company-logo_400_400/B4EZfFha0cHIAY-/0/1751365562172/bayer_logo?e=1778716800&v=beta&t=9wfspw9P47v08XjaenQfksmbEz-zOI3aikjikqtQ06I",
+        "companyIndustry": "Chemicals",
+        "companyStaffCountRange": "10001 - 0",
+        "title": "Procurement Specialist Intern",
+        "multiLocaleTitle": {
+          "en_US": "Procurement Specialist Intern"
+        },
+        "multiLocaleCompanyName": {
+          "en_US": "Bayer"
+        },
+        "location": "Whippany, NJ",
+        "locationType": "",
+        "description": "",
+        "employmentType": "",
+        "start": {
+          "year": 2017,
+          "month": 6,
+          "day": 0
+        },
+        "end": {
+          "year": 2017,
+          "month": 8,
+          "day": 0
+        }
+      },
+      {
+        "companyId": 80381234,
+        "companyName": "Somnio Global LLC",
+        "companyUsername": "somnio-global-llc",
+        "companyURL": "https://www.linkedin.com/company/somnio-global-llc/",
+        "companyLogo": "https://media.licdn.com/dms/image/v2/C4E0BAQH4sDHFnfefNA/company-logo_400_400/company-logo_400_400/0/1634846117416/somnio_global_llc_logo?e=1778716800&v=beta&t=n4x0VYECOsZbIiPM6YySnYobqDl7hx0QFn5k1tyucLA",
+        "companyIndustry": "Research",
+        "companyStaffCountRange": "11 - 50",
+        "title": "Research Engineer",
+        "multiLocaleTitle": {
+          "en_US": "Research Engineer"
+        },
+        "multiLocaleCompanyName": {
+          "en_US": "Somnio Global LLC"
+        },
+        "location": "Novi, MI",
+        "locationType": "",
+        "description": "My primary role consisted of researching and developing a biopreservation technologies that would serve as cost-efficient, effective and accessible solutions to current challenges present in the biomedical industry. This included establishing the commercial viability of a novel approach to protein stabilization by reducing processing costs by 30%\n\nI was instrumental in the development of an in-house biomedical laboratory and procured approximately $100K worth of equipment and lab materials to set up laboratories for research tests. Also, I negotiated with over 10 vendors to procure lab equipment and consumables, achieving savings of $20K. Additionally, I conceptualized and implemented company-wide policies as a part of a cross functional team, including a procurement policy and centralized chemical inventory management system.",
+        "employmentType": "",
+        "start": {
+          "year": 2014,
+          "month": 1,
+          "day": 0
+        },
+        "end": {
+          "year": 2016,
+          "month": 8,
+          "day": 0
+        }
+      },
+      {
+        "companyId": 163107,
+        "companyName": "Clemson University",
+        "companyUsername": "clemson-university",
+        "companyURL": "https://www.linkedin.com/school/clemson-university/",
+        "companyLogo": "https://media.licdn.com/dms/image/v2/D4E0BAQHCrkwG2qE6gw/company-logo_400_400/company-logo_400_400/0/1682352940783/clemson_university_logo?e=1778716800&v=beta&t=dfCM7MSGBSf8CAHAoPjzMt4Vo1gBYUmGm0UMDXSTX0w",
+        "companyIndustry": "Higher Education",
+        "companyStaffCountRange": "1001 - 5000",
+        "title": "Graduate Research/Lab Assistant: Cell Mechanics and Mechanobiology Laboratory",
+        "multiLocaleTitle": {
+          "en_US": "Graduate Research/Lab Assistant: Cell Mechanics and Mechanobiology Laboratory"
+        },
+        "multiLocaleCompanyName": {
+          "en_US": "Clemson University"
+        },
+        "location": "Clemson, SC",
+        "locationType": "",
+        "description": "Project goal was to create a surgical adhesive based on a hydrogel system that provides a combination of strength, compliance, and biocompatibility for application to the bladder. This method will serve as an alternative to sutures for bladder injury repair. My specific tasks included:\no Performing nuclear magnetic resonance spectroscopy on samples to identify shortcomings\no Performing tensile testing on experimental sausage collagen casings to determine degree of adhesiveness",
+        "employmentType": "",
+        "start": {
+          "year": 2011,
+          "month": 8,
+          "day": 0
+        },
+        "end": {
+          "year": 2013,
+          "month": 5,
+          "day": 0
+        }
+      },
+      {
+        "companyId": 163107,
+        "companyName": "Clemson University",
+        "companyUsername": "clemson-university",
+        "companyURL": "https://www.linkedin.com/school/clemson-university/",
+        "companyLogo": "https://media.licdn.com/dms/image/v2/D4E0BAQHCrkwG2qE6gw/company-logo_400_400/company-logo_400_400/0/1682352940783/clemson_university_logo?e=1778716800&v=beta&t=dfCM7MSGBSf8CAHAoPjzMt4Vo1gBYUmGm0UMDXSTX0w",
+        "companyIndustry": "Higher Education",
+        "companyStaffCountRange": "1001 - 5000",
+        "title": "Undergraduate Student",
+        "multiLocaleTitle": {
+          "en_US": "Undergraduate Student"
+        },
+        "multiLocaleCompanyName": {
+          "en_US": "Clemson University"
+        },
+        "location": "Clemson, South Carolina",
+        "locationType": "",
+        "description": "Graduated Cum Laude with a degree in Bioengineering (Biomaterials Concentration) and minor in Business Administration) and General and Departmental Honors from the Calhoun Honors College.",
+        "employmentType": "",
+        "start": {
+          "year": 2007,
+          "month": 8,
+          "day": 0
+        },
+        "end": {
+          "year": 2011,
+          "month": 5,
+          "day": 0
+        }
+      }
+    ],
+    "skills": [
+      {
+        "name": "Decision Analysis",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Dashboards",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Key Performance Indicators",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Contract Negotiation",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Biomaterials",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Bioengineering",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Tissue Engineering",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Biomedical Engineering",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Laboratory",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Cell",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Microscopy",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Microsoft Office",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Cell Culture",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Biocompatibility",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Research",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Communication",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Supply Chain Management",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Team Building",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Teamwork",
+        "passedSkillAssessment": false
+      },
+      {
+        "name": "Histology",
+        "passedSkillAssessment": false
+      }
+    ],
+    "courses": [],
+    "certifications": [],
+    "projects": [],
+    "publications": [],
+    "volunteering": [],
+    "organizations": [],
+    "patents": [],
+    "honorsAndAwards": [],
+    "supportedLocales": [
+      {
+        "country": "US",
+        "language": "en"
+      }
+    ],
+    "multiLocaleFirstName": {
+      "en_US": "Nitin"
+    },
+    "multiLocaleLastName": {
+      "en_US": "Balakrishnan"
+    },
+    "multiLocaleHeadline": {
+      "en_US": "R&D Procurement @ Bristol Myers Squibb | MBA"
+    }
+  }
+}

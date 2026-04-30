@@ -112,6 +112,14 @@ class ExpertStrength(db.Model):
     def to_dict(self):
         return self.topic_name
 
+class ExpertEnrichmentLog(db.Model):
+    __tablename__ = 'expert_enrichment_logs'
+    id = db.Column(db.Integer, primary_key=True)
+    expert_id = db.Column(UUID(as_uuid=False), db.ForeignKey('experts.id', ondelete='CASCADE'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.project_id', ondelete='SET NULL'), nullable=True)
+    raw_json = db.Column(JSONB, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 class Expert(db.Model):
     """Expert profile model — maps to 'experts' table."""
@@ -174,6 +182,8 @@ class Expert(db.Model):
     rating = db.Column(db.Integer, default=0)
     last_modified = db.Column(db.DateTime)
     total_calls_completed = db.Column(db.Integer, default=0)
+    # Education history extracted from PDF — JSONB array of { institution, degree, field, start_year, end_year }
+    education = db.Column(JSONB, default=list)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -197,7 +207,14 @@ class Expert(db.Model):
             return self.notes.split('Deep Scrape Location: ')[1].strip()
         return None
     @property
-    def timezone(self): return self.rel_location.timezone if self.rel_location else None
+    def timezone(self): 
+        if self.rel_location and self.rel_location.timezone:
+            return self.rel_location.timezone
+        if self.notes and 'Timezone: ' in self.notes:
+            # Extract between 'Timezone: ' and ' | ' or end of string
+            part = self.notes.split('Timezone: ')[1]
+            return part.split(' | ')[0].strip()
+        return None
     @property
     def region(self): return self.rel_region.name if self.rel_region else None
     @property
@@ -279,7 +296,8 @@ class Expert(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'experiences': [exp.to_dict() for exp in self.experiences],
-            'strengths_list': [s.to_dict() for s in self.strengths]
+            'strengths_list': [s.to_dict() for s in self.strengths],
+            'education': self.education or [],
         }
 
     def __repr__(self):
@@ -610,7 +628,7 @@ class Project(db.Model):
     project_questions = db.Column(JSONB, nullable=False, default=list)
     compliance_question_1 = db.Column(db.Text)
     project_deadline = db.Column(db.Date)
-    poc_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id', ondelete='SET NULL'))
+    poc_user_ids = db.Column(JSONB, nullable=False, default=list)
     project_created_by = db.Column(db.String(255))
     last_modified_time = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -632,7 +650,6 @@ class Project(db.Model):
     calls = db.relationship('Call', backref='project', lazy=True, cascade='all, delete-orphan')
     rel_project_type = db.relationship('LkProjectType', lazy='joined')
     rel_target_region = db.relationship('LkRegion', foreign_keys=[target_region_id], lazy='joined')
-    rel_poc_user = db.relationship('User', foreign_keys=[poc_user_id], lazy='joined')
     target_geographies = db.relationship(
         'LkProjectTargetGeography',
         secondary='project_target_geographies',
@@ -657,6 +674,14 @@ class Project(db.Model):
         sales_ids = _to_int_list(self.sales_team_ids)
         sol_users = HasamexUser.query.filter(HasamexUser.id.in_(sol_ids)).all() if sol_ids else []
         sales_users = HasamexUser.query.filter(HasamexUser.id.in_(sales_ids)).all() if sales_ids else []
+        
+        from models import User
+        poc_ids = self.poc_user_ids or []
+        poc_users = User.query.filter(User.user_id.in_(poc_ids)).all() if poc_ids else []
+        # Keep same order as poc_ids
+        poc_user_map = {u.user_id: u.user_name for u in poc_users}
+        poc_names = [poc_user_map.get(pid) for pid in poc_ids if pid in poc_user_map]
+
         leads = self.leads_expert_ids or []
         invited = self.invited_expert_ids or []
         accepted = self.accepted_expert_ids or []
@@ -694,8 +719,8 @@ class Project(db.Model):
             'project_questions': self.project_questions or [],
             'compliance_question_1': self.compliance_question_1,
             'project_deadline': self.project_deadline.isoformat() if self.project_deadline else None,
-            'poc_user_id': self.poc_user_id,
-            'poc_user_name': self.rel_poc_user.user_name if self.rel_poc_user else None,
+            'poc_user_ids': poc_ids,
+            'poc_user_names': poc_names,
             'project_created_by': self.project_created_by,
             'client_solution_owner_ids': sol_ids,
             'client_solution_owner_names': [u.username for u in sol_users],
@@ -786,6 +811,7 @@ class Engagement(db.Model):
     poc_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'))
     call_owner_id = db.Column(db.Integer, db.ForeignKey('hasamex_users.id'))
     call_date = db.Column(db.DateTime, nullable=False)
+    expert_call_date = db.Column(db.DateTime(timezone=True))
     actual_call_duration_mins = db.Column(db.Integer)
     engagement_method_id = db.Column(db.Integer, db.ForeignKey('lk_engagement_methods.id'))
     notes = db.Column(db.Text)
@@ -798,6 +824,17 @@ class Engagement(db.Model):
     expert_currency_id = db.Column(db.Integer, db.ForeignKey('lk_currencies.id'))
     prorated_expert_amount_base = db.Column(db.Numeric(12, 2))
     prorated_expert_amount_usd = db.Column(db.Numeric(12, 2))
+    
+    # Call Completed Financials
+    call_completed_duration_mins = db.Column(db.Integer)
+    completed_client_rate = db.Column(db.Numeric(12, 2))
+    completed_expert_rate = db.Column(db.Numeric(12, 2))
+    completed_prorated_expert_amount_base = db.Column(db.Numeric(12, 2))
+    completed_prorated_expert_amount_usd = db.Column(db.Numeric(12, 2))
+    completed_billable_client_amount_usd = db.Column(db.Numeric(12, 2))
+
+    expert_timezone = db.Column(db.String(100))
+    client_timezone = db.Column(db.String(100))
     gross_margin_percent = db.Column(db.Numeric(5, 2))
     gross_profit_usd = db.Column(db.Numeric(12, 2))
     expert_post_call_status_id = db.Column(db.Integer, db.ForeignKey('lk_post_call_statuses.id'))
@@ -810,6 +847,17 @@ class Engagement(db.Model):
     client_invoice_date = db.Column(db.Date)
     client_payment_received_date = db.Column(db.Date)
     client_payment_received_account = db.Column(db.String(100))
+    
+    # Zoom Integration
+    zoom_meeting_id = db.Column(db.String(100))
+    zoom_join_url = db.Column(db.Text)
+    zoom_start_url = db.Column(db.Text)
+    zoom_password = db.Column(db.String(100))
+    
+    # Zoho Calendar Integration
+    zoho_event_id_expert = db.Column(db.String(100))
+    zoho_event_id_client = db.Column(db.String(100))
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -839,6 +887,7 @@ class Engagement(db.Model):
             'call_owner_id': self.call_owner_id,
             'call_owner_name': self.call_owner.username if self.call_owner else None,
             'call_date': self.call_date.isoformat() if self.call_date else None,
+            'expert_call_date': self.expert_call_date.isoformat() if self.expert_call_date else None,
             'actual_call_duration_mins': self.actual_call_duration_mins,
             # Engagement method (both id and name for form prefill)
             'engagement_method_id': self.engagement_method.id if self.engagement_method else None,
@@ -856,6 +905,14 @@ class Engagement(db.Model):
             'expert_currency': self.expert_currency.name if self.expert_currency else None,
             'prorated_expert_amount_base': float(self.prorated_expert_amount_base) if self.prorated_expert_amount_base else None,
             'prorated_expert_amount_usd': float(self.prorated_expert_amount_usd) if self.prorated_expert_amount_usd else None,
+            
+            'call_completed_duration_mins': self.call_completed_duration_mins,
+            'completed_client_rate': float(self.completed_client_rate) if self.completed_client_rate else None,
+            'completed_expert_rate': float(self.completed_expert_rate) if self.completed_expert_rate else None,
+            'completed_prorated_expert_amount_base': float(self.completed_prorated_expert_amount_base) if self.completed_prorated_expert_amount_base else None,
+            'completed_prorated_expert_amount_usd': float(self.completed_prorated_expert_amount_usd) if self.completed_prorated_expert_amount_usd else None,
+            'completed_billable_client_amount_usd': float(self.completed_billable_client_amount_usd) if self.completed_billable_client_amount_usd else None,
+
             'gross_margin_percent': float(self.gross_margin_percent) if self.gross_margin_percent else None,
             'gross_profit_usd': float(self.gross_profit_usd) if self.gross_profit_usd else None,
             # Post-call + Payment statuses (both id and name)
@@ -871,6 +928,14 @@ class Engagement(db.Model):
             'client_invoice_date': self.client_invoice_date.isoformat() if self.client_invoice_date else None,
             'client_payment_received_date': self.client_payment_received_date.isoformat() if self.client_payment_received_date else None,
             'client_payment_received_account': self.client_payment_received_account,
+            'zoom_meeting_id': self.zoom_meeting_id,
+            'zoom_join_url': self.zoom_join_url,
+            'zoom_start_url': self.zoom_start_url,
+            'zoom_password': self.zoom_password,
+            'zoho_event_id_expert': self.zoho_event_id_expert,
+            'zoho_event_id_client': self.zoho_event_id_client,
+            'expert_timezone': self.expert_timezone,
+            'client_timezone': self.client_timezone,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -1064,4 +1129,19 @@ class ChatMessage(db.Model):
             'content_text': self.content_text,
             'content_json': self.content_json,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+class StagingExpertEnhancement(db.Model):
+    __tablename__ = 'staging_expert_enhancement'
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.project_id', ondelete='CASCADE'), nullable=True)
+    basic_details = db.Column(JSONB, nullable=False) # name, linkedin_url, location, snippet, etc.
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'project_id': self.project_id,
+            'basic_details': self.basic_details,
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }

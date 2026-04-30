@@ -4,12 +4,17 @@ Engagements API Blueprint — /api/v1/engagements
 
 from flask import Blueprint, request, jsonify
 from datetime import datetime, date
+import zoneinfo
+from zoneinfo import ZoneInfo
 from sqlalchemy.orm import joinedload
-from sqlalchemy import text
+from sqlalchemy import text, select
 from extensions import db
 from models import Engagement, Project, Expert, Client, User, HasamexUser, LkEngagementMethod, LkCurrency, LkPostCallStatus, LkPaymentStatus
+from services.zoom_service import zoom_service
+from services.zoho_service import zoho_calendar_service
 
 engagements_bp = Blueprint('engagements', __name__, url_prefix='/api/v1/engagements')
+print("DEBUG: engagements.py loaded")
 
 @engagements_bp.route('/filter-options', methods=['GET'])
 def get_filter_options():
@@ -38,6 +43,41 @@ def get_form_lookups():
         'post_call_status': [{'id': item.id, 'name': item.name} for item in LkPostCallStatus.query.order_by(LkPostCallStatus.id).all()],
         'payment_status': [{'id': item.id, 'name': item.name} for item in LkPaymentStatus.query.order_by(LkPaymentStatus.id).all()]
     })
+
+@engagements_bp.route('/convert-timezone', methods=['POST'])
+def convert_timezone():
+    """
+    POST /api/v1/engagements/convert-timezone
+    Accepts JSON: { "datetime_str": "2026-04-23T10:00", "from_tz": "America/New_York", "to_tz": "Asia/Kolkata" }
+    Returns JSON: { "converted_datetime_str": "2026-04-23T19:30" }
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid request'}), 400
+        
+    dt_str = data.get('datetime_str')
+    from_tz_str = data.get('from_tz')
+    to_tz_str = data.get('to_tz')
+    
+    if not dt_str or not from_tz_str or not to_tz_str:
+        return jsonify({'error': 'Missing required fields'}), 400
+        
+    try:
+        # Format might be 'YYYY-MM-DDTHH:MM' or have seconds. Trim to handle standard iso formats.
+        if len(dt_str) > 16 and dt_str[16] == ':':
+             dt_str = dt_str[:16] # keep only up to minutes for typical datetime-local values
+        # Parse the input datetime (naive)
+        dt_naive = datetime.fromisoformat(dt_str)
+        # Assign the from timezone
+        dt_from = dt_naive.replace(tzinfo=ZoneInfo(from_tz_str))
+        # Convert to target timezone
+        dt_to = dt_from.astimezone(ZoneInfo(to_tz_str))
+        # Format back to ISO 8601 without timezone offset for datetime-local input
+        return jsonify({
+            'converted_datetime_str': dt_to.strftime('%Y-%m-%dT%H:%M')
+        })
+    except Exception as e:
+        return jsonify({'error': f'Failed to convert timezone: {str(e)}'}), 400
 
 
 EXCHANGE_RATES_USD = {
@@ -174,18 +214,25 @@ def normalize_engagement_payload(data: dict) -> dict:
         'expert_payment_status_id': _to_int(data.get('expert_payment_status_id')),
         # Dates
         'call_date': _to_datetime(data.get('call_date')),
+        'expert_call_date': _to_datetime(data.get('expert_call_date')),
         'expert_payment_due_date': _to_date(data.get('expert_payment_due_date')),
         'actual_expert_payment_date': _to_date(data.get('actual_expert_payment_date')),
         'client_invoice_date': _to_date(data.get('client_invoice_date')),
         'client_payment_received_date': _to_date(data.get('client_payment_received_date')),
         # Numerics
         'actual_call_duration_mins': _to_int(data.get('actual_call_duration_mins')),
+        'call_completed_duration_mins': _to_int(data.get('call_completed_duration_mins')),
         'client_rate': _to_float(data.get('client_rate')),
+        'completed_client_rate': _to_float(data.get('completed_client_rate')),
         'discount_offered_percent': _to_float(data.get('discount_offered_percent')),
         'billable_client_amount_usd': _to_float(data.get('billable_client_amount_usd')),
+        'completed_billable_client_amount_usd': _to_float(data.get('completed_billable_client_amount_usd')),
         'expert_rate': _to_float(data.get('expert_rate')),
+        'completed_expert_rate': _to_float(data.get('completed_expert_rate')),
         'prorated_expert_amount_base': _to_float(data.get('prorated_expert_amount_base')),
+        'completed_prorated_expert_amount_base': _to_float(data.get('completed_prorated_expert_amount_base')),
         'prorated_expert_amount_usd': _to_float(data.get('prorated_expert_amount_usd')),
+        'completed_prorated_expert_amount_usd': _to_float(data.get('completed_prorated_expert_amount_usd')),
         'gross_margin_percent': _to_float(data.get('gross_margin_percent')),
         'gross_profit_usd': _to_float(data.get('gross_profit_usd')),
         # Text
@@ -195,6 +242,8 @@ def normalize_engagement_payload(data: dict) -> dict:
         'expert_payout_ref_id': _none_if_empty(data.get('expert_payout_ref_id')),
         'client_invoice_number': _none_if_empty(data.get('client_invoice_number')),
         'client_payment_received_account': _none_if_empty(data.get('client_payment_received_account')),
+        'expert_timezone': _none_if_empty(data.get('expert_timezone')),
+        'client_timezone': _none_if_empty(data.get('client_timezone')),
     }
 
 @engagements_bp.route('', methods=['GET'])
@@ -285,18 +334,9 @@ def get_engagements():
 
 @engagements_bp.route('/<engagement_id>', methods=['GET'])
 def get_engagement(engagement_id):
-    engagement = Engagement.query.options(
-        joinedload(Engagement.project),
-        joinedload(Engagement.expert),
-        joinedload(Engagement.client),
-        joinedload(Engagement.poc_user),
-        joinedload(Engagement.call_owner),
-        joinedload(Engagement.engagement_method),
-        joinedload(Engagement.client_currency),
-        joinedload(Engagement.expert_currency),
-        joinedload(Engagement.expert_post_call_status),
-        joinedload(Engagement.expert_payment_status)
-    ).get_or_404(engagement_id)
+    engagement = db.session.get(Engagement, engagement_id)
+    if not engagement:
+        return jsonify({'error': 'Engagement not found'}), 404
     return jsonify({'data': engagement.to_dict()})
 
 @engagements_bp.route('', methods=['POST'])
@@ -314,19 +354,24 @@ def create_engagement():
         client_currency = None
         expert_currency = None
         if payload.get('client_currency_id'):
-            row = LkCurrency.query.get(payload['client_currency_id'])
+            row = db.session.get(LkCurrency, payload['client_currency_id'])
             client_currency = row.name if row else None
         if payload.get('expert_currency_id'):
-            row = LkCurrency.query.get(payload['expert_currency_id'])
+            row = db.session.get(LkCurrency, payload['expert_currency_id'])
             expert_currency = row.name if row else None
+        is_completed = bool(new_engagement.call_completed_duration_mins)
+        c_rate = new_engagement.completed_client_rate if is_completed and new_engagement.completed_client_rate is not None else new_engagement.client_rate
+        e_rate = new_engagement.completed_expert_rate if is_completed and new_engagement.completed_expert_rate is not None else new_engagement.expert_rate
+        b_override = new_engagement.completed_billable_client_amount_usd if is_completed and new_engagement.completed_billable_client_amount_usd is not None else new_engagement.billable_client_amount_usd
+
         result = compute_profit_and_margin(
-            client_rate=payload.get('client_rate'),
+            client_rate=c_rate,
             client_currency=client_currency or 'USD',
-            expert_rate=payload.get('expert_rate'),
+            expert_rate=e_rate,
             expert_currency=expert_currency or 'USD',
             base_currency='USD',
-            discount_percent=payload.get('discount_offered_percent'),
-            billable_override_in_base=payload.get('billable_client_amount_usd'),
+            discount_percent=new_engagement.discount_offered_percent,
+            billable_override_in_base=b_override,
         )
         new_engagement.gross_profit_usd = result['gross_profit']
         new_engagement.gross_margin_percent = result['margin_percentage']
@@ -343,7 +388,7 @@ def create_engagement():
         except Exception:
             pass
     try:
-        proj = Project.query.get(new_engagement.project_id)
+        proj = db.session.get(Project, new_engagement.project_id)
         if proj is not None:
             arr = list(proj.engagement_ids or [])
             if new_engagement.id not in arr:
@@ -356,7 +401,9 @@ def create_engagement():
 
 @engagements_bp.route('/<engagement_id>', methods=['PUT'])
 def update_engagement(engagement_id):
-    engagement = Engagement.query.get_or_404(engagement_id)
+    engagement = db.session.get(Engagement, engagement_id)
+    if not engagement:
+        return jsonify({'error': 'Engagement not found'}), 404
     old_project_id = engagement.project_id
     data = request.get_json() or {}
     payload = normalize_engagement_payload(data)
@@ -368,19 +415,24 @@ def update_engagement(engagement_id):
         client_currency = None
         expert_currency = None
         if engagement.client_currency_id:
-            row = LkCurrency.query.get(engagement.client_currency_id)
+            row = db.session.get(LkCurrency, engagement.client_currency_id)
             client_currency = row.name if row else None
         if engagement.expert_currency_id:
-            row = LkCurrency.query.get(engagement.expert_currency_id)
+            row = db.session.get(LkCurrency, engagement.expert_currency_id)
             expert_currency = row.name if row else None
+        is_completed = bool(engagement.call_completed_duration_mins)
+        c_rate = engagement.completed_client_rate if is_completed and engagement.completed_client_rate is not None else engagement.client_rate
+        e_rate = engagement.completed_expert_rate if is_completed and engagement.completed_expert_rate is not None else engagement.expert_rate
+        b_override = engagement.completed_billable_client_amount_usd if is_completed and engagement.completed_billable_client_amount_usd is not None else engagement.billable_client_amount_usd
+
         result = compute_profit_and_margin(
-            client_rate=engagement.client_rate,
+            client_rate=c_rate,
             client_currency=client_currency or 'USD',
-            expert_rate=engagement.expert_rate,
+            expert_rate=e_rate,
             expert_currency=expert_currency or 'USD',
             base_currency='USD',
             discount_percent=engagement.discount_offered_percent,
-            billable_override_in_base=engagement.billable_client_amount_usd,
+            billable_override_in_base=b_override,
         )
         engagement.gross_profit_usd = result['gross_profit']
         engagement.gross_margin_percent = result['margin_percentage']
@@ -389,14 +441,14 @@ def update_engagement(engagement_id):
     try:
         if old_project_id != engagement.project_id:
             if old_project_id:
-                old_proj = Project.query.get(old_project_id)
+                old_proj = db.session.get(Project, old_project_id)
                 if old_proj is not None:
                     old_arr = list(old_proj.engagement_ids or [])
                     if engagement.id in old_arr:
                         old_arr = [x for x in old_arr if x != engagement.id]
                         old_proj.engagement_ids = old_arr
             if engagement.project_id:
-                new_proj = Project.query.get(engagement.project_id)
+                new_proj = db.session.get(Project, engagement.project_id)
                 if new_proj is not None:
                     new_arr = list(new_proj.engagement_ids or [])
                     if engagement.id not in new_arr:
@@ -427,11 +479,163 @@ def compute_profit_api():
     except Exception as e:
         return jsonify({'error': 'Could not compute gross profit', 'details': str(e)}), 400
 
+@engagements_bp.route('/<engagement_id>/schedule', methods=['POST'])
+def schedule_meeting(engagement_id):
+    engagement = db.session.get(Engagement, engagement_id)
+    if not engagement:
+        return jsonify({'error': 'Engagement not found'}), 404
+    
+    # 1. Gather Details
+    topic = f"{engagement.project.title} | Expert Call | Hasamex"
+    start_time = engagement.call_date
+    duration = engagement.actual_call_duration_mins or 60
+    
+    expert_email = engagement.expert.primary_email if engagement.expert else None
+    
+    # Client email comes from User model (poc_user_id relationship)
+    client_email = engagement.poc_user.email if engagement.poc_user else None
+
+    print(f"DEBUG: Scheduling call for Engagement {engagement_id}")
+    print(f"DEBUG: Expert Email found: {expert_email}")
+    print(f"DEBUG: Client Email found: {client_email}")
+
+    # 2. Zoom Meeting
+    zoom_res = None
+    if engagement.zoom_meeting_id:
+        # Update existing
+        success = zoom_service.update_meeting(
+            engagement.zoom_meeting_id,
+            topic=topic,
+            start_time=start_time,
+            duration_mins=duration
+        )
+        if success:
+            zoom_res = {
+                "meeting_id": engagement.zoom_meeting_id,
+                "join_url": engagement.zoom_join_url,
+                "password": engagement.zoom_password
+            }
+        else:
+            return jsonify({'error': 'Failed to update Zoom meeting'}), 500
+    else:
+        # Create new
+        zoom_data = zoom_service.create_meeting(topic, start_time, duration)
+        if not zoom_data:
+            return jsonify({'error': 'Failed to create Zoom meeting'}), 500
+        
+        engagement.zoom_meeting_id = zoom_data['meeting_id']
+        engagement.zoom_join_url = zoom_data['join_url']
+        engagement.zoom_start_url = zoom_data['start_url']
+        engagement.zoom_password = zoom_data['password']
+        # Also update transcript_link_folder as it's used in the dashboard cards
+        engagement.transcript_link_folder = zoom_data['join_url']
+        zoom_res = zoom_data
+    
+    db.session.commit()
+
+    # 3. Zoho Calendar Invites
+    description_template = f"""<div style="font-family: Arial, sans-serif;">
+<p>This Hasamex expert call is confirmed as per the details below:</p>
+
+<p><b>Topic:</b> {engagement.project.title}<br>
+<b>Link:</b> <a href="{engagement.zoom_join_url}">{engagement.zoom_join_url}</a><br>
+<b>Meeting ID:</b> {engagement.zoom_meeting_id}<br>
+<b>Passcode:</b> {engagement.zoom_password}</p>
+
+<hr>
+
+<p>Please ensure that the discussion remains aligned with Hasamex’s compliance standards.</p>
+
+<p>As a reminder:<br>
+* Please do not request or discuss any confidential, proprietary, or non-public information, including internal financials or employer-specific data.<br>
+* Please do not request or share personal contact information (email, phone number, etc.) during the call.<br>
+* Any follow-up work or additional discussions should be routed only through Hasamex.<br>
+* This call will be recorded and transcribed.</p>
+
+<p>For any compliance-related questions, please feel free to reach out to us on <a href="mailto:compliance@hasamex.com">compliance@hasamex.com</a></p>
+
+<p>- Hasamex Team<br>
+<a href="https://www.hasamex.com">www.hasamex.com</a></p>
+</div>
+"""
+
+    zoho_errors = []
+    # Zoho automatically prefixes "Invitation: " and appends the date/time in its email.
+    summary = topic
+
+    # Expert Invitation
+    if expert_email:
+        expert_start_time = engagement.expert_call_date or start_time
+        if engagement.zoho_event_id_expert:
+            # Update existing event
+            zoho_calendar_service.update_event(
+                event_id=engagement.zoho_event_id_expert,
+                summary=summary,
+                description=description_template,
+                start_time=expert_start_time,
+                duration_mins=duration,
+                attendee_email=expert_email,
+                timezone=engagement.expert_timezone or "Asia/Kolkata"
+            )
+        else:
+            # Create new event
+            expert_event_id = zoho_calendar_service.create_event(
+                summary=summary,
+                description=description_template,
+                start_time=expert_start_time,
+                duration_mins=duration,
+                attendee_email=expert_email,
+                timezone=engagement.expert_timezone or "Asia/Kolkata"
+            )
+            if expert_event_id:
+                engagement.zoho_event_id_expert = expert_event_id
+            else:
+                zoho_errors.append(f"Failed to send invite to expert ({expert_email})")
+    
+    # Client Invitation
+    if client_email:
+        if engagement.zoho_event_id_client:
+            # Update existing event
+            zoho_calendar_service.update_event(
+                event_id=engagement.zoho_event_id_client,
+                summary=summary,
+                description=description_template,
+                start_time=start_time,
+                duration_mins=duration,
+                attendee_email=client_email,
+                timezone=engagement.client_timezone or "Asia/Kolkata"
+            )
+        else:
+            # Create new event
+            client_event_id = zoho_calendar_service.create_event(
+                summary=summary,
+                description=description_template,
+                start_time=start_time,
+                duration_mins=duration,
+                attendee_email=client_email,
+                timezone=engagement.client_timezone or "Asia/Kolkata"
+            )
+            if client_event_id:
+                 engagement.zoho_event_id_client = client_event_id
+            else:
+                zoho_errors.append(f"Failed to send invite to client ({client_email})")
+
+    db.session.commit()
+
+    return jsonify({
+        'message': 'Meeting scheduled/updated and invites sent',
+        'zoom': zoom_res,
+        'zoho_errors': zoho_errors,
+        'engagement': engagement.to_dict()
+    }), 200
+
 @engagements_bp.route('/<engagement_id>', methods=['DELETE'])
 def delete_engagement(engagement_id):
-    engagement = Engagement.query.get_or_404(engagement_id)
+    engagement = db.session.get(Engagement, engagement_id)
+    if not engagement:
+        return jsonify({'error': 'Engagement not found'}), 404
     try:
-        proj = Project.query.get(engagement.project_id)
+        proj = db.session.get(Project, engagement.project_id)
         if proj is not None:
             arr = list(proj.engagement_ids or [])
             if engagement.id in arr:

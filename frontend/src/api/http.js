@@ -1,6 +1,6 @@
 import { getToken, clearToken } from '../auth/token';
 
-const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+const BASE_URL = (import.meta.env.VITE_API_URL || '/api/v1').replace(/\/+$/, '');
 
 /**
  * Base HTTP wrapper with interceptors.

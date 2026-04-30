@@ -32,6 +32,10 @@ export async function fetchExperts({ page = 1, limit = 20, search = '', filters 
     if (filters.sector?.length) query.append('primary_sector', filters.sector.join(','));
     if (filters.status?.length) query.append('expert_status', filters.status.join(','));
     if (filters.employment?.length) query.append('current_employment_status', filters.employment.join(','));
+    if (filters.created_date?.length) query.append('created_date', filters.created_date.join(','));
+    if (filters.start_time) query.append('start_time', filters.start_time);
+    if (filters.end_time) query.append('end_time', filters.end_time);
+    query.append('time_all', filters.time_all !== false ? 'true' : 'false');
 
     try {
         const result = await http(`/experts?${query.toString()}`);
@@ -53,7 +57,7 @@ export async function getFilterOptions() {
         return result || {};
     } catch (error) {
         console.error('Failed to fetch filter options:', error);
-        return { region: [], primary_sector: [], expert_status: [], current_employment_status: [] };
+        return { region: [], primary_sector: [], expert_status: [], current_employment_status: [], created_dates: [] };
     }
 }
 
@@ -192,8 +196,8 @@ export async function exportExperts(params = {}) {
             const val = filters[key];
             if (Array.isArray(val) && val.length > 0) {
                 query.append(key, val.join(','));
-            } else if (val && !Array.isArray(val)) {
-                query.append(key, val);
+            } else if (val !== null && val !== undefined && !Array.isArray(val)) {
+                query.append(key, val.toString());
             }
         });
     }

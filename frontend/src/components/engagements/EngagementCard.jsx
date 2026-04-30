@@ -195,6 +195,14 @@ export default function EngagementCard({ engagement, onEdit, onDelete }) {
                         <span className="eng-card__label">Duration</span>
                         <span className="eng-card__value">{engagement.actual_call_duration_mins || 60} min</span>
                     </div>
+                    <div className="eng-card__item">
+                        <span className="eng-card__label">Expert Timeline</span>
+                        <span className="eng-card__value">{engagement.expert_timezone || '—'}</span>
+                    </div>
+                    <div className="eng-card__item">
+                        <span className="eng-card__label">Client Timeline</span>
+                        <span className="eng-card__value">{engagement.client_timezone || '—'}</span>
+                    </div>
                 </div>
             </div>
             

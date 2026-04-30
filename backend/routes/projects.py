@@ -12,6 +12,11 @@ from sqlalchemy import or_, func, text
 
 projects_bp = Blueprint('projects', __name__, url_prefix='/api/v1/projects')
 
+# Register send-expert-report route (defined in separate module)
+from routes.send_expert_report import register_send_expert_report
+register_send_expert_report(projects_bp)
+
+
 
 def _notify_n8n_project_created(app, project):
     """Fire-and-forget: POST project data to n8n webhook in background thread."""
@@ -71,12 +76,13 @@ def get_projects():
     client_id = request.args.get('client_id', type=int)
     poc_user_id = request.args.get('poc_user_id', type=int)
 
-    query = Project.query.outerjoin(Client, Project.client_id == Client.client_id).outerjoin(User, Project.poc_user_id == User.user_id)
+    query = Project.query.outerjoin(Client, Project.client_id == Client.client_id)
 
     if client_id:
         query = query.filter(Project.client_id == client_id)
     if poc_user_id:
-        query = query.filter(Project.poc_user_id == poc_user_id)
+        # Cast the JSONB array to text and search for the ID or use contains
+        query = query.filter(Project.poc_user_ids.contains([poc_user_id]))
 
     if search:
         like = f"%{search}%"
@@ -85,11 +91,10 @@ def get_projects():
                 Project.title.ilike(like),
                 Project.project_title.ilike(like),
                 Project.project_description.ilike(like),
-                Project.target_companies.ilike(like),
+                Project.target_companies.cast(db.String).ilike(like),
                 Project.target_functions_titles.ilike(like),
                 Project.status.ilike(like),
                 Client.client_name.ilike(like),
-                User.user_name.ilike(like),
             )
         )
 
@@ -132,7 +137,7 @@ def get_projects_summary():
     months = [int(x) for x in months_str.split(',') if x.strip().isdigit()]
     years = [int(x) for x in years_str.split(',') if x.strip().isdigit()]
 
-    query = Project.query.outerjoin(Client, Project.client_id == Client.client_id).outerjoin(User, Project.poc_user_id == User.user_id)
+    query = Project.query.outerjoin(Client, Project.client_id == Client.client_id)
 
     if client_ids:
         query = query.filter(Project.client_id.in_(client_ids))
@@ -354,7 +359,7 @@ def create_project():
 
     new_project = Project(
         client_id=_safe_int(data.get('client_id')),
-        poc_user_id=_safe_int(data.get('poc_user_id')),
+        poc_user_ids=data.get('poc_user_ids') or [],
         received_date=parse_date(data.get('received_date')),
         project_title=data.get('project_title'),
         title=data.get('title') or data.get('project_title') or 'Untitled Project',
@@ -1224,3 +1229,104 @@ def generate_outreach_preview():
         return jsonify({"error": f"Failed to generate outreach messages: {str(e)}"}), 500
 
     return jsonify({"data": parsed}), 200
+
+
+# ── PDF Expert Upload endpoint ──────────────────────────────────────────────
+
+@projects_bp.route('/<int:project_id>/upload-expert-pdfs', methods=['POST'])
+def upload_expert_pdfs(project_id):
+    """
+    POST /api/v1/projects/<id>/upload-expert-pdfs
+    Accepts multipart/form-data with one or more PDF files under key 'files[]'.
+
+    Processes each PDF using the PdfExpertAgent (Gemini multimodal) to:
+      1. Extract expert details.
+      2. Create or smart-merge the expert in the DB.
+      3. Add the expert as a Lead in this project.
+
+    Returns a JSON summary:
+    {
+      "total": int,
+      "created": int,
+      "updated": int,
+      "duplicate": int,
+      "error": int,
+      "results": [ { filename, status, expert_id, name, message } ]
+    }
+    """
+    import uuid as _uuid
+    import os
+    from werkzeug.utils import secure_filename
+    from agents.pdf_expert_agent import PdfExpertAgent
+
+    # Validate project exists
+    project = Project.query.get_or_404(project_id)
+
+    files = request.files.getlist('files[]')
+    if not files:
+        return jsonify({'error': 'No files provided. Use files[] as the field name.'}), 400
+
+    # Only accept PDFs
+    allowed = {'pdf'}
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    upload_folder = os.path.join(base_dir, 'expert_pdf')
+    os.makedirs(upload_folder, exist_ok=True)
+
+    results = []
+    agent = PdfExpertAgent()
+
+    for file in files:
+        filename = file.filename or "unknown.pdf"
+        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+
+        if ext not in allowed:
+            results.append({
+                "filename": filename,
+                "status": "error",
+                "expert_id": None,
+                "name": None,
+                "message": "Only PDF files are supported.",
+            })
+            continue
+
+        # Save temp file
+        safe_name = f"{_uuid.uuid4().hex}_{secure_filename(filename)}"
+        temp_path = os.path.join(upload_folder, safe_name)
+
+        try:
+            file.save(temp_path)
+            result = agent.process(temp_path, project_id, db, filename=filename)
+            results.append(result)
+        except Exception as e:
+            import traceback
+            print(f"PDF_ROUTE: Unexpected error for {filename}: {e}")
+            print(traceback.format_exc())
+            results.append({
+                "filename": filename,
+                "status": "error",
+                "expert_id": None,
+                "name": None,
+                "message": f"Unexpected error: {str(e)}",
+            })
+        finally:
+            # Clean up temp file
+            try:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+            except Exception:
+                pass
+
+    # Build summary counts
+    counts = {"created": 0, "updated": 0, "duplicate": 0, "error": 0}
+    for r in results:
+        s = r.get("status", "error")
+        counts[s] = counts.get(s, 0) + 1
+
+    return jsonify({
+        "total":     len(results),
+        "created":   counts["created"],
+        "updated":   counts["updated"],
+        "duplicate": counts["duplicate"],
+        "error":     counts["error"],
+        "results":   results,
+    }), 200

@@ -148,6 +148,7 @@ def create_app():
     from routes.ingest import ingest_bp
     from routes.n8n_webhook import n8n_bp
     from routes.chat import chat_bp
+    from routes.manual_search import manual_search_bp
 
     app.register_blueprint(experts_bp)
     app.register_blueprint(lookups_bp)
@@ -164,6 +165,7 @@ def create_app():
     app.register_blueprint(ingest_bp)
     app.register_blueprint(n8n_bp)
     app.register_blueprint(chat_bp)
+    app.register_blueprint(manual_search_bp)
 
     # Configure and create uploads folder for expert PDFs
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'expert_pdf')

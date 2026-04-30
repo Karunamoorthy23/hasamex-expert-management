@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
 
-def _send_via_brevo(to, subject, html, reply_to=None, cc=None, bcc=None):
+def _send_via_brevo(to, subject, html=None, text=None, reply_to=None, cc=None, bcc=None):
     """Send email using Brevo Transactional Email API."""
     api_key = os.getenv("BREVO_API_KEY", "")
     sender_name = os.getenv("MAIL_SENDER_NAME", "Hasamex")
@@ -35,8 +35,11 @@ def _send_via_brevo(to, subject, html, reply_to=None, cc=None, bcc=None):
         "sender": {"name": sender_name, "email": sender_email},
         "to": to_list,
         "subject": subject,
-        "htmlContent": html,
     }
+    if html:
+        payload["htmlContent"] = html
+    if text:
+        payload["textContent"] = text
 
     if reply_to:
         payload["replyTo"] = {"email": reply_to} if isinstance(reply_to, str) else {"email": reply_to[0]}
@@ -65,7 +68,7 @@ def _send_via_brevo(to, subject, html, reply_to=None, cc=None, bcc=None):
     return response.json()
 
 
-def _send_via_resend(to, subject, html, reply_to=None, cc=None, bcc=None):
+def _send_via_resend(to, subject, html=None, text=None, reply_to=None, cc=None, bcc=None):
     """Legacy: Send email using Resend API (kept for backward compatibility)."""
     import resend
 
@@ -80,8 +83,11 @@ def _send_via_resend(to, subject, html, reply_to=None, cc=None, bcc=None):
         "from": mail_from,
         "to": [to] if isinstance(to, str) else to,
         "subject": subject,
-        "html": html,
     }
+    if html:
+        payload["html"] = html
+    if text:
+        payload["text"] = text
     if reply_to:
         payload["reply_to"] = reply_to
     if cc:
@@ -92,7 +98,7 @@ def _send_via_resend(to, subject, html, reply_to=None, cc=None, bcc=None):
     return resend.Emails.send(payload)
 
 
-def send_email(to, subject, html, reply_to=None, cc=None, bcc=None):
+def send_email(to, subject, html=None, text=None, reply_to=None, cc=None, bcc=None):
     """
     Send an email using the configured provider.
 
@@ -105,8 +111,8 @@ def send_email(to, subject, html, reply_to=None, cc=None, bcc=None):
     provider = (os.getenv("EMAIL_PROVIDER", "brevo") or "brevo").lower()
 
     if provider == "brevo":
-        return _send_via_brevo(to, subject, html, reply_to, cc, bcc)
+        return _send_via_brevo(to, subject, html, text, reply_to, cc, bcc)
     elif provider == "resend":
-        return _send_via_resend(to, subject, html, reply_to, cc, bcc)
+        return _send_via_resend(to, subject, html, text, reply_to, cc, bcc)
     else:
         raise RuntimeError(f"Unsupported email provider: '{provider}'. Use 'brevo' or 'resend'.")

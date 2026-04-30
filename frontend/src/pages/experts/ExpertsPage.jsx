@@ -31,6 +31,10 @@ export default function ExpertsPage() {
         sector: [],
         status: [],
         employment: [],
+        created_date: [],
+        time_all: true,
+        start_time: '',
+        end_time: '',
     });
     const [page, setPage] = useState(1);
     const [view, setView] = useState('table'); // 'table' | 'cards'
@@ -54,7 +58,7 @@ export default function ExpertsPage() {
     const debouncedSearch = useDebouncedValue(search, 400);
 
     // ── Filter options (lookups) ──
-    const [lookups, setLookups] = useState({ region: [], primary_sector: [], expert_status: [], current_employment_status: [] });
+    const [lookups, setLookups] = useState({ region: [], primary_sector: [], expert_status: [], current_employment_status: [], created_dates: [] });
 
     useEffect(() => {
         getFilterOptions().then((data) => {
@@ -103,7 +107,16 @@ export default function ExpertsPage() {
     }, []);
 
     const handleClearAllFilters = useCallback(() => {
-        setFilters({ region: [], sector: [], status: [], employment: [] });
+        setFilters({ 
+            region: [], 
+            sector: [], 
+            status: [], 
+            employment: [],
+            created_date: [],
+            time_all: true,
+            start_time: '',
+            end_time: ''
+        });
     }, []);
 
     const handleSelectExpert = useCallback((id) => {

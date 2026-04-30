@@ -1,0 +1,6 @@
+ALTER TABLE engagements ADD COLUMN zoom_meeting_id VARCHAR(100);
+ALTER TABLE engagements ADD COLUMN zoom_join_url TEXT;
+ALTER TABLE engagements ADD COLUMN zoom_start_url TEXT;
+ALTER TABLE engagements ADD COLUMN zoom_password VARCHAR(100);
+ALTER TABLE engagements ADD COLUMN zoho_event_id_expert VARCHAR(100);
+ALTER TABLE engagements ADD COLUMN zoho_event_id_client VARCHAR(100);
