@@ -7,7 +7,8 @@ import {
     setProjectCallAssignment, 
     sendProjectInvites,
     fetchExpertSubmission,
-    sendExpertReport
+    sendExpertReport,
+    triggerExpertSearch
 } from '../../api/projects';
 import { fetchClientById } from '../../api/clients';
 import Modal from '../../components/ui/Modal';
@@ -270,6 +271,7 @@ export default function ProjectDetails() {
     const [copySuccess, setCopySuccess] = useState(false);
     const [isGeneratingOutreach, setIsGeneratingOutreach] = useState(false);
     const [outreachToast, setOutreachToast] = useState(null); // 'success' | 'error'
+    const [isSearchingExperts, setIsSearchingExperts] = useState(false);
 
     // Expert Report sending states
     const [reportRates, setReportRates] = useState({});           // { expertId: rateString }
@@ -593,6 +595,19 @@ export default function ProjectDetails() {
         }
     };
 
+    const handleTriggerSearch = async () => {
+        setIsSearchingExperts(true);
+        try {
+            const res = await triggerExpertSearch(id);
+            alert(res.message || 'Expert search completed. Check backend terminal for details.');
+        } catch (err) {
+            console.error('Search failed:', err);
+            alert('Expert search failed. Check console for details.');
+        } finally {
+            setIsSearchingExperts(false);
+        }
+    };
+
     const receivedDate = useMemo(
         () => (project?.received_date ? new Date(project.received_date).toLocaleDateString() : '—'),
         [project?.received_date]
@@ -776,6 +791,31 @@ export default function ProjectDetails() {
                     <div className="hdr-top">
                         <div className="hdr-title">{project.project_title || project.title || 'Project'}</div>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <button
+                                className="btn-edit"
+                                style={{ background: isSearchingExperts ? '#555' : '#8b1a1a', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                                onClick={handleTriggerSearch}
+                                disabled={isSearchingExperts}
+                                title="Run AI-driven expert search on LinkedIn (results printed to terminal)"
+                            >
+                                {isSearchingExperts ? (
+                                    <>
+                                        <svg width="14" height="14" viewBox="0 0 50 50" style={{ animation: 'spin-anim 1s linear infinite' }}>
+                                            <circle cx="25" cy="25" r="20" stroke="currentColor" strokeWidth="6" fill="none" strokeDasharray="31.4 31.4">
+                                                <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+                                            </circle>
+                                        </svg>
+                                        Searching…
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                        </svg>
+                                        Find Experts
+                                    </>
+                                )}
+                            </button>
                             <button className="btn-edit" style={{ background: '#0d1b3e' }} onClick={() => window.open(`/project-form/${project.project_id}`, '_blank')}>View Project Form</button>
                             <button
                                 className="btn-edit"

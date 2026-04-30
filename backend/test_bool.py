@@ -5,9 +5,9 @@ from dotenv import load_dotenv
 
 load_dotenv('flask.env')
 token = os.getenv('APIFY_API_TOKEN')
-url = f'https://api.apify.com/v2/acts/M2FMdjRVeF1HPGFcc/run-sync-get-dataset-items?token={token}&timeout=180'
+url = f'https://api.apify.com/v2/acts/get-leads~linkedin-scraper/run-sync-get-dataset-items?token={token}&timeout=180'
 payload = {
-    'searchQuery': '("procurement" OR "sourcing") AND (Bayer OR Orifarm) AND ("softgel" OR "nutraceutical")',
+    'keywords': ['Elon Musk'],
     'profileScraperMode': 'Short',
     'maxItems': 5,
     'takePages': 1

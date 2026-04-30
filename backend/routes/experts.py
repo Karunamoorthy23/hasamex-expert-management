@@ -27,11 +27,18 @@ def get_filter_options():
     GET /api/v1/experts/filter-options
     Returns only the specific enumerations required by ExpertsFiltersPanel.jsx
     """
+    distinct_dates = db.session.query(func.date(Expert.created_at)).distinct().order_by(func.date(Expert.created_at).desc()).all()
+    created_dates = []
+    for d in distinct_dates:
+        if d[0]:
+            created_dates.append(d[0].strftime('%d/%m/%Y'))
+
     return jsonify({
         'region': [item.name for item in LkRegion.query.order_by(LkRegion.id).all()],
         'primary_sector': [item.name for item in LkPrimarySector.query.order_by(LkPrimarySector.id).all()],
         'expert_status': [item.name for item in LkExpertStatus.query.order_by(LkExpertStatus.id).all()],
-        'current_employment_status': [item.name for item in LkEmploymentStatus.query.order_by(LkEmploymentStatus.id).all()]
+        'current_employment_status': [item.name for item in LkEmploymentStatus.query.order_by(LkEmploymentStatus.id).all()],
+        'created_dates': created_dates
     })
 
 
@@ -68,6 +75,11 @@ def _apply_experts_filters(query, args):
     # Re-evaluating args usage. args can be request.args
     employment = args.get('current_employment_status', '', type=str).strip()
     ids = args.get('ids', '', type=str).strip()
+    
+    created_dates_str = args.get('created_date', '', type=str).strip()
+    start_time = args.get('start_time', '', type=str).strip()
+    end_time = args.get('end_time', '', type=str).strip()
+    time_all = args.get('time_all', 'true', type=str).strip().lower() == 'true'
 
     # ── IDs Filter ──
     if ids:
@@ -112,6 +124,30 @@ def _apply_experts_filters(query, args):
         emp_list = [e.strip() for e in employment.split(',') if e.strip()]
         if emp_list:
             query = query.filter(Expert.rel_current_employment_status.has(LkEmploymentStatus.name.in_(emp_list)))
+
+    # ── Created Date Filter ──
+    if created_dates_str:
+        created_dates = [d.strip() for d in created_dates_str.split(',') if d.strip()]
+        if created_dates:
+            date_conditions = []
+            for date_str in created_dates:
+                try:
+                    target_date = datetime.strptime(date_str, '%d/%m/%Y').date()
+                    date_conditions.append(func.date(Expert.created_at) == target_date)
+                except ValueError:
+                    continue
+            if date_conditions:
+                query = query.filter(or_(*date_conditions))
+                
+    # ── Time Range Filter ──
+    if not time_all and (start_time or end_time):
+        try:
+            s_time = datetime.strptime(start_time, '%H:%M').time() if start_time else datetime.min.time()
+            e_time = datetime.strptime(end_time, '%H:%M').time() if end_time else datetime.max.time()
+            from sqlalchemy import cast, Time
+            query = query.filter(cast(Expert.created_at, Time).between(s_time, e_time))
+        except ValueError:
+            pass
 
     return query
 

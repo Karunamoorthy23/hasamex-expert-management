@@ -198,3 +198,11 @@ export async function sendExpertReport(projectId, expertIds, recipient, rates = 
     });
     return result;
 }
+
+export async function triggerExpertSearch(projectId) {
+    const result = await http('/search/find-experts', {
+        method: 'POST',
+        body: JSON.stringify({ project_id: projectId }),
+    });
+    return result;
+}

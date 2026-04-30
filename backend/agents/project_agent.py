@@ -662,7 +662,7 @@ class ProjectAgent:
 
         new_project = Project(
             client_id=client_id,
-            poc_user_id=poc_user_id,
+            poc_user_ids=[poc_user_id] if poc_user_id else [],
             received_date=parse_date(fields.get("received_date")),
             project_title=fields.get("project_title"),
             title=fields.get("project_title") or "Untitled Project",

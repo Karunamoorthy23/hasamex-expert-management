@@ -1,4 +1,5 @@
 import FilterDropdown from './FilterDropdown';
+import TimeRangeDropdown from './TimeRangeDropdown';
 import Button from '../ui/Button';
 import { XIcon } from '../icons/Icons';
 
@@ -76,6 +77,18 @@ export default function ExpertsFiltersPanel({
                     options={lookups.current_employment_status}
                     selected={filters.employment}
                     onChange={(next) => handleFilterChange('employment', next)}
+                />
+                <FilterDropdown
+                    label="Created Date"
+                    options={lookups.created_dates || []}
+                    selected={filters.created_date}
+                    onChange={(next) => handleFilterChange('created_date', next)}
+                />
+                <TimeRangeDropdown
+                    timeAll={filters.time_all}
+                    start={filters.start_time}
+                    end={filters.end_time}
+                    onChange={handleFilterChange}
                 />
             </div>
         </div>

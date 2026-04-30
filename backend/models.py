@@ -112,6 +112,14 @@ class ExpertStrength(db.Model):
     def to_dict(self):
         return self.topic_name
 
+class ExpertEnrichmentLog(db.Model):
+    __tablename__ = 'expert_enrichment_logs'
+    id = db.Column(db.Integer, primary_key=True)
+    expert_id = db.Column(UUID(as_uuid=False), db.ForeignKey('experts.id', ondelete='CASCADE'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.project_id', ondelete='SET NULL'), nullable=True)
+    raw_json = db.Column(JSONB, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 class Expert(db.Model):
     """Expert profile model — maps to 'experts' table."""
@@ -199,7 +207,14 @@ class Expert(db.Model):
             return self.notes.split('Deep Scrape Location: ')[1].strip()
         return None
     @property
-    def timezone(self): return self.rel_location.timezone if self.rel_location else None
+    def timezone(self): 
+        if self.rel_location and self.rel_location.timezone:
+            return self.rel_location.timezone
+        if self.notes and 'Timezone: ' in self.notes:
+            # Extract between 'Timezone: ' and ' | ' or end of string
+            part = self.notes.split('Timezone: ')[1]
+            return part.split(' | ')[0].strip()
+        return None
     @property
     def region(self): return self.rel_region.name if self.rel_region else None
     @property
@@ -1114,4 +1129,19 @@ class ChatMessage(db.Model):
             'content_text': self.content_text,
             'content_json': self.content_json,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+class StagingExpertEnhancement(db.Model):
+    __tablename__ = 'staging_expert_enhancement'
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.project_id', ondelete='CASCADE'), nullable=True)
+    basic_details = db.Column(JSONB, nullable=False) # name, linkedin_url, location, snippet, etc.
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'project_id': self.project_id,
+            'basic_details': self.basic_details,
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
